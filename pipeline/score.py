@@ -27,11 +27,11 @@ def fit_gate(vc: VC, rules: FitRules) -> tuple[bool, float, str]:
     return True, mult, ""
 
 
-def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> float:
-    """0..1. Best single signal (type x source x topic x recency) plus small bonuses. Every bonus is
+def strength_parts(signals: list[Signal], vc: VC, w: Weights, today: date) -> dict[str, float]:
+    """Fractions of 1.0: the best signal (type x source x topic x recency) plus small bonuses. Every bonus is
     scaled by topic relevance, so five general signals can't outrank a logistics signal."""
     if not signals:
-        return 0.0
+        return {"signal": 0.0, "activity": 0.0, "new": 0.0, "region": 0.0}
     scored = []
     for s in signals:
         age = max((today - s.published).days, 0)
@@ -42,14 +42,20 @@ def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> f
         scored.append((w.signal_types[s.type] * tier * topic * 0.5 ** (age / w.half_life_days), topic))
     scored.sort(reverse=True)
     best, best_topic = scored[0]
-    strength = best + w.extra_signal * sum(t for _, t in scored[1:4])
     newest = max(s.published for s in signals)
-    if vc.last_signal_date is None or newest > vc.last_signal_date:
-        strength += w.new_since_last_run * best_topic
+    is_new = vc.last_signal_date is None or newest > vc.last_signal_date
     geo = vc.geo.lower()
-    if any(g in geo for g in w.preferred_geos):
-        strength += w.preferred_geo * best_topic
-    return min(strength, 1.0)
+    return {
+        "signal": best,
+        "activity": w.extra_signal * sum(t for _, t in scored[1:4]),
+        "new": w.new_since_last_run * best_topic if is_new else 0.0,
+        "region": w.preferred_geo * best_topic if any(g in geo for g in w.preferred_geos) else 0.0,
+    }
+
+
+def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> float:
+    """0..1: the sum of the parts, capped."""
+    return min(sum(strength_parts(signals, vc, w, today).values()), 1.0)
 
 
 def _days_since(d: date | None, today: date) -> int | None:
@@ -107,17 +113,19 @@ def decide(vc: VC, signals: list[Signal], rules: FitRules, w: Weights, today: da
         return Decision(rule, action, 0, "In conversation. Keep the thread going.", None)
     if signals:
         score = round(100 * signal_strength(signals, vc, w, today) * fit_mult)
+        parts = {k: round(100 * v * fit_mult) for k, v in strength_parts(signals, vc, w, today).items()}
+        parts["fit"] = round(fit_mult, 2)
         summary = _summarise(signals)
         if rule == 5:
             summary = f"Waiting {waited} days for a reply. " + summary if waited is not None else summary
         if action == "reach_out" and score < w.reach_out_min_score:
-            return Decision(7, "quiet_list", score, "Weak signal. " + summary, newest)   # below the floor
+            return Decision(7, "quiet_list", score, "Weak signal. " + summary, newest, parts)   # below the floor
         if action == "quiet_list" and effective_status(vc, today) == "to_contact":
             if not any(s.relevance == "logistics" for s in signals):
                 summary = "Active, but nothing about logistics. " + summary
             else:
                 summary = f"No recent logistics signal (older than {w.reach_out_max_age} days). " + summary
-        return Decision(rule, action, score, summary, newest)
+        return Decision(rule, action, score, summary, newest, parts)
     if action == "nudge":
         n = waited
         text = f"{n} days" if n is not None else "an unknown time"

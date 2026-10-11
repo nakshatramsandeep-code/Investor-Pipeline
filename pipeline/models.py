@@ -62,6 +62,7 @@ class Decision:
     score: int                       # 0..100
     summary: str
     last_signal_date: date | None    # None = leave the stored value alone
+    parts: dict = field(default_factory=dict)   # how the score was built, for the dashboard
 
 
 @dataclass

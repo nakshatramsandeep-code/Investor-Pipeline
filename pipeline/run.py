@@ -172,7 +172,8 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
     detail = {"pages_found": n_found, "pages_usable": n_usable,
               "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),
               "undated": undated, "people_checked": checked, "signals_firm": n_firm,
-              "signals_people": sum(1 for s in signals if s.person_name)}
+              "signals_people": sum(1 for s in signals if s.person_name),
+              "score_parts": decision.parts}
     learned = None if vc.website else guess_website(
         [(s.source_domain, s.source_tier) for s in signals]
         + [(p.source_domain, p.source_tier) for p in found + list(known_people or []) if not p.manual])
