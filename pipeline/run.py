@@ -13,7 +13,8 @@ import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from .config import RunFiles, load_run_files
@@ -113,6 +114,12 @@ def _usable(pages: list[Page], vc: VC, rf: RunFiles) -> tuple[list[Page], dict[s
 def _add(into: dict[str, int], more: dict[str, int]) -> None:
     for k, v in more.items():
         into[k] = into.get(k, 0) + v
+
+
+def today_local() -> date:
+    """Today's date where Vikram is (IST by default), not on the CI runner, so 'days since contact' matches the
+    dates he logs. Override with PIPELINE_TZ."""
+    return datetime.now(ZoneInfo(os.environ.get("PIPELINE_TZ", "Asia/Kolkata"))).date()
 
 
 def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
@@ -250,7 +257,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int)
     ap.add_argument("--no-people", action="store_true", help="skip partner discovery and per-person checks")
     ap.add_argument("--workers", type=int, default=5)
-    ap.add_argument("--today", type=date.fromisoformat, default=date.today())
+    ap.add_argument("--today", type=date.fromisoformat, default=today_local())
     args = ap.parse_args(argv)
 
     rf = load_run_files()

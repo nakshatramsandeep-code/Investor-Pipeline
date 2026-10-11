@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS vcs (
     firm                text NOT NULL,
     thesis              text NOT NULL DEFAULT '',
     status              text NOT NULL DEFAULT 'to_contact'
-                        CHECK (status IN ('to_contact', 'waiting', 'in_conversation', 'approved', 'declined')),
+                        CHECK (status IN ('to_contact', 'waiting', 'in_conversation', 'approved', 'closed', 'declined')),
 
     -- Vikram's columns. The signal job can never touch these.
     notes               text,
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS vc_contacts (
 CREATE TABLE IF NOT EXISTS vc_interactions (
     id          bigserial PRIMARY KEY,
     vc_id       integer NOT NULL REFERENCES vcs(id) ON DELETE CASCADE,
-    kind        text NOT NULL CHECK (kind IN ('reached_out','follow_up','replied','call','meeting','approved','declined','note')),
+    kind        text NOT NULL CHECK (kind IN ('reached_out','follow_up','replied','call','meeting','approved','closed','declined','note')),
     note        text NOT NULL DEFAULT '',
     occurred_on date NOT NULL DEFAULT current_date,
     created_at  timestamptz NOT NULL DEFAULT now()
@@ -189,6 +189,7 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO signal_job;
 GRANT SELECT ON vcs, vc_interactions, vc_contacts TO dashboard_ed;
 GRANT UPDATE (status, last_contacted_at, notes, contact_history, revisit_on, next_step) ON vcs TO dashboard_ed;
 GRANT INSERT ON vc_interactions, vc_contacts TO dashboard_ed;
+GRANT DELETE ON vc_interactions TO dashboard_ed;   -- clearing test entries, and the Undo toast
 GRANT USAGE ON SEQUENCE vc_interactions_id_seq, vc_contacts_id_seq TO dashboard_ed;
 
 -- signal_job marks which evidence rows belong to the latest run's kept set.

@@ -160,6 +160,17 @@
   .statusblock .sub2 { color: var(--muted); font-size: 13px; margin-top: 4px; }
   .next { margin-top: 6px; font-size: 12.5px; color: #dcdcf0; }
   .card.compact .meta.warn { color: #f7c97a; }
+  .toast { display: flex; align-items: center; gap: 12px; }
+  .toastbtn { background: rgba(0,0,0,.18); border: 0; color: #04210f; font-weight: 700; padding: 3px 10px; border-radius: 7px; cursor: pointer; }
+  .toastbtn:hover { background: rgba(0,0,0,.3); }
+  .fitnote { color: var(--muted); font-size: 12.5px; margin: -6px 0 14px; }
+  details.notice > summary { cursor: pointer; list-style: none; }
+  details.notice > summary::before { content: "\25b8  "; }
+  details.notice[open] > summary::before { content: "\25be  "; }
+  details.notice p { margin: 6px 0 0 14px; color: #f0b9b9; font-size: 12.5px; }
+  button.linkbtn { border: 0; background: none; color: #b9a7ff; padding: 0 0 0 8px; font-size: 12px; cursor: pointer; text-decoration: underline; }
+  button.delbtn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; float: right; }
+  button.delbtn:hover { color: var(--red); }
   .tabs { display: flex; gap: 6px; margin: 0 0 18px; }
   .tabs a { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: 13px; }
   .tabs a.on { background: var(--purple); border-color: var(--purple); color: #fff; }
@@ -194,15 +205,26 @@ function el(tag, props = {}, ...kids) {
 }
 const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === "https:" || x.protocol === "http:" ? x.href : null; } catch { return null; } };
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : "never";
-const daysAgo = (d, now) => Math.max(0, Math.floor((now - new Date(d)) / 864e5));
+// Dates are the user's LOCAL calendar days. A date-only value ("2026-10-12") is a calendar day, so it is compared
+// to today's local date, not to a UTC timestamp; a timestamp is compared by elapsed time.
+const localIso = (daysBack = 0) => { const t = new Date(); t.setDate(t.getDate() - daysBack); return t.toLocaleDateString("en-CA"); };
+const isDateOnly = (d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
+const daysAgo = (d, now) => {
+  if (isDateOnly(d)) {
+    const [y, m, dd] = d.split("-").map(Number);
+    const a = new Date(y, m - 1, dd), b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.max(0, Math.round((b - a) / 864e5));
+  }
+  return Math.max(0, Math.floor((now - new Date(d)) / 864e5));
+};
 const label = (s) => String(s || "").replace(/_/g, " ");
 const LBL = {
-  status: { to_contact: "Prospect", waiting: "Contacted", in_conversation: "In talks", approved: "Approved", declined: "Declined" },
+  status: { to_contact: "Prospect", waiting: "Contacted", in_conversation: "In talks", approved: "Approved", closed: "Closed", declined: "Declined" },
   action: { reach_out: "Reach out now", nudge: "Follow up", hold: "Hold", quiet_list: "Dormant", skip: "Not a fit" },
   type: { portfolio_investment: "New investment", fund_announcement: "Fund news", interview: "Interview", blog_post: "Blog post", event_appearance: "Event / talk", other: "Other" },
 };
 const COL = {
-  status: { to_contact: "purple", waiting: "amber", in_conversation: "blue", approved: "green", declined: "red" },
+  status: { to_contact: "purple", waiting: "amber", in_conversation: "blue", approved: "green", closed: "green", declined: "red" },
   action: { reach_out: "green", nudge: "amber", hold: "blue", quiet_list: "gray", skip: "red" },
   type: { portfolio_investment: "green", fund_announcement: "purple", interview: "blue", blog_post: "teal", event_appearance: "amber", other: "gray" },
 };
@@ -242,10 +264,10 @@ const friendlyError = (e) => /gemini|empty response|json/i.test(e || "") ? "The 
 
 function bucketOf(v, now, hot) {
   let status = v.status;
-  const revisitDue = status === "declined" && v.revisit_on && new Date(v.revisit_on) <= now;
+  const revisitDue = status === "declined" && v.revisit_on && v.revisit_on <= localIso(0);
   if (revisitDue) status = "to_contact";
   if (status === "declined") return "declined";
-  if (status === "approved") return "approved";
+  if (status === "approved" || status === "closed") return "approved";
   if (status === "in_conversation") return "talks";
   if (status === "waiting") { const d = waitDays(v, now); return d == null || d >= NUDGE_DAYS ? "nudge" : "waiting"; }
   if (v.recommended_action === "skip" && !revisitDue) return "skip";
@@ -271,28 +293,67 @@ function signalsOf(v, evidence) {
   return { all, best: all[0] };
 }
 
-const toast = (text) => { const t = el("div", { class: "toast" }, text); document.body.append(t); setTimeout(() => t.remove(), 2600); };
+// A toast, optionally with an Undo button that stays for a few seconds longer.
+function toast(text, undo) {
+  const t = el("div", { class: "toast" }, text);
+  let timer;
+  if (undo) {
+    const b = el("button", { class: "toastbtn" }, "Undo");
+    b.onclick = async () => { clearTimeout(timer); t.remove(); await undo(); };
+    t.append(b);
+  }
+  document.body.append(t);
+  timer = setTimeout(() => t.remove(), undo ? 9000 : 2600);
+}
+
+// After any logged action: confirm it, and offer to put everything back exactly as it was.
+function savedToast(v, res, text, reload) {
+  toast(text, res && res.id ? async () => {
+    if (await editCall({ action: "undo_log", vc_id: v.id, interaction_id: res.id, prev: res.prev })) { toast("Undone"); reload(); }
+  } : null);
+}
 
 // One-click actions that make sense for where the investor is.
 function quickActions(v, bucket) {
+  const reload = () => load(undefined, true);
   const make = (text, body, primary) => {
     const b = el("button", { class: primary ? "primary" : "" }, text);
     b.onclick = async () => {
       b.disabled = true; b.textContent = "Saving\u2026";
-      if (await editCall({ vc_id: v.id, ...body })) { toast(`${v.firm}: ${text}`); load(undefined, true); }
+      const res = await editCall({ vc_id: v.id, ...(body.action === "log" ? { occurred_on: localIso(0) } : {}), ...body });
+      if (res) { savedToast(v, res, `${v.firm}: ${text}`, reload); reload(); }
       else { b.disabled = false; b.textContent = text; }
     };
     return b;
   };
-  const log = (kind) => ({ action: "log", kind });
+  // "Next step" opens a small inline field on the card.
+  const nextStep = (box) => {
+    const b = el("button", {}, "Next step");
+    b.onclick = () => {
+      const input = el("input", { placeholder: "e.g. send the deck by Friday", maxlength: "200", style: "flex:1;min-width:150px" }); input.value = v.next_step || "";
+      const save = el("button", { class: "primary" }, "Save"), cancel = el("button", {}, "Cancel");
+      const row = el("div", { class: "qa", style: "width:100%" }, input, save, cancel);
+      save.onclick = async () => { if (await editCall({ action: "next_step", vc_id: v.id, next_step: input.value })) { toast("Next step saved"); reload(); } };
+      cancel.onclick = () => row.replaceWith(box);
+      box.replaceWith(row); input.focus();
+    };
+    return b;
+  };
+  const log = (kind, extra = {}) => ({ action: "log", kind, ...extra });
   const sets = {
     reach: [["Mark reached out", log("reached_out"), true]],
     nudge: [["Followed up", log("follow_up"), true], ["They replied", log("replied")]],
     waiting: [["They replied", log("replied")]],
-    talks: [["They approved", log("approved")]],
+    talks: [["They approved", log("approved")], "NEXT"],
+    approved: v.status === "closed"
+      ? ["NEXT", ["Undo: back to approved", log("note", { status: "approved", note: "Closed undone: back to approved" })]]
+      : [["Mark closed", log("closed"), true], "NEXT", ["Undo approval", log("note", { status: "in_conversation", note: "Approval undone: back to in talks" })]],
     declined: [["Revisit in 6 months", { action: "revisit" }], ["Undo decline", { action: "undo_decline" }]],
   };
-  return sets[bucket] ? el("div", { class: "qa" }, sets[bucket].map(([t, b, p]) => make(t, b, p))) : null;
+  if (!sets[bucket]) return null;
+  const box = el("div", { class: "qa" });
+  box.append(...sets[bucket].map((e) => (e === "NEXT" ? nextStep(box) : make(e[0], e[1], e[2]))));
+  return box;
 }
 
 function card(v, evidence, now, bucket) {
@@ -302,7 +363,7 @@ function card(v, evidence, now, bucket) {
     nudge: d == null ? "Contacted \u00b7 no date recorded \u00b7 no reply" : `Contacted ${d}d ago \u00b7 no reply`,
     waiting: `Contacted ${d}d ago \u00b7 follow up on ${due}`,
     talks: d == null ? "In talks" : `In talks \u00b7 last contact ${d}d ago`,
-    approved: d == null ? "Committed to invest" : `Committed to invest \u00b7 last contact ${d}d ago`,
+    approved: (v.status === "closed" ? "Deal closed" : "Committed to invest") + (d == null ? "" : ` \u00b7 last contact ${d}d ago`),
     declined: (d == null ? "Declined" : `Declined ${d}d ago`) + (v.revisit_on ? ` \u00b7 revisit ${fmtDate(v.revisit_on)}` : ""),
   }[bucket] || null;
   const showSignal = bucket === "reach" && best;
@@ -312,10 +373,10 @@ function card(v, evidence, now, bucket) {
         : bucket === "nudge" ? el("span", { class: "chip c-amber" }, d == null ? "overdue" : `${d} days`) : null),
     meta ? el("div", { class: "meta" }, meta) : null,
     v.next_step && ["nudge", "waiting", "talks", "approved"].includes(bucket) ? el("div", { class: "next" }, "Next: " + v.next_step) : null,
-    showSignal || v.check_ok === false ? el("div", { class: "chips", style: "margin-top:6px" },
+    showSignal || (v.check_ok === false && bucket === "reach") ? el("div", { class: "chips", style: "margin-top:6px" },
       showSignal ? [tag("type", best.type), relChip(best), el("span", { class: "chip" }, `${daysAgo(best.published_date, now)}d ago`),
         el("span", { class: "chip" }, `${all.length} signal${all.length > 1 ? "s" : ""}`)] : null,
-      v.check_ok === false ? el("span", { class: "chip c-red", title: "The last check failed, so this is older data" }, "stale") : null) : null,
+      v.check_ok === false && bucket === "reach" ? el("span", { class: "chip c-red", title: "The last check failed, so this is older data" }, "stale") : null) : null,
     showSignal ? el("p", { class: "why one" }, best.summary) : null,
     quickActions(v, bucket));
 }
@@ -334,11 +395,13 @@ function pickFocus(g) {
 
 function hero(data, now, g, focus) {
   const { run, vcs, evidence } = data;
-  const failed = vcs.filter((v) => v.check_ok === false);
+  // Only prospects care: a failed check just means an older score, which doesn't matter once you've contacted them.
+  const failed = vcs.filter((v) => v.check_ok === false && v.status === "to_contact");
   const finished = run && run.finished_at ? new Date(run.finished_at) : null;
   const age = finished ? daysAgo(finished, now) : null;
   const notices = [];
-  if (failed.length) notices.push(`${failed.length} VC${failed.length > 1 ? "s" : ""} could not be checked last run (${failed.map((v) => v.firm).join(", ")}). Earlier results are shown, marked stale.`);
+  const failedNote = failed.length ? el("details", { class: "notice" }, el("summary", {}, `${failed.length} prospect${failed.length > 1 ? "s" : ""} couldn't be checked last run`),
+    el("p", {}, `${failed.map((v) => v.firm).join(", ")}. Their earlier results are shown and marked stale until the next run.`)) : null;
   if (run && run.error) notices.push("The last run hit an error. Previous results were kept.");
   if (age != null && age > 4) notices.push(`The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`);
 
@@ -372,7 +435,7 @@ function hero(data, now, g, focus) {
       tile("Reach out", g.reach.length, "prospects", "reach"), tile("Follow up due", g.nudge.length, "no reply", "nudge"),
       tile("In talks", g.talks.length, "live", "talks"), tile("Approved", g.approved.length, "committed", "approved")),
     el("div", { class: "runline" }, run ? `Last run ${when}: ${run.vcs_checked}/${run.vcs_total} investors checked, ${run.signals_kept} signals kept.` : "No run yet."));
-  return [...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
+  return [failedNote, ...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
 }
 
 function column(title, hint, items, o = {}) {
@@ -402,8 +465,8 @@ function listSection(title, hint, vs, textFn) {
 // No login: the site is meant to be private (Vercel Deployment Protection).
 async function editCall(body) {
   try {
-    const r = await fetch("/api/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    if (r.ok) return true;
+    const r = await fetch("/api/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ today: localIso(0), ...body }) });
+    if (r.ok) return await r.json().catch(() => ({ ok: true }));
     alert(r.status === 403 ? "Editing is not switched on yet (DASHBOARD_ED_URL is missing in Vercel)." : "Could not save.");
   } catch { alert("Could not save."); }
   return false;
@@ -429,7 +492,7 @@ const skeleton = () => [el("div", { class: "sk", style: "height:26px;width:240px
   el("div", { class: "board auto" }, [0, 1, 2].map(() => el("div", {}, [0, 1, 2].map(() => el("div", { class: "sk", style: "height:104px;margin-bottom:8px" })))))];
 
 function render(data) {
-  const now = new Date(data.now), g = groupVcs(data, now), focus = pickFocus(g);
+  const now = new Date(), g = groupVcs(data, now), focus = pickFocus(g);
   const lists = Object.fromEntries(Object.entries(g).map(([k, vs]) => [k, focus && focus.bucket === k ? vs.filter((v) => v.id !== focus.v.id) : vs]));
   const above = (k) => (focus && focus.bucket === k ? " \u00b7 top one is above" : "");
   const defs = [
@@ -456,7 +519,7 @@ function render(data) {
 }
 
 function renderStatus(data) {
-  const now = new Date(data.now), g = groupVcs(data, now);
+  const now = new Date(), g = groupVcs(data, now);
   const contacted = [...g.nudge, ...g.waiting];     // follow-ups due first
   const cols = [
     ["Reach out", `Logistics signal in the last ${MAX_SIGNAL_AGE} days`, g.reach.map((v) => card(v, data.evidence, now, "reach")), { limit: 10 }, g.reach.length],
@@ -485,6 +548,13 @@ function logoFor(v) {
   return img;
 }
 
+// Before you approach: a warning. Once you're talking: a quiet note. Once they've said no: nothing.
+function fitNote(v, bucket) {
+  if (!v.flag || bucket === "declined") return null;
+  if (["reach", "dormant", "skip"].includes(bucket)) return el("div", { class: "warnbox" }, el("b", {}, "Check the fit before you reach out. "), `${v.flag}. Their focus: ${v.thesis}.`);
+  return el("div", { class: "fitnote" }, `Fit note: ${v.flag}. Their focus: ${v.thesis}.`);
+}
+
 function statusBlock(v, now, bucket, score) {
   const d = waitDays(v, now);
   const due = v.last_contacted_at ? new Date(new Date(v.last_contacted_at).getTime() + NUDGE_DAYS * 864e5) : null;
@@ -492,7 +562,7 @@ function statusBlock(v, now, bucket, score) {
     nudge: ["Follow up due", d == null ? "Contacted, no date recorded" : `Contacted ${d} days ago, no reply`],
     waiting: [`Follow up on ${due ? fmtDate(due.toISOString()) : "?"}`, `Contacted ${d} days ago`],
     talks: ["In talks", d == null ? "" : `Last contact ${d} days ago`],
-    approved: ["Approved", "Committed to invest"],
+    approved: [v.status === "closed" ? "Closed" : "Approved", v.status === "closed" ? "Deal closed" : "Committed to invest"],
     declined: ["Declined", v.revisit_on ? `Revisit on ${fmtDate(v.revisit_on)}` : "No revisit date set"],
   }[bucket];
   if (text) return el("div", { class: "statusblock" }, el("div", { class: "big" }, text[0]), el("div", { class: "sub2" }, text[1]));
@@ -550,9 +620,7 @@ function whoPanel(d) {
     contactForm(d.vc));
 }
 
-const KINDS = [["reached_out", "I reached out"], ["follow_up", "I followed up"], ["replied", "They replied"], ["call", "We had a call"], ["meeting", "We met"], ["approved", "They approved (committed to invest)"], ["declined", "They declined"], ["note", "Just a note"]];
-
-const localIso = (daysBack) => { const t = new Date(); t.setDate(t.getDate() - daysBack); return t.toLocaleDateString("en-CA"); };
+const KINDS = [["reached_out", "I reached out"], ["follow_up", "I followed up"], ["replied", "They replied"], ["call", "We had a call"], ["meeting", "We met"], ["approved", "They approved (committed to invest)"], ["closed", "Deal closed"], ["declined", "They declined"], ["note", "Just a note"]];
 
 function logPanel(v) {
   const kind = el("select", {}, KINDS.map(([k, t]) => el("option", { value: k }, t)));
@@ -561,13 +629,13 @@ function logPanel(v) {
   const picker = el("input", { type: "date", value: localIso(0), style: "display:none" });
   when.onchange = () => { picker.style.display = when.value === "pick" ? "block" : "none"; };
   const status = el("select", {}, el("option", { value: "" }, "Keep automatic (recommended)"),
-    ["to_contact", "waiting", "in_conversation", "approved", "declined"].map((x) => el("option", { value: x }, `Set to: ${LBL.status[x]}`)));
+    ["to_contact", "waiting", "in_conversation", "approved", "closed", "declined"].map((x) => el("option", { value: x }, `Set to: ${LBL.status[x]}`)));
   const note = el("textarea", { rows: "3", placeholder: "What happened? (private)" });
   kind.onchange = () => { note.placeholder = kind.value === "declined" ? "Why did they decline? (this is saved as the reason)" : "What happened? (private)"; };
   const save = el("button", { class: "primary", onclick: async () => {
     const day = when.value === "pick" ? picker.value : localIso(Number(when.value));
-    const ok = await editCall({ action: "log", vc_id: v.id, kind: kind.value, occurred_on: day, note: note.value, status: status.value || undefined });
-    if (ok) { toast("Saved"); loadProfile(v.id); }
+    const res = await editCall({ action: "log", vc_id: v.id, kind: kind.value, occurred_on: day, note: note.value, status: status.value || undefined });
+    if (res) { savedToast(v, res, "Saved", () => loadProfile(v.id)); loadProfile(v.id); }
   } }, "Save");
   return el("div", { class: "panel" }, el("h3", {}, "Log activity"),
     el("div", { class: "form" }, el("div", { class: "two" }, el("label", {}, "What happened", kind), el("label", {}, "When", when, picker)),
@@ -583,7 +651,15 @@ function privatePanel(d) {
       el("p", { class: "note", style: "margin:0" }, "Editing is not switched on yet. Add DASHBOARD_ED_URL in Vercel to keep notes and log activity."));
   }
   const notes = el("textarea", { rows: "5", placeholder: "Anything worth remembering about this investor" }); notes.value = d.notes || "";
-  const timeline = (d.interactions || []).map((i) => el("div", { class: "tl" }, el("b", {}, (KINDS.find(([k]) => k === i.kind) || [0, label(i.kind)])[1]), " ", el("small", {}, fmtDate(i.occurred_on)), i.note ? el("div", {}, i.note) : null));
+  const del = (i) => {
+    const b = el("button", { class: "delbtn", title: "Delete this entry" }, "\u00d7");
+    b.onclick = async () => {
+      if (!confirm("Delete this log entry? 'Last contacted' is recalculated from what remains. The status is not changed.")) return;
+      if (await editCall({ action: "delete_interaction", vc_id: d.vc.id, interaction_id: Number(i.id) })) { toast("Entry deleted"); loadProfile(d.vc.id); }
+    };
+    return b;
+  };
+  const timeline = (d.interactions || []).map((i) => el("div", { class: "tl" }, del(i), el("b", {}, (KINDS.find(([k]) => k === i.kind) || [0, label(i.kind)])[1]), " ", el("small", {}, fmtDate(i.occurred_on)), i.note ? el("div", {}, i.note) : null));
   return el("div", { class: "panel" }, el("h3", {}, "Your notes and history"),
     el("div", { class: "form" }, el("label", {}, "Notes", notes),
       el("button", { onclick: async () => { if (await editCall({ action: "notes", vc_id: d.vc.id, notes: notes.value })) alert("Saved."); } }, "Save notes")),
@@ -604,7 +680,12 @@ function fitPanel(v) {
 }
 
 function relPanel(v, now) {
-  const kv = [["Status", tag("status", v.status)], ["Last contacted", v.last_contacted_at ? `${fmtDate(v.last_contacted_at)} (${daysAgo(v.last_contacted_at, now)}d ago)` : "Not recorded"],
+  const clear = el("button", { class: "linkbtn", title: "Forget the last-contacted date" }, "Clear");
+  clear.onclick = async () => {
+    if (!confirm("Clear 'Last contacted'? The status and the log are not changed.")) return;
+    if (await editCall({ action: "clear_contacted", vc_id: v.id })) { toast("Last contacted cleared"); loadProfile(v.id); }
+  };
+  const kv = [["Status", tag("status", v.status)], ["Last contacted", v.last_contacted_at ? [`${fmtDate(v.last_contacted_at)} (${daysAgo(v.last_contacted_at, now)}d ago)`, clear] : "Not recorded"],
     ["Latest signal", v.last_signal_date ? `${fmtDate(v.last_signal_date)} (${daysAgo(v.last_signal_date, now)}d ago)` : "None yet"]];
   const next = el("input", { placeholder: "e.g. send the deck by Friday", maxlength: "200" }); next.value = v.next_step || "";
   const save = el("button", { onclick: async () => { if (await editCall({ action: "next_step", vc_id: v.id, next_step: next.value })) toast("Next step saved"); } }, "Save");
@@ -675,7 +756,7 @@ function signalRow(e) {
 }
 
 function renderProfile(d) {
-  const v = d.vc, now = new Date(d.now), score = v.follow_up_score ?? 0;
+  const v = d.vc, now = new Date(), score = v.follow_up_score ?? 0;
   const bucket = bucketOf(v, now, hotSet(d.evidence, now));
   const unverified = d.evidence.filter((e) => e.source_tier === "legacy_unverified").length;
   show(
@@ -688,7 +769,7 @@ function renderProfile(d) {
           ? el("ul", { class: "bullets" }, v.signal_summary.split(" | ").map((t) => el("li", {}, t)))
           : el("p", { class: "sub", style: "margin-top:10px;max-width:640px" }, v.signal_summary || "Not scored yet.")),
       statusBlock(v, now, bucket, score)),
-    v.flag ? el("div", { class: "warnbox" }, el("b", {}, "Check the fit before you reach out. "), `${v.flag}. Their focus: ${v.thesis}.`) : null,
+    fitNote(v, bucket),
     bucket === "declined" ? declinedPanel(d) : null,
     el("div", { class: "pgrid" },
       whoPanel(d), logPanel(v),

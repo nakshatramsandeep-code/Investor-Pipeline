@@ -71,7 +71,7 @@ def route(vc: VC, signals: list[Signal], fit_ok: bool, w: Weights, today: date) 
 
     if not fit_ok or status == "declined":
         return 1, "skip"
-    if status in ("in_conversation", "approved"):
+    if status in ("in_conversation", "approved", "closed"):
         return 2, "hold"                                   # a live conversation: don't nudge or re-pitch
     if overdue:
         return 5, "nudge"                                  # contacted a week ago, no reply: silence is a reason
@@ -101,6 +101,8 @@ def decide(vc: VC, signals: list[Signal], rules: FitRules, w: Weights, today: da
     if action == "skip":
         why = reason or "Already declined"
         return Decision(rule, action, 0, f"Skipped: {why}", None)
+    if effective_status(vc, today) == "closed" and not signals:
+        return Decision(rule, action, 0, "Deal closed.", None)
     if effective_status(vc, today) == "approved" and not signals:
         return Decision(rule, action, 0, "Approved. Keep the relationship warm.", None)
     if effective_status(vc, today) == "in_conversation" and not signals:

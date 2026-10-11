@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT))
 
 from pipeline.config import load_run_files  # noqa: E402
 from pipeline.extract import GeminiExtract  # noqa: E402
-from pipeline.run import process_vc  # noqa: E402
+from pipeline.run import process_vc, today_local  # noqa: E402
 from pipeline.search import ExaSearch  # noqa: E402
 from pipeline.store import CsvStore  # noqa: E402
 
@@ -34,7 +34,7 @@ def main() -> int:
         if vc is None:
             print(f"  ?? {row['firm']}: not in seed list")
             continue
-        res = process_vc(vc, search, extractor, rf, date.today())
+        res = process_vc(vc, search, extractor, rf, today_local())
         invented += sum(1 for d in res.dropped if d["reason"] == "url_not_in_results")
         got = bool(res.signals)
         print(f"  {vc.firm:<30} expected={label or '-':<4} got={'yes' if got else 'no':<4}"

@@ -111,7 +111,7 @@ every investor by status, and cards have quick buttons.
 There is no login. Saving needs `DASHBOARD_ED_URL` in Vercel (user `dashboard_ed`, which can only change your
 four columns and add to the activity log and contacts). Because anyone who opens the URL could then read your
 notes and change your statuses, turn on **Vercel Deployment Protection** (Settings -> Deployment Protection) so
-only you can open the site. Statuses: Prospect, Contacted, In talks, Approved, Declined. Approved and In talks always
+only you can open the site. Statuses: Prospect, Contacted, In talks, Approved, Closed, Declined. Approved and In talks always
 route to hold. A declined investor can be given a revisit date (6 months) or have the decline undone; when the
 revisit date arrives they are treated as a prospect again. In talks and Approved cards show a short "next step" you set.
 
@@ -130,3 +130,14 @@ revisit date arrives they are treated as a prospect again. In talks and Approved
 The same event reported by two articles is one signal: two signals are merged when they are within 14 days,
 share a name or amount, and say mostly the same thing; the firm's own site wins over press. Evidence the latest
 run did not keep (duplicates, pages that vanished) is marked inactive, never deleted.
+
+## Undo, delete and dates
+
+Every logged action (including "They approved" and "They declined") shows a confirmation toast with an **Undo**
+button for about nine seconds; Undo deletes that entry and restores the previous status and last-contacted date.
+Each entry in an investor's history has a delete button (last contacted is recalculated from what remains), and
+"Last contacted" has a Clear button. Approved cards offer Mark closed, Next step and Undo approval.
+
+Dates are your local calendar days. The browser sends its own "today" with every save, so a save at 1 a.m. IST is
+dated today (the server runs on UTC and would say yesterday). The scheduled run also uses IST for "days since
+contact" (`PIPELINE_TZ` to change it).

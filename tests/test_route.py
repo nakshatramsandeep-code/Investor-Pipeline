@@ -226,3 +226,24 @@ def test_declined_investor_comes_back_when_the_revisit_date_arrives(rf):
     assert r(due, [make_signal()], rf) == (3, "reach_out")
     assert r(later, [make_signal()], rf) == (1, "skip")
     assert r(make_vc(status="declined"), [make_signal()], rf) == (1, "skip")
+
+
+def test_closed_deal_always_holds(rf):
+    assert r(make_vc(status="closed"), [make_signal()], rf) == (2, "hold")
+    d = decide(make_vc(status="closed"), [], rf.fit, rf.weights, TODAY)
+    assert d.action == "hold" and d.summary == "Deal closed."
+
+
+def test_today_is_the_local_date_not_the_runners(monkeypatch):
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+    from pipeline import run as runmod
+
+    class Fake(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 11, 20, 0, tzinfo=timezone.utc).astimezone(tz)   # 01:30 IST on the 12th
+    monkeypatch.setattr(runmod, "datetime", Fake)
+    assert str(runmod.today_local()) == "2026-10-12"
+    monkeypatch.setenv("PIPELINE_TZ", "UTC")
+    assert str(runmod.today_local()) == "2026-10-11"
