@@ -6,138 +6,197 @@
 <title>Investor Pipeline</title>
 <style>
   :root {
-    --bg: #f6f7fb; --card: #ffffff; --text: #151a2d; --muted: #66708a; --line: #e3e6ef;
-    --accent: #2f5bea; --good: #1c7c4d; --warn: #b26a00; --bad: #b3261e; --chip: #eef1f9;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #0f1220; --card: #181c30; --text: #e8ebf7; --muted: #98a1bf; --line: #2a3050;
-            --accent: #7b9bff; --good: #5fd49a; --warn: #f0b04a; --bad: #ff8a80; --chip: #232845; }
+    --bg: #0a0a0f; --panel: #14141b; --panel2: #1b1b24; --line: #262633; --text: #f3f3f7; --muted: #8d8da0;
+    --purple: #7b5cff; --purple2: #b07bff; --green: #4ade80; --pink: #ff5fa2; --blue: #5b8cff; --amber: #f5b14a; --red: #ff7a7a;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 32px 0 10px; }
-  .sub { color: var(--muted); margin: 0 0 16px; }
-  .banner { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--card); margin-bottom: 8px; }
-  .banner.warn { border-color: var(--warn); } .banner.bad { border-color: var(--bad); }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
-  .row { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
-  .firm { font-weight: 650; font-size: 16px; }
-  .score { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
-  .why { margin: 6px 0 0; }
-  .meta { color: var(--muted); font-size: 13px; margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .chip { background: var(--chip); border-radius: 999px; padding: 1px 9px; font-size: 12px; }
-  .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); } .chip.good { color: var(--good); }
-  .ev { border-top: 1px dashed var(--line); margin-top: 10px; padding-top: 8px; font-size: 14px; }
-  .ev q { color: var(--muted); display: block; font-size: 13px; margin: 2px 0 4px; }
-  a { color: var(--accent); }
-  button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: transparent; color: var(--text);
-           border-radius: 8px; padding: 2px 9px; cursor: pointer; }
-  button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-  details { margin-top: 8px; font-size: 13px; color: var(--muted); }
-  .quiet { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 16px; font-size: 14px; }
-  .empty { color: var(--muted); padding: 8px 0; }
-  #gate { max-width: 360px; margin: 20vh auto; padding: 0 16px; }
-  input { width: 100%; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
-          background: var(--card); color: var(--text); margin: 8px 0; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1320px; margin: 0 auto; padding: 24px 20px 72px; }
+  .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .logo { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--purple), var(--purple2)); }
+  h1 { font: 700 28px/1.1 var(--mono); margin: 0 0 6px; letter-spacing: -.02em; }
+  .sub { color: var(--muted); margin: 0; }
+  .sub b { color: var(--text); font-weight: 600; }
+  .hero { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 14px; margin-bottom: 30px; }
+  @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
+  .insight { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .insight.bad { border-color: #5a2a2a; }
+  .insight h3 { margin: 0 0 8px; font-size: 15px; display: flex; gap: 10px; align-items: center; }
+  .dot { width: 22px; height: 22px; border-radius: 50%; background: var(--pink); display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; color: #200; flex: none; }
+  .insight p { margin: 0 0 12px; color: #c9c9d6; font-size: 13px; }
+  .kpi { border-radius: 16px; padding: 16px; background: linear-gradient(135deg, #6b4df0 0%, #a46cf5 100%); display: grid; gap: 14px; }
+  .bar-label { display: flex; justify-content: space-between; font-size: 12px; opacity: .9; margin-bottom: 6px; }
+  .track { height: 8px; border-radius: 99px; background: rgba(255,255,255,.28); overflow: hidden; }
+  .fill { height: 100%; border-radius: 99px; background: #fff; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 560px) { .tiles { grid-template-columns: 1fr; } }
+  .tile { background: rgba(255,255,255,.16); border-radius: 12px; padding: 12px 14px; }
+  .tile small { display: block; font-size: 12px; opacity: .85; }
+  .tile strong { font: 700 22px/1.3 var(--mono); }
+  .tile em { font-style: normal; font-size: 12px; opacity: .85; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; font-size: 12px; color: var(--muted); }
+  .chip.good { color: var(--green); background: rgba(74,222,128,.1); border-color: rgba(74,222,128,.25); }
+  .chip.warn { color: var(--amber); } .chip.bad { color: var(--red); }
+  h2 { font: 600 18px var(--mono); margin: 0 0 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  h2 small { font: 400 12px system-ui; color: var(--muted); }
+  .board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start; }
+  @media (max-width: 1100px) { .board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 620px) { .board { grid-template-columns: 1fr; } }
+  .col h4 { margin: 0 0 10px; font: 600 14px var(--mono); display: flex; justify-content: space-between; color: var(--text); }
+  .col h4 span { color: var(--muted); font-weight: 400; }
+  .col .hint { color: var(--muted); font-size: 12px; margin: -4px 0 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+  .card .name { font-weight: 650; font-size: 15px; }
+  .card .meta { color: var(--muted); font-size: 12px; }
+  .amount { font: 700 26px/1.2 var(--mono); margin: 8px 0 6px; }
+  .pl { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .pbar { height: 6px; border-radius: 99px; background: var(--panel2); overflow: hidden; }
+  .pbar i { display: block; height: 100%; border-radius: 99px; }
+  .why { margin: 10px 0 0; color: #cfcfdb; font-size: 13px; }
+  .age { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .ev { border-top: 1px dashed var(--line); margin-top: 10px; padding-top: 8px; font-size: 12px; }
+  .ev q { display: block; color: var(--muted); margin: 3px 0 6px; }
+  a { color: #9db6ff; }
+  button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 8px; padding: 2px 9px; cursor: pointer; }
+  button:hover { border-color: var(--purple); }
+  button.on { background: var(--purple); border-color: var(--purple); }
+  .mini { display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px; font-size: 13px; }
+  .mini span:last-child { color: var(--muted); font-size: 12px; text-align: right; }
+  .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 14px; font-size: 13px; }
+  .skipped { margin-top: 30px; }
 </style>
 </head>
 <body>
 <main id="app"></main>
 <script>
-const GROUPS = [
-  ["reach_out", "Reach out this week", "Fresh signal, not yet contacted. Ranked by score."],
-  ["nudge", "Nudge", "Waiting on a reply and there is a reason to follow up."],
-  ["hold", "Hold", "You already moved recently. Let it breathe."],
-];
 const app = document.getElementById("app");
 
 // Everything from the database (including model-written summaries) is untrusted text: build DOM, never innerHTML.
 function el(tag, props = {}, ...kids) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
-    if (k === "class") n.className = v; else if (k === "onclick") n.onclick = v; else n.setAttribute(k, v);
+    if (k === "class") n.className = v; else if (k === "onclick") n.onclick = v; else if (k === "style") n.style.cssText = v; else n.setAttribute(k, v);
   }
-  for (const k of kids.flat()) if (k != null) n.append(k.nodeType ? k : document.createTextNode(String(k)));
+  for (const k of kids.flat()) if (k != null && k !== false) n.append(k.nodeType ? k : document.createTextNode(String(k)));
   return n;
 }
 const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === "https:" || x.protocol === "http:" ? x.href : null; } catch { return null; } };
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "never";
-const daysAgo = (d, now) => Math.floor((now - new Date(d)) / 864e5);
-
-function runBanners(run, vcs, now) {
-  const out = [];
-  if (!run) return [el("div", { class: "banner warn" }, "The job has not run yet.")];
-  const finished = run.finished_at ? new Date(run.finished_at) : null;
-  const age = finished ? daysAgo(finished, now) : null;
-  const when = finished ? `${finished.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} (${age}d ago)` : "still running";
-  const stale = age != null && age > 4;
-  out.push(el("div", { class: "banner" + (stale || run.status !== "ok" ? " warn" : "") },
-    `Last run: ${when}. Status: ${run.status}. ${run.vcs_checked}/${run.vcs_total} checked, ${run.signals_kept} signals kept, ${run.signals_dropped} dropped by validation.`,
-    stale ? " This is older than the usual 3-4 day cycle: the scheduled run may have started late or failed. Re-run it from GitHub Actions." : ""));
-  const failed = vcs.filter((v) => v.check_ok === false);
-  if (failed.length) out.push(el("div", { class: "banner bad" }, `${failed.length} VC${failed.length > 1 ? "s" : ""} could not be checked last run, so their scores below are from an earlier run: ${failed.map((v) => v.firm).join(", ")}.`));
-  if (run.error) out.push(el("div", { class: "banner bad" }, `Run error: ${run.error}`));
-  return out;
-}
+const daysAgo = (d, now) => Math.max(0, Math.floor((now - new Date(d)) / 864e5));
+const label = (s) => String(s || "").replace(/_/g, " ");
+const scoreColor = (s) => s >= 70 ? "var(--green)" : s >= 40 ? "var(--blue)" : "var(--pink)";
 
 async function sendFeedback(ev, useful, btns) {
-  const r = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ evidence_id: ev.id, vc_id: ev.vc_id, useful }) });
-  if (r.ok) btns.forEach(([b, v]) => b.classList.toggle("on", v === useful));
-  else alert("Could not save feedback.");
+  try {
+    const r = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ evidence_id: ev.id, vc_id: ev.vc_id, useful }) });
+    if (!r.ok) throw new Error(r.status);
+    btns.forEach(([b, v]) => b.classList.toggle("on", v === useful));
+  } catch { alert("Could not save feedback."); }
 }
 
-function card(v, evidence, now) {
-  const checked = v.checked_at ? daysAgo(v.checked_at, now) : null;
-  const chips = [
-    el("span", { class: "chip" }, v.status.replace("_", " ")),
-    el("span", { class: "chip" }, v.geo),
-    v.check_ok === false ? el("span", { class: "chip bad" }, "check failed: showing old values")
-      : checked == null ? el("span", { class: "chip warn" }, "never checked")
-      : el("span", { class: "chip" + (checked > 5 ? " warn" : "") }, `checked ${checked}d ago`),
-    v.last_contacted_at ? el("span", { class: "chip" }, `contacted ${fmtDate(v.last_contacted_at)}`) : null,
-    v.flag ? el("span", { class: "chip warn" }, v.flag) : null,
-  ];
-  const evs = evidence.filter((e) => e.vc_id === v.id).map((e) => {
+function evidenceRows(v, evidence) {
+  return evidence.filter((e) => e.vc_id === v.id).map((e) => {
     const href = safeUrl(e.url);
     const up = el("button", { class: e.useful === true ? "on" : "" }, "Useful");
     const down = el("button", { class: e.useful === false ? "on" : "" }, "Not useful");
     const btns = [[up, true], [down, false]];
     up.onclick = () => sendFeedback(e, true, btns); down.onclick = () => sendFeedback(e, false, btns);
     return el("div", { class: "ev" },
-      el("span", { class: "chip" }, e.type.replace(/_/g, " ")), " ", fmtDate(e.published_date), " · ", e.summary,
+      el("div", { class: "chips" }, el("span", { class: "chip" }, label(e.type)), el("span", { class: "chip" }, fmtDate(e.published_date))),
       el("q", {}, e.quote),
       href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
   });
-  const notes = null;
+}
+
+function card(v, evidence, now) {
+  const score = v.follow_up_score ?? 0;
+  const checked = v.checked_at ? daysAgo(v.checked_at, now) : null;
+  const chips = [
+    v.check_ok === false ? el("span", { class: "chip bad" }, "check failed: old values") : null,
+    checked == null ? el("span", { class: "chip warn" }, "never checked") : checked > 5 ? el("span", { class: "chip warn" }, `checked ${checked}d ago`) : null,
+    v.last_contacted_at ? el("span", { class: "chip" }, `contacted ${fmtDate(v.last_contacted_at)}`) : null,
+    v.flag ? el("span", { class: "chip warn" }, v.flag) : null,
+  ];
   return el("div", { class: "card" },
-    el("div", { class: "row" }, el("span", { class: "firm" }, v.firm), el("span", { class: "score" }, v.follow_up_score ?? "–")),
+    el("div", { class: "name" }, v.firm),
+    el("div", { class: "meta" }, [v.geo, v.stage_focus].filter(Boolean).join(" · ")),
+    el("div", { class: "amount" }, String(score)),
+    el("div", { class: "pl" }, el("span", {}, "Follow-up score"), el("span", {}, `${score}%`)),
+    el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })),
     el("p", { class: "why" }, v.signal_summary || "Not scored yet."),
-    el("div", { class: "meta" }, chips), evs, notes);
+    v.last_signal_date ? el("div", { class: "age" }, `Latest signal ${daysAgo(v.last_signal_date, now)}d ago`) : null,
+    el("div", { class: "chips", style: "margin-top:8px" }, chips),
+    evidenceRows(v, evidence));
+}
+
+function miniRow(v, text) {
+  return el("div", { class: "mini" }, el("span", {}, v.firm, v.check_ok === false ? " ⚠" : ""), el("span", {}, text));
+}
+
+function hero(data, now) {
+  const { run, vcs, evidence } = data;
+  const top = vcs.filter((v) => v.recommended_action === "reach_out").sort((a, b) => b.follow_up_score - a.follow_up_score)[0];
+  const failed = vcs.filter((v) => v.check_ok === false);
+  const finished = run && run.finished_at ? new Date(run.finished_at) : null;
+  const age = finished ? daysAgo(finished, now) : null;
+  const stale = age != null && age > 4;
+
+  let insight;
+  if (failed.length || (run && run.error) || stale) {
+    insight = el("div", { class: "insight bad" }, el("h3", {}, el("span", { class: "dot" }, "!"),
+      failed.length ? `${failed.length} VC${failed.length > 1 ? "s" : ""} could not be checked` : "The last run needs attention"),
+      el("p", {}, failed.length ? `Their scores are from an earlier run: ${failed.map((v) => v.firm).join(", ")}.` : (run && run.error) || `The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`));
+  } else if (top) {
+    const ev = evidence.find((e) => e.vc_id === top.id);
+    insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "1"), `Strongest signal: ${top.firm}`),
+      el("p", {}, top.signal_summary),
+      el("div", { class: "chips" }, el("span", { class: "chip good" }, "Source-checked"), el("span", { class: "chip good" }, `Score ${top.follow_up_score}`), ev ? el("span", { class: "chip" }, label(ev.type)) : null));
+  } else {
+    insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "0"), "Nothing fresh this week"),
+      el("p", {}, "No VC has a verified signal in the last 30 days. Don't force it."));
+  }
+
+  const checked = run ? run.vcs_checked : 0, total = run ? run.vcs_total : vcs.length;
+  const pct = total ? Math.round(100 * checked / total) : 0;
+  const count = (a) => vcs.filter((v) => v.recommended_action === a).length;
+  const kpi = el("div", { class: "kpi" },
+    el("div", {}, el("div", { class: "bar-label" }, el("span", {}, "VCs checked last run"), el("span", {}, `${pct}%`)), el("div", { class: "track" }, el("i", { class: "fill", style: `display:block;width:${pct}%` }))),
+    el("div", { class: "tiles" },
+      el("div", { class: "tile" }, el("small", {}, "Reach out"), el("strong", {}, String(count("reach_out"))), " ", el("em", {}, "this week")),
+      el("div", { class: "tile" }, el("small", {}, "Signals kept"), el("strong", {}, String(run ? run.signals_kept : 0)), " ", el("em", {}, run ? `${run.signals_dropped} dropped` : "")),
+      el("div", { class: "tile" }, el("small", {}, "Last run"), el("strong", {}, age == null ? (run ? "running" : "never") : age === 0 ? "today" : `${age}d ago`), " ", el("em", {}, run ? run.status : ""))));
+  return el("div", { class: "hero" }, insight, kpi);
+}
+
+function column(title, hint, items) {
+  return el("div", { class: "col" }, el("h4", {}, title, el("span", {}, String(items.length))), hint ? el("div", { class: "hint" }, hint) : null, items.length ? items.map((n) => n) : el("div", { class: "empty" }, "Nothing here."));
 }
 
 function render(data) {
   const now = new Date(data.now);
-  const byAction = (a) => data.vcs.filter((v) => v.recommended_action === a).sort((x, y) => (y.follow_up_score ?? 0) - (x.follow_up_score ?? 0));
-  const parts = [el("h1", {}, "Who to reach out to this week"),
-    el("p", { class: "sub" }, "Signals from the last 30 days. Every one links to its source: check it before you cite it."), ...runBanners(data.run, data.vcs, now)];
-  for (const [key, title, hint] of GROUPS) {
-    const list = byAction(key);
-    parts.push(el("h2", {}, `${title} (${list.length})`));
-    parts.push(list.length ? list.map((v) => card(v, data.evidence, now)) : el("div", { class: "empty" }, key === "reach_out" ? "Nothing fresh this week. See the quiet list below, and don't force it." : hint));
-  }
-  const quiet = byAction("quiet_list");
-  parts.push(el("h2", {}, `Quiet: don't spend energy here (${quiet.length})`),
-    el("div", { class: "quiet" }, quiet.map((v) => el("div", {}, v.firm, v.check_ok === false ? " ⚠" : ""))));
-  const skipped = byAction("skip");
-  parts.push(el("h2", {}, `Skipped: not a fit right now (${skipped.length})`),
-    el("div", { class: "quiet" }, skipped.map((v) => el("div", { title: v.signal_summary || "" }, `${v.firm}: ${(v.signal_summary || "").replace("Skipped: ", "")}`))));
+  const by = (a) => data.vcs.filter((v) => v.recommended_action === a).sort((x, y) => (y.follow_up_score ?? 0) - (x.follow_up_score ?? 0));
+  const reach = by("reach_out"), nudge = by("nudge"), hold = by("hold"), quiet = by("quiet_list"), skip = by("skip");
   const unscored = data.vcs.filter((v) => !v.recommended_action).length;
-  if (unscored) parts.push(el("p", { class: "sub" }, `${unscored} VCs have not been scored yet.`));
-  app.replaceChildren(...parts.flat());
+
+  app.replaceChildren(
+    el("div", { class: "brand" }, el("span", { class: "logo" }), "Investor Pipeline"),
+    el("div", { class: "top" }, el("div", {},
+      el("h1", {}, "Who to reach out to this week"),
+      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} VCs`), ` tracked · signals from the last 30 days · every claim links to its source`))),
+    hero(data, now),
+    el("h2", {}, "Pipeline by action", el("small", {}, "Ranked by follow-up score")),
+    el("div", { class: "board" },
+      column("Reach out", "Fresh signal, not yet contacted", reach.map((v) => card(v, data.evidence, now))),
+      column("Nudge", "Waiting on a reply, with a reason to follow up", nudge.map((v) => card(v, data.evidence, now))),
+      column("Hold", "You already moved recently", hold.map((v) => card(v, data.evidence, now))),
+      column("Quiet", "No signal in 30 days: don't spend energy here", quiet.map((v) => miniRow(v, v.check_ok === false ? "check failed" : v.stage_focus)))),
+    el("div", { class: "skipped" }, el("h2", {}, "Skipped", el("small", {}, "Not a fit right now")),
+      skip.length ? skip.map((v) => miniRow(v, (v.signal_summary || "").replace("Skipped: ", ""))) : el("div", { class: "empty" }, "None.")),
+    unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} VCs have not been scored yet.`) : null);
 }
 
 async function load() {
@@ -146,8 +205,8 @@ async function load() {
     const r = await fetch("/api/pipeline");
     if (!r.ok) throw new Error(r.status);
     render(await r.json());
-  } catch (e) {
-    app.replaceChildren(el("p", { class: "banner bad" }, "Could not load the pipeline. Try again in a minute."));
+  } catch {
+    app.replaceChildren(el("div", { class: "insight bad" }, el("h3", {}, "Could not load the pipeline"), el("p", {}, "Try again in a minute.")));
   }
 }
 load();
