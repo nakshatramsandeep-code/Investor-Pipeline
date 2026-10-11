@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -17,7 +18,7 @@ from pathlib import Path
 
 from .config import RunFiles, load_run_files
 from .extract import ExtractError, GeminiExtract
-from .models import VC, Page, Person, Signal, VCResult
+from .models import VC, Page, Person, Signal, VCResult, effective_status
 from .score import ACTION_ORDER, decide, fit_gate
 from .search import ExaSearch, SearchError
 from .store import CsvStore, PgStore
@@ -39,6 +40,43 @@ def _needs_discovery(known: list[Person], today: date) -> bool:
 def _discover_people(vc: VC, search, extractor, rf: RunFiles) -> list[Person]:
     pages = search.search_people(vc, rf.sources.exclude_domains())
     return validate_people(extractor.extract_people(vc, pages), pages, vc, rf.sources)
+
+
+_STOP = {"that", "with", "from", "this", "their", "have", "after", "round", "funding", "investment", "firm", "fund",
+         "ventures", "capital", "partners", "announced", "published", "about", "which", "into", "over", "also", "led",
+         "participated", "article", "post", "blog", "interview", "discussed", "company", "startup", "million", "more"}
+
+
+def _entities(summary: str, firm: str) -> set[str]:
+    """Names and amounts in a summary (the things that identify an event), minus the firm's own name."""
+    own = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", firm)}
+    words = re.findall(r"[A-Za-z0-9$€₹.]+", summary)
+    ents = {w.strip(".").lower() for i, w in enumerate(words) if i > 0 and (w[0].isupper() or any(c.isdigit() for c in w))}
+    return {e for e in ents if e and e not in own and e not in _STOP}
+
+
+def _words(summary: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", summary.lower()) if len(w) > 3 and w not in _STOP}
+
+
+def dedupe_events(signals: list[Signal], firm: str) -> list[Signal]:
+    """One signal per event, not per article. Two signals are the same event when they are close in time, share
+    a name or amount, and say mostly the same thing. The firm's own site wins over press, then the newest."""
+    rank = {"own_site": 0, "news": 1}
+    kept: list[Signal] = []
+    for s in sorted(signals, key=lambda s: (rank.get(s.source_tier, 2), -s.published.toordinal())):
+        ents, words = _entities(s.summary, firm), _words(s.summary)
+        dup = False
+        for k in kept:
+            if abs((s.published - k.published).days) > 14 or not (ents & _entities(k.summary, firm)):
+                continue
+            kw = _words(k.summary)
+            if words and kw and len(words & kw) / min(len(words), len(kw)) >= 0.4:
+                dup = True
+                break
+        if not dup:
+            kept.append(s)
+    return kept
 
 
 def _merge(signals: list[Signal], extra: list[Signal]) -> list[Signal]:
@@ -81,7 +119,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
                known_people: list[Person] | None = None, check_people: bool = True) -> VCResult:
     w = rf.weights
     fit_ok, _, _ = fit_gate(vc, rf.fit)
-    if not fit_ok or vc.status == "declined":
+    if not fit_ok or effective_status(vc, today) == "declined":
         # Routing rule 1: no point spending search / LLM budget.
         d = decide(vc, [], rf.fit, w, today)
         return VCResult(vc, True, "skipped_fit", d, detail={"reason": d.summary})
@@ -129,7 +167,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
             signals = _merge(signals, [replace(s, person_name=person.name, person_role=person.role or None)
                                        for s in psigs])
 
-    signals = sorted(signals, key=lambda s: s.published, reverse=True)[:MAX_SIGNALS]
+    signals = sorted(dedupe_events(signals, vc.firm), key=lambda s: s.published, reverse=True)[:MAX_SIGNALS]
     decision = decide(vc, signals, rf.fit, w, today)
     detail = {"pages_found": n_found, "pages_usable": n_usable,
               "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),

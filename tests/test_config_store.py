@@ -268,3 +268,46 @@ def test_website_is_learned_only_when_blank(rf):
     r = process_vc(make_vc(), c, c, rf, TODAY, check_people=False)
     assert r.website == "https://acmeventures.com"
     assert process_vc(make_vc(website="https://acme.vc"), c, c, rf, TODAY, check_people=False).website is None
+
+
+# ---------------------------------------------------------------- one signal per event
+
+def _sig(summary, days_ago=3, tier="news", url=None):
+    from dataclasses import replace
+    from conftest import make_signal
+    return replace(make_signal(days_ago=days_ago, url=url or f"https://t.com/{abs(hash(summary)) % 10**6}"), summary=summary, source_tier=tier)
+
+
+def test_same_event_from_two_articles_is_one_signal():
+    from pipeline.run import dedupe_events
+    a = _sig("Endiya Partners led a $2.5M seed round for VerifAIX, an AI verification startup.", 25)
+    b = _sig("Endiya Partners participated in VerifAIX's seed round to build AI verification.", 23)
+    assert len(dedupe_events([a, b], "Endiya Partners")) == 1
+
+
+def test_different_events_stay_separate():
+    from pipeline.run import dedupe_events
+    a = _sig("Endiya Partners led a $2.5M seed round for VerifAIX.", 25)
+    b = _sig("Endiya Partners backed DeepVerse, a deep tech platform, in a pre-seed round.", 5)
+    c = _sig("Endiya Partners published a blog post about the Indian deep tech policy forum.", 3)
+    assert len(dedupe_events([a, b, c], "Endiya Partners")) == 3
+
+
+def test_dedupe_prefers_the_firms_own_site_then_the_newest():
+    from pipeline.run import dedupe_events
+    press = _sig("Gallatin AI raised $50M in a Series A led by 8VC for military logistics.", 4, "news")
+    own = _sig("8VC participated in Gallatin AI's $50M Series A for supply chain software.", 5, "own_site")
+    out = dedupe_events([press, own], "8VC")
+    assert len(out) == 1 and out[0].source_tier == "own_site"
+
+
+def test_generic_summaries_about_different_things_are_not_merged():
+    from pipeline.run import dedupe_events
+    a = _sig("Dynamo Ventures published a blog post on warehouse robotics.", 3)
+    b = _sig("Dynamo Ventures published a blog post on freight forwarding software.", 4)
+    assert len(dedupe_events([a, b], "Dynamo Ventures")) == 2
+
+
+def test_store_marks_only_the_latest_runs_evidence_active():
+    from pipeline import store
+    assert "ANY" in store.ACTIVE_SQL and "legacy_unverified" in store.ACTIVE_SQL

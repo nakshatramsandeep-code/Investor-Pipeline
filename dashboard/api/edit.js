@@ -35,6 +35,24 @@ module.exports = async function handler(req, res) {
       await sql.transaction(q);
       return res.status(201).json({ ok: true });
     }
+    if (b.action === "revisit") {
+      await sql.transaction([
+        sql`UPDATE vcs SET revisit_on = (current_date + interval '6 months')::date WHERE id = ${id}`,
+        sql`INSERT INTO vc_interactions (vc_id, kind, note, occurred_on) VALUES (${id}, 'note', 'Will revisit in 6 months', current_date)`,
+      ]);
+      return res.status(200).json({ ok: true });
+    }
+    if (b.action === "undo_decline") {
+      await sql.transaction([
+        sql`UPDATE vcs SET status = 'to_contact', revisit_on = NULL WHERE id = ${id} AND status = 'declined'`,
+        sql`INSERT INTO vc_interactions (vc_id, kind, note, occurred_on) VALUES (${id}, 'note', 'Undid the decline: back to prospect', current_date)`,
+      ]);
+      return res.status(200).json({ ok: true });
+    }
+    if (b.action === "next_step") {
+      await sql`UPDATE vcs SET next_step = ${String(b.next_step || "").slice(0, 200)} WHERE id = ${id}`;
+      return res.status(200).json({ ok: true });
+    }
     if (b.action === "notes") {
       await sql`UPDATE vcs SET notes = ${String(b.notes || "").slice(0, 10000)} WHERE id = ${id}`;
       return res.status(200).json({ ok: true });

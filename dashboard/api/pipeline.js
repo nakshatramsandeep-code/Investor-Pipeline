@@ -5,7 +5,7 @@ module.exports = async function handler(req, res) {
   try {
     const sql = neon(process.env.DASHBOARD_RO_URL);
     const [vcs, evidence, runs] = await Promise.all([
-      sql`SELECT v.id, v.name, v.firm, v.status, v.last_contacted_at::text AS last_contacted_at,
+      sql`SELECT v.id, v.name, v.firm, v.status, v.next_step, v.revisit_on::text AS revisit_on, v.last_contacted_at::text AS last_contacted_at,
                  v.last_signal_date::text AS last_signal_date, v.signal_summary, v.follow_up_score, v.recommended_action,
                  p.geo, p.stage_focus, p.flag,
                  c.checked_at, c.ok AS check_ok, c.outcome, c.error AS check_error
@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
                  (SELECT f.useful FROM signal_feedback f WHERE f.evidence_id = e.id
                   ORDER BY f.created_at DESC LIMIT 1) AS useful
           FROM signal_evidence e
-          WHERE e.published_date >= current_date - 30
+          WHERE e.published_date >= current_date - 30 AND e.active
           ORDER BY e.published_date DESC`,
       sql`SELECT id, started_at, finished_at, status, vcs_total, vcs_checked, vcs_failed,
                  signals_kept, signals_dropped, error

@@ -23,6 +23,7 @@ preferred_geos: [india, global]
 
 routing:
   waiting_nudge_days: 7        # pitched this long ago with no reply -> follow up (silence is a reason)
+  reach_out_max_signal_age_days: 14   # 'reach out' needs a logistics signal at least this fresh
   reach_out_min_score: 35      # a prospect needs at least this score to be called 'reach out'
   quiet_nudge_score: 25        # score given to a "nudge" that has no new signal behind it
 

@@ -18,6 +18,7 @@ class VC:
     is_investing: bool
     flag: str
     website: str = ""
+    revisit_on: date | None = None   # a declined investor to look at again from this date
 
 
 @dataclass(frozen=True)
@@ -76,3 +77,10 @@ class VCResult:
     people_found: list[Person] = field(default_factory=list)   # new / refreshed, to upsert
     website: str | None = None                                 # learned from verified own-site pages
     detail: dict = field(default_factory=dict)                 # what the check did, for the history view
+
+
+def effective_status(vc: "VC", today: date) -> str:
+    """A declined investor whose revisit date has arrived is a prospect again."""
+    if vc.status == "declined" and vc.revisit_on and vc.revisit_on <= today:
+        return "to_contact"
+    return vc.status

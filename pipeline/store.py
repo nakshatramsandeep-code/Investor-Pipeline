@@ -12,7 +12,7 @@ from .models import VC, Person, VCResult
 # Explicit column list on purpose: never SELECT * (notes / contact_history are off limits).
 LOAD_SQL = """
 SELECT v.id, v.name, v.firm, v.thesis, v.status, v.last_contacted_at, v.last_signal_date,
-       p.geo, p.stage_focus, p.is_investing, p.flag, p.website
+       p.geo, p.stage_focus, p.is_investing, p.flag, p.website, v.revisit_on
 FROM vcs v JOIN vc_profile p ON p.vc_id = v.id
 ORDER BY v.id
 """
@@ -32,6 +32,8 @@ ON CONFLICT (vc_id, url) DO UPDATE SET run_id = EXCLUDED.run_id, source_domain =
     source_tier = EXCLUDED.source_tier, person_name = EXCLUDED.person_name, person_role = EXCLUDED.person_role,
     relevance = EXCLUDED.relevance
 """
+
+ACTIVE_SQL = "UPDATE signal_evidence SET active = (url = ANY(%s)) WHERE vc_id = %s AND source_tier <> 'legacy_unverified'"
 
 WEBSITE_SQL = "UPDATE vc_profile SET website = %s WHERE vc_id = %s AND website = ''"
 
@@ -101,6 +103,9 @@ class PgStore:
                 for p in r.people_found:
                     cur.execute(PERSON_UPSERT_SQL, (r.vc.id, p.name, p.role, p.source_url,
                                                     p.source_domain, p.source_tier, p.quote))
+                if r.ok:
+                    # The latest run is the truth: evidence it did not keep (duplicates, vanished pages) goes inactive.
+                    cur.execute(ACTIVE_SQL, ([sig.url for sig in r.signals], r.vc.id))
                 if r.ok and r.website:
                     cur.execute(WEBSITE_SQL, (r.website, r.vc.id))     # only fills a blank; never overwrites
                 cur.execute(CHECK_SQL, (r.vc.id, run_id, r.ok, r.outcome, r.n_pages, len(r.signals),

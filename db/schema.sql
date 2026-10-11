@@ -85,6 +85,10 @@ CREATE TABLE IF NOT EXISTS signal_feedback (
 
 ALTER TABLE vc_check_log ADD COLUMN IF NOT EXISTS detail jsonb NOT NULL DEFAULT '{}';
 
+ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true;   -- false = not in the latest run's kept set (e.g. a duplicate)
+ALTER TABLE vcs ADD COLUMN IF NOT EXISTS revisit_on date;                                      -- a declined investor to look at again from this date
+ALTER TABLE vcs ADD COLUMN IF NOT EXISTS next_step text NOT NULL DEFAULT '';
+
 -- Source trust + people (added after v1; idempotent upgrades for existing databases)
 ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS source_domain text NOT NULL DEFAULT '';
 ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS source_tier text NOT NULL DEFAULT '';
@@ -152,7 +156,7 @@ REVOKE ALL ON ALL TABLES IN SCHEMA public FROM signal_job, dashboard_ro, dashboa
 GRANT USAGE ON SCHEMA public TO signal_job, dashboard_ro, dashboard_fb, dashboard_ed;
 
 -- signal_job: reads only what it needs (never notes / contact_history) ...
-GRANT SELECT (id, name, firm, thesis, status, last_contacted_at, last_signal_date) ON vcs TO signal_job;
+GRANT SELECT (id, name, firm, thesis, status, last_contacted_at, last_signal_date, revisit_on) ON vcs TO signal_job;
 GRANT SELECT ON vc_profile TO signal_job;
 -- ... and updates exactly four columns. Postgres refuses anything else.
 GRANT UPDATE (last_signal_date, signal_summary, follow_up_score, recommended_action) ON vcs TO signal_job;
@@ -183,6 +187,9 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO signal_job;
 -- dashboard_ed: Vikram's edit role, used only by the key-protected /api/edit endpoint.
 -- It can change the four columns that are his, and add to his activity log and contacts.
 GRANT SELECT ON vcs, vc_interactions, vc_contacts TO dashboard_ed;
-GRANT UPDATE (status, last_contacted_at, notes, contact_history) ON vcs TO dashboard_ed;
+GRANT UPDATE (status, last_contacted_at, notes, contact_history, revisit_on, next_step) ON vcs TO dashboard_ed;
 GRANT INSERT ON vc_interactions, vc_contacts TO dashboard_ed;
 GRANT USAGE ON SEQUENCE vc_interactions_id_seq, vc_contacts_id_seq TO dashboard_ed;
+
+-- signal_job marks which evidence rows belong to the latest run's kept set.
+GRANT SELECT (active), UPDATE (active) ON signal_evidence TO signal_job;

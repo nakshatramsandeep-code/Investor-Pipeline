@@ -29,8 +29,8 @@ def make_vc(**kw) -> VC:
     return VC(**base)
 
 
-def make_signal(days_ago=3, type="portfolio_investment", url="https://x.com/a") -> Signal:
-    return Signal(type=type, summary="s", quote="q" * 25, url=url, published=ago(days_ago))
+def make_signal(days_ago=3, type="portfolio_investment", url="https://x.com/a", relevance="logistics") -> Signal:
+    return Signal(type=type, summary="s", quote="q" * 25, url=url, published=ago(days_ago), relevance=relevance)
 
 
 def make_page(text, days_ago=3, url="https://techcrunch.com/a") -> Page:

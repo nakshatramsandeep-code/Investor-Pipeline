@@ -15,7 +15,7 @@ run_files/                      context.md (prompt), fit_rules.yaml, weights.yam
 pipeline/                       search.py  extract.py  validate.py  score.py  store.py  run.py
 dashboard/                      Vercel: static page + /api/pipeline (read) + /api/feedback (insert)
 scripts/                        setup_db.py, seed_db.py
-tests/  evals/                  107 unit tests; precision / recall / invented-URL eval
+tests/  evals/                  119 unit tests; precision / recall / invented-URL eval
 data/vc_seed_list.csv           the 50 VCs
 ```
 
@@ -53,7 +53,7 @@ Routing is a plain table, first match wins (`pipeline/score.py`, one unit test p
 |---|---|---|
 | 1 | Fit fails or declined | skip (no API spend) |
 | 2 | In talks or approved; or contacted after the signal, less than 7 days ago | hold |
-| 3 | Prospect with a fresh signal and a score of at least 35 | reach out |
+| 3 | Prospect with a logistics signal from the last 14 days and a score of at least 35 | reach out |
 | 4 | Pitched, and a fresh signal arrived after you reached out | follow up |
 | 5 | Pitched 7+ days ago with no reply (signal or not: silence is a reason) | follow up |
 | 6 | Pitched less than 7 days ago | hold (shown as Waiting, with the follow-up date) |
@@ -61,7 +61,7 @@ Routing is a plain table, first match wins (`pipeline/score.py`, one unit test p
 
 The dashboard re-buckets from your status and dates in the browser, so logging an action moves a card at once;
 scores and signals still come from the last run. Settings live in `run_files/weights.yaml` (`waiting_nudge_days`,
-`reach_out_min_score`, `general_content_factor`). General interviews, posts and talks that are not about logistics
+`reach_out_min_score`, `reach_out_max_signal_age_days`, `general_content_factor`). General interviews, posts and talks that are not about logistics
 count for a third as much as a deal, so off-topic appearances don't lift a score.
 
 A signal survives only if: its page comes from a trusted source (below), its URL is in the returned search results, its date comes from the
@@ -111,8 +111,9 @@ every investor by status, and cards have quick buttons.
 There is no login. Saving needs `DASHBOARD_ED_URL` in Vercel (user `dashboard_ed`, which can only change your
 four columns and add to the activity log and contacts). Because anyone who opens the URL could then read your
 notes and change your statuses, turn on **Vercel Deployment Protection** (Settings -> Deployment Protection) so
-only you can open the site. Statuses: Prospect, Pitched, In talks, Approved, Passed. Approved and In talks always
-route to hold.
+only you can open the site. Statuses: Prospect, Contacted, In talks, Approved, Declined. Approved and In talks always
+route to hold. A declined investor can be given a revisit date (6 months) or have the decline undone; when the
+revisit date arrives they are treated as a prospect again. In talks and Approved cards show a short "next step" you set.
 
 ## Assumptions to confirm
 
@@ -123,3 +124,9 @@ route to hold.
   (paused) and Norwest (Series A+). India and Global get a small score bonus; edit `weights.yaml` if that is wrong.
 - Gemini model defaults to `gemini-3.8-flash` (override with `GEMINI_MODEL`).
 - The signal job writes score, action and summary for skipped VCs too, so the dashboard can say why.
+
+## One signal per event
+
+The same event reported by two articles is one signal: two signals are merged when they are within 14 days,
+share a name or amount, and say mostly the same thing; the firm's own site wins over press. Evidence the latest
+run did not keep (duplicates, pages that vanished) is marked inactive, never deleted.

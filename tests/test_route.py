@@ -173,7 +173,7 @@ def test_many_general_signals_do_not_outrank_a_logistics_signal(rf):
 
 def test_weak_signal_below_the_floor_is_not_reach_out(rf):
     from dataclasses import replace
-    weak = [replace(make_signal(days_ago=28, type="other"), relevance="general", source_tier="news")]
+    weak = [replace(make_signal(days_ago=14, type="other"), relevance="logistics", source_tier="news")]   # recent, on-topic, but faint
     d = decide(make_vc(), weak, rf.fit, rf.weights, TODAY)
     assert d.score < rf.weights.reach_out_min_score and d.action == "quiet_list" and d.summary.startswith("Weak signal")
 
@@ -201,3 +201,28 @@ def test_overdue_nudge_score_grows_with_the_wait(rf):
 def test_overdue_nudge_summary_says_how_long(rf):
     d = decide(make_vc(status="waiting", last_contacted_at=ago(9)), [make_signal(days_ago=2)], rf.fit, rf.weights, TODAY)
     assert d.action == "nudge" and d.summary.startswith("Waiting 9 days")
+
+
+def test_reach_out_needs_a_logistics_signal(rf):
+    assert r(make_vc(), [make_signal(relevance="general")], rf) == (7, "quiet_list")
+    assert r(make_vc(), [make_signal(relevance="logistics")], rf) == (3, "reach_out")
+
+
+def test_reach_out_needs_a_recent_signal(rf):
+    assert r(make_vc(), [make_signal(days_ago=14)], rf) == (3, "reach_out")
+    assert r(make_vc(), [make_signal(days_ago=15)], rf) == (7, "quiet_list")
+
+
+def test_dormant_summary_says_why(rf):
+    general = decide(make_vc(), [make_signal(relevance="general")], rf.fit, rf.weights, TODAY)
+    old = decide(make_vc(), [make_signal(days_ago=20)], rf.fit, rf.weights, TODAY)
+    assert general.action == "quiet_list" and general.summary.startswith("Active, but nothing about logistics")
+    assert old.action == "quiet_list" and "older than 14 days" in old.summary
+
+
+def test_declined_investor_comes_back_when_the_revisit_date_arrives(rf):
+    due = make_vc(status="declined", revisit_on=ago(1))
+    later = make_vc(status="declined", revisit_on=TODAY + __import__("datetime").timedelta(days=30))
+    assert r(due, [make_signal()], rf) == (3, "reach_out")
+    assert r(later, [make_signal()], rf) == (1, "skip")
+    assert r(make_vc(status="declined"), [make_signal()], rf) == (1, "skip")
