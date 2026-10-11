@@ -226,17 +226,3 @@ def test_declined_investor_comes_back_when_the_revisit_date_arrives(rf):
     assert r(due, [make_signal()], rf) == (3, "reach_out")
     assert r(later, [make_signal()], rf) == (1, "skip")
     assert r(make_vc(status="declined"), [make_signal()], rf) == (1, "skip")
-
-
-def test_score_parts_add_up_to_the_score(rf):
-    from dataclasses import replace
-    sigs = [replace(make_signal(days_ago=10, type="blog_post"), relevance="logistics", source_tier="news"),
-            replace(make_signal(days_ago=14, type="event_appearance", url="https://t.com/2"), relevance="logistics", source_tier="news")]
-    d = decide(make_vc(geo="India"), sigs, rf.fit, rf.weights, TODAY)
-    total = d.parts["signal"] + d.parts["activity"] + d.parts["new"] + d.parts["region"]
-    assert d.score < 100 and abs(total - d.score) <= 3 and d.parts["fit"] == 1.0   # rounding only (the score is capped at 100)
-    assert d.parts["signal"] > d.parts["activity"] > 0 and d.parts["region"] > 0
-
-
-def test_score_parts_empty_without_signals(rf):
-    assert decide(make_vc(), [], rf.fit, rf.weights, TODAY).parts == {}

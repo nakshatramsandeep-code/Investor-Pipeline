@@ -15,7 +15,7 @@ run_files/                      context.md (prompt), fit_rules.yaml, weights.yam
 pipeline/                       search.py  extract.py  validate.py  score.py  store.py  run.py
 dashboard/                      Vercel: static page + /api/pipeline (read) + /api/feedback (insert)
 scripts/                        setup_db.py, seed_db.py
-tests/  evals/                  121 unit tests; precision / recall / invented-URL eval
+tests/  evals/                  119 unit tests; precision / recall / invented-URL eval
 data/vc_seed_list.csv           the 50 VCs
 ```
 
@@ -130,13 +130,3 @@ revisit date arrives they are treated as a prospect again. In talks and Approved
 The same event reported by two articles is one signal: two signals are merged when they are within 14 days,
 share a name or amount, and say mostly the same thing; the firm's own site wins over press. Evidence the latest
 run did not keep (duplicates, pages that vanished) is marked inactive, never deleted.
-
-## The radar page
-
-The home page ("Pipeline radar") follows a report layout: a header with last and next run, a KPI strip, a
-"since the last run" banner, detailed Reach out cards (signal, why now, the person to contact, the facts to
-mention with the source link, and how the score was built), tables for Follow up due, In talks / Approved,
-Declined and Quiet (each row says why it is parked), and Run health / How the score works / Who writes what.
-There is deliberately no drafted opener: every message is written by you. The card gives verified facts and a
-copy button for them. The per-investor score breakdown is stored in `vc_check_log.detail.score_parts`, so the
-job still updates only the four signal columns.

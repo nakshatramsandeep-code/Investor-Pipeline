@@ -12,7 +12,7 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 1240px; margin: 0 auto; padding: 24px 20px 72px; }
+  main { max-width: 1320px; margin: 0 auto; padding: 24px 20px 72px; }
   .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
   .brand { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
   .logo { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--purple), var(--purple2)); }
@@ -132,7 +132,6 @@
   details.sec > summary::before { content: "\25b8"; color: var(--muted); }
   details.sec[open] > summary::before { content: "\25be"; }
   details.sec > summary small { font: 400 12px system-ui; color: var(--muted); }
-  input.filter { display: block; margin: 0 0 10px; width: 260px; max-width: 100%; font: inherit; font-size: 13px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
   .sec input.filter { margin: 12px 0 10px; width: 260px; max-width: 100%; font: inherit; font-size: 13px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
   .quiet.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 14px; }
   .emptyline { color: var(--muted); font-size: 13px; margin: 14px 0 0; }
@@ -161,57 +160,6 @@
   .statusblock .sub2 { color: var(--muted); font-size: 13px; margin-top: 4px; }
   .next { margin-top: 6px; font-size: 12.5px; color: #dcdcf0; }
   .card.compact .meta.warn { color: #f7c97a; }
-  main.wide { max-width: 1240px; }
-  .kgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
-  .kcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: border-color .15s; }
-  .kcard:hover { border-color: var(--purple); }
-  .kl { font-size: 12.5px; color: var(--muted); font-weight: 500; }
-  .kn { font: 600 32px/1.2 var(--mono); }
-  .kc { font-size: 12px; color: var(--muted); }
-  .since { background: linear-gradient(135deg, #3a2a8f, #5b3fd1); color: #fff; border-radius: 12px; padding: 12px 18px; display: flex; flex-wrap: wrap; gap: 6px 26px; align-items: center; margin-bottom: 30px; font-size: 13.5px; }
-  .since b { font-weight: 600; }
-  section { margin-bottom: 34px; scroll-margin-top: 16px; }
-  .sech { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; margin-bottom: 14px; }
-  .sech h2 { margin: 0; font: 600 20px var(--mono); }
-  .secd { color: var(--muted); font-size: 13px; }
-  .rgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 14px; align-items: start; }
-  .rcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
-  .rtop { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
-  .rk { font-size: 12px; color: var(--muted); font-weight: 500; }
-  .rn { font-size: 18px; font-weight: 650; }
-  .rn a { color: var(--text); text-decoration: none; } .rn a:hover { color: #b9a7ff; }
-  .rs { color: var(--muted); font-size: 13px; }
-  .rc { font-size: 13px; margin-top: 4px; color: #dcdcf0; }
-  .rr { min-width: 96px; text-align: right; }
-  .rsc { font: 700 30px/1 var(--mono); } .rsc small { font-size: 13px; color: var(--muted); font-weight: 500; }
-  .rbar { width: 96px; height: 6px; background: var(--panel2); border-radius: 3px; margin: 8px 0 0 auto; overflow: hidden; }
-  .rbar i { display: block; height: 100%; border-radius: 3px; }
-  .rbody { display: flex; flex-direction: column; gap: 9px; font-size: 13.5px; }
-  .rbody b { font-weight: 650; }
-  .rbody ul.also { margin: 4px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
-  .mention { background: var(--panel2); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
-  .fitwarn { color: #f7c97a; font-size: 12.5px; }
-  .parts { font: 12px var(--mono); color: var(--muted); }
-  .ractions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 2px; }
-  .ractions a.btn, .ractions button { height: 34px; padding: 0 14px; display: inline-flex; align-items: center; border-radius: 9px; font-size: 13px; text-decoration: none; }
-  .ractions a.btn { border: 1px solid var(--line); color: var(--text); }
-  .ractions .qa { margin: 0; }
-  .tbl { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
-  .tbl .inner { min-width: 900px; }
-  .trow { display: grid; grid-template-columns: var(--cols); gap: 14px; padding: 12px 16px; align-items: center; border-top: 1px solid var(--line); font-size: 13px; }
-  .trow.head { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 12px; border-top: 0; border-radius: 12px 12px 0 0; }
-  .trow .vc b { display: block; font-size: 14px; } .trow .vc a { color: var(--text); text-decoration: none; } .trow .vc a:hover { color: #b9a7ff; }
-  .trow .vc small { color: var(--muted); }
-  .trow .dim { color: var(--muted); }
-  .trow .qa { margin: 0; }
-  .pillrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
-  .pillrow a { background: var(--panel2); color: var(--text); padding: 3px 10px; border-radius: 999px; text-decoration: none; font-size: 12.5px; }
-  .infogrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px; margin-top: 8px; }
-  .icard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
-  .icard h3 { margin: 0; font: 600 15px var(--mono); }
-  .icard .kv2 { display: flex; justify-content: space-between; gap: 12px; } .icard .kv2 span:first-child { color: var(--muted); }
-  .icard .kv2 span:last-child { font-family: var(--mono); }
-  .icard p { margin: 0; color: var(--muted); }
   .tabs { display: flex; gap: 6px; margin: 0 0 18px; }
   .tabs a { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: 13px; }
   .tabs a.on { background: var(--purple); border-color: var(--purple); color: #fff; }
@@ -376,6 +324,57 @@ function miniRow(v, text) {
   return el("div", { class: "mini", "data-name": v.firm.toLowerCase() }, el("span", {}, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm), v.check_ok === false ? " \u26a0" : ""), el("span", {}, text));
 }
 
+// ---- top panel: what to do first, and the counts that matter
+function pickFocus(g) {
+  const fresh = (v) => v.check_ok !== false;
+  const n = g.nudge.find(fresh); if (n) return { v: n, bucket: "nudge" };
+  const r = g.reach.find(fresh); if (r) return { v: r, bucket: "reach" };
+  return null;
+}
+
+function hero(data, now, g, focus) {
+  const { run, vcs, evidence } = data;
+  const failed = vcs.filter((v) => v.check_ok === false);
+  const finished = run && run.finished_at ? new Date(run.finished_at) : null;
+  const age = finished ? daysAgo(finished, now) : null;
+  const notices = [];
+  if (failed.length) notices.push(`${failed.length} VC${failed.length > 1 ? "s" : ""} could not be checked last run (${failed.map((v) => v.firm).join(", ")}). Earlier results are shown, marked stale.`);
+  if (run && run.error) notices.push("The last run hit an error. Previous results were kept.");
+  if (age != null && age > 4) notices.push(`The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`);
+
+  let insight;
+  if (focus) {
+    const v = focus.v, { best } = signalsOf(v, evidence), d = waitDays(v, now);
+    const title = focus.bucket === "nudge" ? "Do this first: follow up" : "Do this first: reach out";
+    const line = focus.bucket === "nudge" ? `Contacted ${d == null ? "a while ago" : d + " days ago"} with no reply. ` : "";
+    insight = el("div", { class: "insight best" },
+      el("div", { class: "row" }, el("h3", {}, el("span", { class: "dot ok" }, "1"), title),
+        focus.bucket === "reach" && v.follow_up_score ? el("span", { class: "score", title: "Follow-up score" }, String(v.follow_up_score)) : null),
+      el("div", { class: "bestname" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
+      el("p", {}, line, best ? best.summary : ""),
+      best ? el("div", { class: "chips" }, tag("type", best.type), relChip(best), trustChip(best)) : null,
+      quickActions(v, focus.bucket),
+      el("a", { class: "more", href: `#/vc/${v.id}` }, "Open profile and all signals \u2192"));
+  } else {
+    insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "0"), "Nothing to act on"),
+      el("p", {}, "No one is due a follow-up and no prospect has a recent logistics signal. Don't force it."));
+  }
+
+  const when = age == null ? (run ? "running" : "never") : age === 0 ? "today" : `${age}d ago`;
+  const tile = (small, n, em, target) => {
+    const t = el("div", { class: "tile click", title: "Jump to this list" }, el("small", {}, small), el("strong", {}, String(n)), " ", el("em", {}, em));
+    t.onclick = () => { const c = document.getElementById("col-" + target); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); };
+    return t;
+  };
+  const kpi = el("div", { class: "kpi" },
+    el("h3", {}, "Your pipeline today"),
+    el("div", { class: "tiles four" },
+      tile("Reach out", g.reach.length, "prospects", "reach"), tile("Follow up due", g.nudge.length, "no reply", "nudge"),
+      tile("In talks", g.talks.length, "live", "talks"), tile("Approved", g.approved.length, "committed", "approved")),
+    el("div", { class: "runline" }, run ? `Last run ${when}: ${run.vcs_checked}/${run.vcs_total} investors checked, ${run.signals_kept} signals kept.` : "No run yet."));
+  return [...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
+}
+
 function column(title, hint, items, o = {}) {
   const { limit, total, id, empty } = o;
   const head = el("h4", {}, title, el("span", {}, String(total ?? items.length)));
@@ -411,7 +410,7 @@ async function editCall(body) {
 }
 
 function tabs(active) {
-  return el("div", { class: "tabs" }, el("a", { href: "#/", class: active === "action" ? "on" : "" }, "Pipeline radar"),
+  return el("div", { class: "tabs" }, el("a", { href: "#/", class: active === "action" ? "on" : "" }, "By action"),
     el("a", { href: "#/status", class: active === "status" ? "on" : "" }, "My pipeline"));
 }
 
@@ -429,205 +428,32 @@ const skeleton = () => [el("div", { class: "sk", style: "height:26px;width:240px
   el("div", { class: "hero" }, el("div", { class: "sk", style: "height:170px" }), el("div", { class: "sk", style: "height:170px" })),
   el("div", { class: "board auto" }, [0, 1, 2].map(() => el("div", {}, [0, 1, 2].map(() => el("div", { class: "sk", style: "height:104px;margin-bottom:8px" })))))];
 
-// ====================================================================== Pipeline radar (home)
-const ROLE_ORDER = [[/founder/i, 0], [/managing/i, 1], [/general partner/i, 2], [/partner/i, 3]];
-const roleRank = (r) => (ROLE_ORDER.find(([re]) => re.test(r || "")) || [0, 9])[1];
-
-// People to approach at each firm: contacts you added first, then the most senior people found on trusted pages.
-function contactsIndex(data) {
-  const m = new Map(), put = (id, c) => { if (!m.has(id)) m.set(id, []); m.get(id).push(c); };
-  for (const c of data.contacts || []) put(c.vc_id, { ...c, manual: true });
-  for (const p of [...(data.people || [])].sort((a, b) => roleRank(a.role) - roleRank(b.role))) put(p.vc_id, p);
-  return m;
-}
-const contactLine = (v, idx) => { const c = (idx.get(v.id) || [])[0]; return c ? c.name + (c.role ? " \u00b7 " + c.role : "") : null; };
-
-function nextRun(now) {            // the schedule is Mon + Thu 01:30 UTC (7:00 IST)
-  for (let i = 0; i < 8; i++) {
-    const t = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + i, 1, 30));
-    if ([1, 4].includes(t.getUTCDay()) && t > now) return t;
-  }
-  return now;
-}
-const fmtDT = (d) => d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) + " IST";
-const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
-
-function radarHeader(data, now) {
-  const run = data.run;
-  return [el("div", { class: "brand" }, el("span", { class: "logo" }), "Investor Pipeline"),
-    el("div", { class: "top" }, el("div", {},
-      el("h1", {}, "Pipeline radar"),
-      el("p", { class: "sub" }, `Seed round \u00b7 ${data.vcs.length} investors tracked \u00b7 Last run ${run && run.finished_at ? fmtDT(new Date(run.finished_at)) : "never"} \u00b7 Next run ${fmtDT(nextRun(now))} \u00b7 Lookback 30 days`))),
-    tabs("action")];
-}
-
-function noticeStrip(data, now) {
-  const { run, vcs } = data, out = [];
-  const failed = vcs.filter((v) => v.check_ok === false);
-  const age = run && run.finished_at ? daysAgo(run.finished_at, now) : null;
-  if (failed.length) out.push(`${plural(failed.length, "investor")} could not be checked last run (${failed.map((v) => v.firm).join(", ")}). Earlier results are shown, marked stale.`);
-  if (run && run.error) out.push("The last run hit an error. Previous results were kept.");
-  if (age != null && age > 4) out.push(`The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`);
-  return out.map((t) => el("div", { class: "notice" }, t));
-}
-
-function kpiStrip(g) {
-  const jump = (id) => () => { const c = document.getElementById(id); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); };
-  const k = (label, n, cap, color, target) => { const t = el("div", { class: "kcard", title: "Jump to this list" }, el("div", { class: "kl" }, label), el("div", { class: "kn", style: `color:${color}` }, String(n)), el("div", { class: "kc" }, cap)); t.onclick = jump(target); return t; };
-  return el("div", { class: "kgrid" },
-    k("Reach out now", g.reach.length, "recent logistics signal", "var(--green)", "sec-reach"),
-    k("Follow up due", g.nudge.length, `contacted ${NUDGE_DAYS}+ days ago, no reply`, "var(--amber)", "sec-nudge"),
-    k("Contacted", g.waiting.length, "too soon to nudge", "var(--blue)", "sec-nudge"),
-    k("In talks", g.talks.length, "replied, call or meeting", "var(--blue)", "sec-talks"),
-    k("Approved", g.approved.length, "committed to invest", "var(--green)", "sec-talks"),
-    k("Dormant", g.dormant.length, "no recent logistics signal", "#a3a3b8", "sec-quiet"));
-}
-
-function sinceStrip(data, g) {
-  const prev = data.prev_run, cutoff = prev && prev.finished_at ? new Date(prev.finished_at) : null, items = [];
-  if (cutoff) {
-    const fresh = data.evidence.filter((e) => new Date(e.created_at) > cutoff);
-    items.push(`${plural(fresh.length, "new signal")} from ${plural(new Set(fresh.map((e) => e.vc_id)).size, "investor")}`);
-  }
-  items.push(`${g.reach.length} ready to reach out`);
-  if (g.nudge.length) items.push(`${plural(g.nudge.length, "follow-up")} due`);
-  const failed = data.vcs.filter((v) => v.check_ok === false).length;
-  if (failed) items.push(`${plural(failed, "check")} failed (shown stale, not quiet)`);
-  return el("div", { class: "since" }, el("b", {}, cutoff ? `Since the last run (${fmtDate(prev.finished_at)})` : "This run"), items.map((t) => el("span", {}, t)));
-}
-
-const section = (id, title, desc, ...kids) => el("section", { id }, el("div", { class: "sech" }, el("h2", {}, title), el("div", { class: "secd" }, desc)), kids);
-
-function gridTable(cols, headers, rows, o = {}) {
-  const row = (cells, head, name) => el("div", { class: "trow" + (head ? " head" : ""), style: `--cols:${cols}`, "data-name": name || "" }, cells.map((c) => el("div", {}, c)));
-  const built = rows.map((r) => row(r.cells, false, r.name));
-  const limit = o.limit || built.length, rest = el("div", { style: "display:none" }, built.slice(limit));
-  const inner = el("div", { class: "inner" }, row(headers, true), built.slice(0, limit), rest);
-  const wrap = [el("div", { class: "tbl" }, inner)];
-  if (o.filter) {
-    const box = el("input", { class: "filter", placeholder: `Filter ${rows.length} investors` });
-    box.oninput = () => { const q = box.value.trim().toLowerCase(); if (q) rest.style.display = "block"; built.forEach((r) => { r.style.display = r.dataset.name.includes(q) ? "" : "none"; }); };
-    wrap.unshift(box);
-  }
-  if (built.length > limit) {
-    const btn = el("button", { class: "showall", style: "margin-top:8px" }, `Show all ${built.length}`);
-    btn.onclick = () => { const open = rest.style.display === "none"; rest.style.display = open ? "block" : "none"; btn.textContent = open ? `Show top ${limit}` : `Show all ${built.length}`; };
-    wrap.push(btn);
-  }
-  return wrap;
-}
-
-const vcCell = (v, idx) => el("div", { class: "vc" }, el("b", {}, el("a", { href: `#/vc/${v.id}` }, v.firm)), contactLine(v, idx) ? el("small", {}, contactLine(v, idx)) : el("small", {}, [v.geo, v.stage_focus].filter(Boolean).join(" \u00b7 ")));
-const notesCell = (v) => v.notes_preview ? el("span", { class: "dim" }, v.notes_preview) : el("span", { class: "dim" }, "\u2014");
-const copyText = (text) => { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast("Copied"), () => toast("Could not copy")); };
-
-function whyNow(v, best, all, now) {
-  const d = daysAgo(best.published_date, now), when = d === 0 ? "Today" : d === 1 ? "Yesterday" : `${d} days ago`;
-  const src = best.source_tier === "own_site" ? "the firm's own site" : best.source_domain;
-  const more = all.length - 1;
-  return `${when}: ${(LBL.type[best.type] || best.type).toLowerCase()} on ${src}${best.relevance === "logistics" ? ", about logistics" : ""}. ` +
-    `They invest at ${v.stage_focus || "an unknown stage"}${v.geo && v.geo !== "Unknown" ? " (" + v.geo + ")" : ""}.` + (more > 0 ? ` ${plural(more, "more recent signal")} on the profile.` : "");
-}
-
-function reachCard(v, rank, data, now, idx) {
-  const { all, best } = signalsOf(v, data.evidence), score = v.follow_up_score ?? 0, p = v.score_parts;
-  const others = all.filter((e) => e !== best).slice(0, 2), contact = contactLine(v, idx), href = best && safeUrl(best.url);
-  const mention = `${best.summary} (${best.source_domain}, ${fmtDate(best.published_date)}) ${best.url}`;
-  const line = (label, text) => el("div", {}, el("b", {}, label + " "), text);
-  return el("div", { class: "rcard" },
-    el("div", { class: "rtop" },
-      el("div", {}, el("div", { class: "rk" }, `#${rank} \u00b7 ${LBL.status[v.status]}`), el("div", { class: "rn" }, el("a", { href: `#/vc/${v.id}` }, v.firm)),
-        el("div", { class: "rs" }, [v.geo, v.stage_focus].filter(Boolean).join(" \u00b7 ")),
-        contact ? el("div", { class: "rc" }, "Contact: ", el("b", {}, contact)) : null),
-      el("div", { class: "rr" }, el("div", { class: "rsc", style: `color:${scoreColor(score)}` }, String(score), el("small", {}, "/100")),
-        el("div", { class: "rbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })))),
-    el("div", { class: "chips" }, tag("type", best.type), relChip(best), el("span", { class: "chip" }, fmtDate(best.published_date) + ` \u00b7 ${daysAgo(best.published_date, now)}d ago`), trustChip(best),
-      v.check_ok === false ? el("span", { class: "chip c-red" }, "stale") : null),
-    el("div", { class: "rbody" },
-      line("Signal.", best.summary), line("Why now.", whyNow(v, best, all, now)),
-      others.length ? el("div", {}, el("b", {}, "Also recently."), el("ul", { class: "also" }, others.map((e) => el("li", {}, `${fmtDate(e.published_date)} \u00b7 ${(LBL.type[e.type] || e.type)}: ${e.summary}`)),
-        all.length - 1 > others.length ? el("li", {}, el("a", { href: `#/vc/${v.id}` }, `+${all.length - 1 - others.length} more on the profile`)) : null)) : null,
-      el("div", { class: "mention" }, el("b", {}, "Mention. "), "Facts you can reference, with the source: ", mention),
-      v.flag ? el("div", { class: "fitwarn" }, "Fit check: " + v.flag + ". Their focus: " + (v.thesis || "unknown") + ".") : null),
-    p && p.signal != null ? el("div", { class: "parts" }, `Signal ${p.signal} \u00b7 Activity +${p.activity} \u00b7 New +${p.new} \u00b7 Region +${p.region}` + (p.fit != null && p.fit < 1 ? ` \u00b7 Fit \u00d7${p.fit}` : "") + " (capped at 100)") : null,
-    el("div", { class: "ractions" },
-      href ? el("a", { class: "btn", href, target: "_blank", rel: "noopener noreferrer" }, "View source") : null,
-      el("button", { onclick: () => copyText(mention) }, "Copy reference"),
-      quickActions(v, "reach"),
-      el("a", { class: "btn", href: `#/vc/${v.id}` }, "Open profile")));
-}
-
-const oneLine = (t) => { const first = String(t || "").split(" | ")[0].trim(); return first.length > 150 ? first.slice(0, 147).trimEnd() + "\u2026" : first; };
-
-function whyParked(v) {
-  const s = v.signal_summary || "";
-  if (v.check_ok === false) return ["Check failed, older data", oneLine(s)];
-  if (s.startsWith("Weak signal.")) return ["Weak signal, below the score floor", oneLine(s.slice(12))];
-  if (s.startsWith("Active, but nothing about logistics.")) return ["Active, but nothing about logistics", oneLine(s.slice(36))];
-  if (s.startsWith("No recent logistics signal")) return [`Logistics signal older than ${MAX_SIGNAL_AGE} days`, oneLine(s.replace(/^No recent logistics signal \([^)]*\)\.\s*/, ""))];
-  if (s.startsWith("No signal in")) return ["No signal in 30 days", "\u2014"];
-  return ["Nothing to act on", oneLine(s) || "\u2014"];
-}
-
 function render(data) {
-  const now = new Date(data.now), g = groupVcs(data, now), idx = contactsIndex(data);
-  const nudgeRows = g.nudge.map((v) => {
-    const { best } = signalsOf(v, data.evidence), d = waitDays(v, now);
-    return { name: v.firm.toLowerCase(), cells: [vcCell(v, idx), d == null ? "Contacted, no date" : `${fmtDate(v.last_contacted_at)} \u00b7 ${d} days ago`,
-      best ? `${fmtDate(best.published_date)}: ${best.summary}` : el("span", { class: "dim" }, "No new signal. The silence is the reason to follow up."),
-      notesCell(v), el("span", { class: "chip c-amber" }, d == null ? "overdue" : `${d} days`), quickActions(v, "nudge")] };
-  });
-  const talkRows = [...g.talks.map((v) => [v, "talks"]), ...g.approved.map((v) => [v, "approved"])].map(([v, b]) => {
-    const d = waitDays(v, now);
-    return { name: v.firm.toLowerCase(), cells: [vcCell(v, idx), d == null ? "\u2014" : `${fmtDate(v.last_contacted_at)} \u00b7 ${d} days ago`,
-      v.next_step ? v.next_step : el("span", { class: "dim" }, "No next step set"), notesCell(v), btag(b), quickActions(v, b)] };
-  });
-  const declinedRows = g.declined.map((v) => ({ name: v.firm.toLowerCase(), cells: [vcCell(v, idx), v.last_contacted_at ? `${daysAgo(v.last_contacted_at, now)} days ago` : "\u2014",
-    v.revisit_on ? `Revisit on ${fmtDate(v.revisit_on)}` : el("span", { class: "dim" }, "No revisit date"), quickActions(v, "declined")] }));
-  const quietRows = g.dormant.map((v) => {
-    const [why, what] = whyParked(v);
-    return { name: v.firm.toLowerCase(), cells: [vcCell(v, idx), v.last_signal_date ? fmtDate(v.last_signal_date) : "\u2014", el("span", { class: "dim" }, what || "\u2014"), why, el("a", { href: `#/vc/${v.id}`, class: "chip" }, "Open profile")] };
-  });
-  const run = data.run, ev = data.evidence.filter((e) => e.source_tier !== "legacy_unverified");
-  const failedN = data.vcs.filter((v) => v.check_ok === false).length;
-  const kv2 = (a, b) => el("div", { class: "kv2" }, el("span", {}, a), el("span", {}, String(b)));
+  const now = new Date(data.now), g = groupVcs(data, now), focus = pickFocus(g);
+  const lists = Object.fromEntries(Object.entries(g).map(([k, vs]) => [k, focus && focus.bucket === k ? vs.filter((v) => v.id !== focus.v.id) : vs]));
+  const above = (k) => (focus && focus.bucket === k ? " \u00b7 top one is above" : "");
+  const defs = [
+    ["reach", "Reach out", `Logistics signal in the last ${MAX_SIGNAL_AGE} days${above("reach")}`, { limit: 10, id: "reach" }],
+    ["nudge", "Follow up due", `Contacted ${NUDGE_DAYS}+ days ago, no reply${above("nudge")}`, { id: "nudge", always: true, empty: g.nudge.length ? "Just the one above." : "Nothing due. Nobody is overdue a reply." }],
+    ["waiting", "Contacted", "Waiting for a reply; follow-up date shown", { id: "waiting" }],
+    ["talks", "In talks", "Replied, call or meeting", { id: "talks" }],
+    ["approved", "Approved", "Committed to invest", { id: "approved" }],
+    ["declined", "Declined", "Said no. Revisit or undo from here", { id: "declined" }],
+  ];
+  const shown = defs.filter(([k, , , o]) => lists[k].length || o.always);
+  const none = defs.filter(([k, , , o]) => !g[k].length && !o.always).map(([, t]) => t);
   const unscored = data.vcs.filter((v) => !v.recommended_action).length;
 
-  show(...radarHeader(data, now), noticeStrip(data, now), kpiStrip(g), sinceStrip(data, g),
-    section("sec-reach", "Reach out this week", "Ranked by follow-up score. Each card shows the evidence, why it matters, and the facts to mention. You write the message.",
-      g.reach.length ? [el("div", { class: "rgrid" }, g.reach.slice(0, 6).map((v, i) => reachCard(v, i + 1, data, now, idx))),
-        g.reach.length > 6 ? (() => { const rest = el("div", { class: "rgrid", style: "display:none;margin-top:14px" }, g.reach.slice(6).map((v, i) => reachCard(v, i + 7, data, now, idx)));
-          const b = el("button", { class: "showall", style: "margin-top:12px" }, `Show all ${g.reach.length}`);
-          b.onclick = () => { const open = rest.style.display === "none"; rest.style.display = open ? "grid" : "none"; b.textContent = open ? "Show top 6" : `Show all ${g.reach.length}`; };
-          return [rest, b]; })() : null]
-        : el("div", { class: "empty" }, `No investor has a logistics signal from the last ${MAX_SIGNAL_AGE} days. Don't force it: see Quiet below.`)),
-    section("sec-nudge", "Follow up due", `You contacted them ${NUDGE_DAYS}+ days ago and heard nothing. Silence is reason enough; a new signal is a bonus.`,
-      nudgeRows.length ? gridTable("1.3fr .9fr 1.8fr 1.4fr 80px 190px", ["Investor", "Last contact", "New signal (system)", "Your notes (the job never edits these)", "Waiting", "Action"], nudgeRows)
-        : el("div", { class: "empty" }, "Nothing due. Nobody is overdue a reply."),
-      g.waiting.length ? el("div", { class: "pillrow" }, el("b", {}, `Contacted, too soon to nudge (${g.waiting.length}):`),
-        g.waiting.map((v) => el("a", { href: `#/vc/${v.id}` }, `${v.firm} \u00b7 ${waitDays(v, now)}d ago \u00b7 follow up ${fmtDate(new Date(new Date(v.last_contacted_at).getTime() + NUDGE_DAYS * 864e5).toISOString())}`))) : null),
-    talkRows.length ? section("sec-talks", "In talks and approved", "Live conversations. Keep a next step on each one.",
-      gridTable("1.3fr 1fr 1.8fr 1.4fr 100px 170px", ["Investor", "Last contact", "Next step", "Your notes", "Stage", "Action"], talkRows)) : null,
-    declinedRows.length ? section("sec-declined", "Declined", "They said no. Revisit in 6 months, or undo if it was a mistake.",
-      gridTable("1.3fr 1fr 1.4fr 260px", ["Investor", "Declined", "Revisit", "Action"], declinedRows)) : null,
-    section("sec-quiet", "Quiet: don't spend energy here", `${quietRows.length} investors. Each row says why they are parked, so you know it is a real finding and not a failed search.`,
-      quietRows.length ? gridTable("1.3fr .9fr 2fr 1.4fr 130px", ["Investor", "Last signal", "What it was", "Why parked", "Action"], quietRows, { limit: 8, filter: true }) : el("div", { class: "empty" }, "None.")),
+  show(...header(data, "action"),
+    hero(data, now, g, focus),
+    el("p", { class: "legend" }, el("b", {}, "Score: "), "70+ strong \u00b7 40\u201369 medium \u00b7 under 40 weak. Based on recent logistics signals, how fresh and how reliable the source is."),
+    el("div", { class: "board auto" }, shown.map(([k, title, hint, o]) =>
+      column(title, hint, lists[k].map((v) => card(v, data.evidence, now, k)), { ...o, total: g[k].length }))),
+    none.length ? el("p", { class: "emptyline" }, `Nothing in: ${none.join(", ")}.`) : null,
+    listSection("Dormant", "no recent logistics signal, nothing to do", g.dormant, (v) => v.check_ok === false ? "check failed" : v.stage_focus),
     listSection("Not a fit", "filtered out by the fit rules", g.skip, (v) => (v.signal_summary || "").replace("Skipped: ", "")),
-    el("div", { class: "infogrid" },
-      el("div", { class: "icard" }, el("h3", {}, "Run health"),
-        kv2("Searches completed", run ? `${run.vcs_checked} / ${run.vcs_total}` : "\u2014"), kv2("Signals with a verified source link", ev.length),
-        kv2("Found through a partner's own activity", ev.filter((e) => e.person_name).length), kv2("Rejected by validation last run", run ? run.signals_dropped : "\u2014"),
-        kv2("Failed checks (shown stale, never quiet)", failedN)),
-      el("div", { class: "icard" }, el("h3", {}, "How the score works"),
-        el("p", {}, "Score (0 to 100) = the best signal (type, source quality, topic, freshness) + a little for more activity, for being new since last run and for region, times fit."),
-        el("p", {}, `Logistics signals count in full, other fund activity counts half, and off-topic talks a third of that. Signals halve every 14 days. Reach out needs a logistics signal from the last ${MAX_SIGNAL_AGE} days and a score of ${MIN_REACH}+. Funds that are not investing or are too late-stage are skipped.`)),
-      el("div", { class: "icard" }, el("h3", {}, "Who writes what"),
-        el("div", {}, el("b", {}, "The system updates: "), el("span", { style: "color:var(--muted)" }, "last signal date, signal summary, follow-up score, recommended action."), ),
-        el("div", {}, el("b", {}, "Only you edit: "), el("span", { style: "color:var(--muted)" }, "status, last contacted, notes, next step. The job has no permission to touch them.")),
-        el("div", {}, el("b", {}, "Every message is yours. "), el("span", { style: "color:var(--muted)" }, "The system gives you facts and source links, never a drafted message.")))),
     unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
 }
-
 
 function renderStatus(data) {
   const now = new Date(data.now), g = groupVcs(data, now);
