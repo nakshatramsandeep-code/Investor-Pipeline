@@ -109,6 +109,8 @@
   button.primary { background: var(--purple); border-color: var(--purple); padding: 6px 14px; font-size: 13px; }
   .tl { border-left: 2px solid var(--line); padding-left: 12px; margin: 0 0 10px 4px; font-size: 13px; }
   .tl small { color: var(--muted); }
+  a.more { display: inline-block; margin-top: 10px; font-size: 12px; color: #b9a7ff; text-decoration: none; }
+  a.more:hover { text-decoration: underline; }
   .qa { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
   .tier-own_site { color: var(--green); } .tier-news { color: var(--blue); } .tier-social { color: var(--amber); }
 </style>
@@ -125,7 +127,7 @@ function el(tag, props = {}, ...kids) {
   for (const [k, v] of Object.entries(props)) {
     if (k === "class") n.className = v; else if (k === "onclick") n.onclick = v; else if (k === "style") n.style.cssText = v; else n.setAttribute(k, v);
   }
-  for (const k of kids.flat()) if (k != null && k !== false) n.append(k.nodeType ? k : document.createTextNode(String(k)));
+  for (const k of kids.flat(Infinity)) if (k != null && k !== false) n.append(k.nodeType ? k : document.createTextNode(String(k)));
   return n;
 }
 const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === "https:" || x.protocol === "http:" ? x.href : null; } catch { return null; } };
@@ -161,7 +163,10 @@ function trustChip(e) {
 }
 
 function evidenceRows(v, evidence) {
-  return evidence.filter((e) => e.vc_id === v.id).map((e) => {
+  // Home page: just the best signal (logistics first, then newest). The rest live on the investor's page.
+  const all = evidence.filter((e) => e.vc_id === v.id && e.source_tier !== "legacy_unverified")
+    .sort((a, b) => (b.relevance === "logistics") - (a.relevance === "logistics") || (a.published_date < b.published_date ? 1 : -1));
+  const rows = all.slice(0, 1).map((e) => {
     const href = safeUrl(e.url);
     const up = el("button", { class: e.useful === true ? "on" : "" }, "Useful");
     const down = el("button", { class: e.useful === false ? "on" : "" }, "Not useful");
@@ -172,6 +177,8 @@ function evidenceRows(v, evidence) {
       el("q", {}, e.quote),
       href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
   });
+  const more = all.length - rows.length;
+  return [rows, more > 0 ? el("a", { class: "more", href: `#/vc/${v.id}` }, `View ${more} more signal${more > 1 ? "s" : ""} →`) : null];
 }
 
 function quickActions(v) {
@@ -197,7 +204,7 @@ function card(v, evidence, now) {
     el("div", { class: "amount" }, String(score)),
     el("div", { class: "pl" }, el("span", {}, "Follow-up score"), el("span", {}, `${score}%`)),
     el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })),
-    el("p", { class: "why" }, v.signal_summary || "Not scored yet."),
+    el("p", { class: "why" }, (v.signal_summary || "Not scored yet.").split(" | ")[0]),
     v.last_signal_date ? el("div", { class: "age" }, `Latest signal ${daysAgo(v.last_signal_date, now)}d ago`) : null,
     el("div", { class: "chips", style: "margin-top:8px" }, chips),
     quickActions(v),
@@ -224,7 +231,7 @@ function hero(data, now) {
   } else if (top) {
     const ev = evidence.find((e) => e.vc_id === top.id);
     insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "1"), `Strongest signal: ${top.firm}`),
-      el("p", {}, top.signal_summary),
+      el("p", {}, top.signal_summary.split(" | ")[0]),
       el("div", { class: "chips" }, el("span", { class: "chip good" }, "Source-checked"), el("span", { class: "chip good" }, `Score ${top.follow_up_score}`), tag("type", ev && ev.type)));
   } else {
     insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "0"), "Nothing fresh this week"),
