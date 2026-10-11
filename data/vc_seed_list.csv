@@ -1,0 +1,51 @@
+id,name,firm,thesis,status,region,stage_focus,evidence,source_url,verification,flag
+1,,Dynamo Ventures,Supply chain and mobility,to_contact,US/EU,"Pre-seed, Seed",Closed $54M Fund III (May 2025),https://www.peony.ink/blog/top-logistics-investors,Found in search,
+2,,Schematic Ventures,Supply chain and manufacturing software,to_contact,US,Seed,Focused seed firm for supply chain software,https://f4.fund/investors/logistics,Found in search,
+3,,Ironspring Ventures,Supply chain and industrial technology,to_contact,US,"Seed, Early",Named as seed specialist in logistics lists,https://rho.co/blog/vcs-in-logistics,Found in search,
+4,,Flexport Fund,"Early-stage logistics software: trade, customs, visibility",to_contact,Global,Pre-seed to Series A,Operator-driven fund,https://f4.fund/investors/logistics/seed,Found in search,
+5,,Room40 Ventures,Logistics and supply chain technology,to_contact,Unknown,"Pre-seed, Seed",Listed as pre-seed/seed logistics specialist,https://rho.co/blog/vcs-in-logistics,Found in search,Verify geography
+6,,Sente,Logistics and supply chain technology,to_contact,Unknown,"Pre-seed, Seed",Listed as pre-seed/seed logistics specialist,https://rho.co/blog/vcs-in-logistics,Found in search,Verify exact firm name and geography
+7,,Prequel Ventures,Supply chain technology,to_contact,Europe,Pre-seed,Europe's pre-seed supply chain fund; 2026 EU report with Oliver Wyman,https://www.oliverwyman.com/our-expertise/insights/2026/feb/eu-supply-chain-tech-report-2026-ai-startups.html,Found in search,
+8,,Nine Realms VC,Supply chain tech plus sustainability,to_contact,Europe (Copenhagen),Early-stage,EUR 50M from EIF toward EUR 200M fund; led by ex-Maersk Growth founder,https://siliconcanals.com/?p=52850,Found in search,
+9,,Fundalogical Ventures,Supply chain and logistics,to_contact,India,Pre-seed to growth,India-focused logistics fund; first investment Indicold (cold chain),https://superscout.co/investor/fundalogical-ventures,Found in search,
+10,,Snak Venture Partners,"B2B marketplaces in supply chain, logistics, construction",to_contact,US,Seed,Digital marketplaces in undigitized sectors,https://f4.fund/investors/logistics/seed,Found in search,Marketplace-focused; check SaaS fit
+11,,Supply Chain Ventures,Dedicated logistics fund,to_contact,Unknown,Seed to Series A,Listed in freight investor roundup,https://www.ellty.com/blog/freight-investors,Found in search,Generic name; verify identity
+12,,First Star Ventures,Logistics and supply chain,to_contact,Unknown,"Pre-seed, Seed",Top of a logistics investor list,https://www.papermark.com/blog/logistics-investors.md,Found in search,Low-quality source; verify
+13,,Ascend Venture Capital,Logistics and supply chain,to_contact,Unknown,"Pre-seed, Seed",Listed as logistics investor,https://www.papermark.com/blog/logistics-investors.md,Found in search,Low-quality source; verify
+14,,8VC,Logistics as a core thesis,to_contact,US,Seed to growth,$998M Fund VI names logistics as core thesis,https://www.peony.ink/blog/top-logistics-investors,Found in search,Large fund; check seed cheque fit
+15,,DCVC,Deep tech meets logistics and manufacturing,to_contact,US,Seed to growth,Moves fast on warehouse hardware plus software,https://www.peony.ink/blog/top-logistics-investors,Found in search,Leans deep tech
+16,,Eclipse Ventures,Industrial and logistics technology,to_contact,US,Seed to late,Named top logistics backer,https://rho.co/blog/vcs-in-logistics,Found in search,
+17,,LDV Capital,Logistics technology,to_contact,US/Global,Seed+,Named early-stage logistics backer,https://rho.co/blog/vcs-in-logistics,Found in search,
+18,,TMV,Transportation technology,to_contact,US,Seed+,Invests in transportation tech with early traction,https://rho.co/blog/vcs-in-logistics,Found in search,
+19,,SuperSeed,Technical founders bringing AI to physical world incl. logistics,to_contact,Unknown,Seed,Appears in logistics + devtools list,https://f4.fund/investors/devtools/logistics,Found in search,Verify geography
+20,,Equal Ventures,Legacy industries incl. supply chain,to_contact,US,Seed,Tech in legacy industries,https://f4.fund/investors/logistics/seed,Found in search,
+21,,Alpaca VC,Foundational industries incl. logistics,to_contact,Unknown,"Pre-seed, Seed",Logistics listed among target industries,https://f4.fund/investors/logistics,Found in search,Verify geography
+22,,SpringTime Ventures,"Fintech, logistics, healthcare",to_contact,Unknown,Seed,Logistics listed among target sectors,https://f4.fund/investors/logistics/seed,Found in search,Verify geography
+23,,Hyperplane Venture Capital,Seed-stage generalist,to_contact,Unknown,Seed,Appears in logistics + devtools list,https://f4.fund/investors/devtools/logistics,Found in search,Verify thesis fit
+24,,SignalFire,Data-driven; logistics listed,to_contact,US,Seed to Series A,Appears in logistics investor list,https://www.papermark.com/blog/logistics-investors.md,Found in search,Verify logistics focus
+25,,Prologis Ventures,Supply chain and logistics,to_contact,Global,Corporate,Pilot sites and network; USD 1.6B warehouse tech JV with GIC (Mar 2026),https://www.peony.ink/blog/top-logistics-investors,Found in search,
+26,,Amazon Industrial Innovation Fund,Fulfillment automation and robotics,to_contact,US,Corporate,"$1B fund, 24 investments as of early 2026",https://www.peony.ink/blog/top-logistics-investors,Found in search,Leans hardware/robotics
+27,,Maersk Growth,"Ocean, ports, supply chain",to_contact,Denmark,Corporate,Paused new minority-equity investments per F4,https://f4.fund/investors/devtools/logistics,Found in search,NOT CURRENTLY INVESTING - useful as a test case for the stage filter
+28,,Field Ventures,Logistics AI seed,to_contact,US,Seed,Co-backed Freight Hero $5M seed (Jul 2026),https://projectstartups.com/pages/logistics/,Found in search,
+29,,Flybridge Capital,Logistics AI seed,to_contact,US,Seed,Co-backed Freight Hero $5M seed (Jul 2026),https://projectstartups.com/pages/logistics/,Found in search,
+30,,Navyug Global,Logistics tech,to_contact,India,Seed,Led TOCAL ~$1.04M seed (Jul 2026),https://startuptalky.com/indian-startups-funding-investors-data-2026/,Found in search,
+31,,Inflection Point Ventures,Logistics tech,to_contact,India,Seed,Led Daakit seed (Apr 2026),https://startuptalky.com/indian-startups-funding-investors-data-2026/,Found in search,
+32,,Enrission India Capital,Logistics tech,to_contact,India,Seed,Led Hexalog ~$4M seed (Jan 2026),https://startuptalky.com/indian-startups-funding-investors-data-2026/,Found in search,
+33,,NB Ventures,Logistics tech,to_contact,India,Seed,Led Edgistify ~$1.4M seed (Jan 2026),https://startuptalky.com/indian-startups-funding-investors-data-2026/,Found in search,
+34,,Equanimity Investments,Logistics SaaS,to_contact,India,Seed,Backed Stockarea seed (Nov 2025),https://tracxn.com/d/explore/logistics-saas-startups-in-india/__oLt7JMjol5k_JLhaybKEhf7_toLJ90tvjfw39adF5CI,Found in search,
+35,,Kalaari Capital,Early-stage India tech,to_contact,India,Seed to Series A,Backed ElasticRun,https://yourstory.com/2018/10/rivigo-delhivery-meet-highest-funded-logistics-startups-india/,Found in search,Evidence from 2018 article
+36,,Norwest Venture Partners,Growth-leaning generalist,to_contact,India/US,Series A+,Backed ElasticRun,https://yourstory.com/2018/10/rivigo-delhivery-meet-highest-funded-logistics-startups-india/,Found in search,Likely too late-stage for seed
+37,,Accel,India tech incl. B2B logistics,to_contact,India/Global,Seed to growth,Early BlackBuck investor,https://inc42.com/?p=34029,Found in search,Evidence from earlier article
+38,,Peak XV Partners (formerly Sequoia Capital India),India and SEA tech,to_contact,India/SEA,Seed to growth,Sequoia backed Porter,https://yourstory.com/2018/10/rivigo-delhivery-meet-highest-funded-logistics-startups-india/,Found in search,Rename from background knowledge; verify
+39,,Kae Capital,India early-stage,to_contact,India,Seed,Backed Porter,https://yourstory.com/2018/10/rivigo-delhivery-meet-highest-funded-logistics-startups-india/,Found in search,Evidence from 2018 article
+40,,Elevation Capital (formerly SAIF Partners),India tech,to_contact,India,Seed to growth,SAIF backed Fareye and XpressBees,https://yourstory.com/2018/10/rivigo-delhivery-meet-highest-funded-logistics-startups-india/,Found in search,Rename from background knowledge; verify
+41,,Lightspeed India,India B2B and consumer tech,to_contact,India,Seed to growth,Backed udaan (B2B marketplace),https://www.cbinsights.com/company/truckmandi,Found in search,
+42,,3one4 Capital,Software and SaaS,to_contact,India,Pre-seed to Series A,Appears in India logistics VC directory,https://privateequitylist.com/investors/venture-capital/india/logistics,Found in search,Verify logistics interest
+43,,Tribe Capital,Data-driven generalist,to_contact,US,Seed to growth,Backed Shiprocket,https://inc42.com/features/indian-startup-ipo-tracker-2026/,Found in search,
+44,,Blume Ventures,India seed generalist,to_contact,India,Seed,Prominent India seed fund,,Background knowledge - verify,Verify logistics/B2B SaaS fit
+45,,Stellaris Venture Partners,India enterprise and B2B software,to_contact,India,Seed to Series A,Known B2B-focused seed fund,,Background knowledge - verify,Verify logistics fit
+46,,Chiratae Ventures,India tech generalist,to_contact,India,Seed to growth,Appeared in 2026 Inc42 tracker (non-logistics),https://inc42.com/features/indian-startup-ipo-tracker-2026/,Background knowledge - verify,Verify logistics fit
+47,,Nexus Venture Partners,India and US enterprise software,to_contact,India/US,Seed to growth,Known enterprise software investor,,Background knowledge - verify,Verify logistics fit
+48,,Speciale Invest,India deep tech seed,to_contact,India,Seed,Known deep-tech seed fund,,Background knowledge - verify,Verify logistics fit
+49,,Z47 (formerly Matrix Partners India),India tech generalist,to_contact,India,Seed to growth,Rename from background knowledge,,Background knowledge - verify,Verify name and logistics fit
+50,,100Unicorns,India seed generalist,to_contact,India,Seed,Backer of EV logistics startup Zypp,https://inc42.com/features/indian-startup-ipo-tracker-2026/,Found in search,

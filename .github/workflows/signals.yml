@@ -1,0 +1,29 @@
+name: signal-run
+
+on:
+  schedule:
+    - cron: "30 1 * * 1,4"      # Mon + Thu 01:30 UTC = 7:00 IST. GitHub may start this late;
+                                # the dashboard shows when the last run actually finished.
+  workflow_dispatch: {}          # manual re-run for off days
+
+concurrency:
+  group: signal-run
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q          # a broken validator or routing table must not reach Vikram
+      - run: python -m pipeline.run
+        env:
+          SIGNAL_JOB_DATABASE_URL: ${{ secrets.SIGNAL_JOB_DATABASE_URL }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

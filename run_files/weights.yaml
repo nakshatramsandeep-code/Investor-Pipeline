@@ -1,0 +1,26 @@
+# Scoring weights. Read by code (schema-checked in pipeline/config.py).
+# Tune these after you have a few weeks of useful / not-useful feedback.
+version: 1
+
+signal_types:            # how strong is each kind of signal (0..1)
+  portfolio_investment: 1.0
+  fund_announcement: 0.9
+  interview: 0.8
+  blog_post: 0.7
+  event_appearance: 0.6
+  other: 0.3
+
+recency:
+  window_days: 30        # a signal older than this is not a signal
+  half_life_days: 14     # strength halves every 14 days
+
+bonuses:
+  extra_signal: 0.10     # per additional distinct signal, up to 3 extra
+  new_since_last_run: 0.10   # newest signal is newer than what Vikram was already shown
+  preferred_geo: 0.05    # vc_profile.geo contains one of preferred_geos
+
+preferred_geos: [india, global]
+
+routing:
+  waiting_nudge_days: 10       # waiting longer than this with no reply -> nudge
+  quiet_nudge_score: 25        # score given to a "nudge" that has no new signal behind it

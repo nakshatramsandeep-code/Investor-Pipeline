@@ -1,0 +1,27 @@
+# Fit gate: is this investor a plausible target for Vikram's Seed round at all?
+# Read by code (schema-checked in pipeline/config.py). A VC that fails is routed to "skip"
+# and no search / LLM budget is spent on it.
+version: 1
+
+# Words used to build the search query for each VC.
+topic_keywords: [supply chain, logistics, freight, warehouse]
+
+# Hard gates (any failure -> skip)
+require_investing: true            # vc_profile.is_investing must be true
+stage_must_match_any:              # case-insensitive substring of vc_profile.stage_focus
+  - pre-seed
+  - seed
+  - early
+  - corporate                      # corporate funds sometimes write seed cheques; softened below
+hard_exclude_flags:                # case-insensitive substring of vc_profile.flag
+  - not currently investing
+
+# Soft penalties: multiply the follow-up score. First column = substring of flag or stage.
+soft_penalties:
+  "verify": 0.9                    # unverified facts about this firm
+  "leans hardware": 0.8
+  "leans deep tech": 0.85
+  "check seed cheque fit": 0.85
+  "check saas fit": 0.85
+  "low-quality source": 0.85
+  "corporate": 0.85

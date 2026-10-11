@@ -1,0 +1,8 @@
+{
+  "name": "investor-pipeline-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  }
+}
