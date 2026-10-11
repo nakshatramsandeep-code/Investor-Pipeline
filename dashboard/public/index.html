@@ -110,6 +110,15 @@
   .insight.best .score { font: 700 28px var(--mono); color: var(--green); }
   .dot.ok { background: var(--green); }
   .insight.best a.more { margin-top: auto; }
+  .row { display: flex; gap: 10px; justify-content: space-between; align-items: center; }
+  .card.compact { padding: 10px 12px; margin-bottom: 8px; }
+  .card.compact .row { align-items: center; flex-wrap: nowrap; gap: 8px; }
+  .card.compact .name { font-size: 14px; }
+  .pts { font: 700 16px var(--mono); flex: none; }
+  .why.one { margin: 6px 0 0; font-size: 12.5px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card.compact .qa { margin-top: 8px; }
+  .card.compact .qa button { padding: 1px 8px; }
+  button.showall { width: 100%; margin-top: 4px; padding: 6px; color: var(--muted); }
   .tabs { display: flex; gap: 6px; margin: 0 0 18px; }
   .tabs a { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: 13px; }
   .tabs a.on { background: var(--purple); border-color: var(--purple); color: #fff; }
@@ -174,25 +183,6 @@ function trustChip(e) {
   return e.source_tier ? el("span", { class: `chip tier-${e.source_tier}` }, `${TIER[e.source_tier] || e.source_tier}: ${e.source_domain}`) : null;
 }
 
-function evidenceRows(v, evidence) {
-  // Home page: just the best signal (logistics first, then newest). The rest live on the investor's page.
-  const all = evidence.filter((e) => e.vc_id === v.id && e.source_tier !== "legacy_unverified")
-    .sort((a, b) => (b.relevance === "logistics") - (a.relevance === "logistics") || (a.published_date < b.published_date ? 1 : -1));
-  const rows = all.slice(0, 1).map((e) => {
-    const href = safeUrl(e.url);
-    const up = el("button", { class: e.useful === true ? "on" : "" }, "Useful");
-    const down = el("button", { class: e.useful === false ? "on" : "" }, "Not useful");
-    const btns = [[up, true], [down, false]];
-    up.onclick = () => sendFeedback(e, true, btns); down.onclick = () => sendFeedback(e, false, btns);
-    return el("div", { class: "ev" },
-      el("div", { class: "chips" }, tag("type", e.type), relChip(e), el("span", { class: "chip" }, fmtDate(e.published_date)), trustChip(e)),
-      el("q", {}, e.quote),
-      href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
-  });
-  const more = all.length - rows.length;
-  return [rows, more > 0 ? el("a", { class: "more", href: `#/vc/${v.id}` }, `View ${more} more signal${more > 1 ? "s" : ""} →`) : null];
-}
-
 function quickActions(v) {
   const btn = (text, kind) => el("button", { onclick: async () => { if (await editCall({ action: "log", vc_id: v.id, kind })) load(); } }, text);
   if (v.status === "to_contact") return el("div", { class: "qa" }, btn("Mark reached out", "reached_out"));
@@ -201,26 +191,19 @@ function quickActions(v) {
 }
 
 function card(v, evidence, now) {
-  const score = v.follow_up_score ?? 0;
-  const checked = v.checked_at ? daysAgo(v.checked_at, now) : null;
-  const chips = [
-    tag("status", v.status),
-    v.check_ok === false ? el("span", { class: "chip bad" }, "check failed: old values") : null,
-    checked == null ? el("span", { class: "chip warn" }, "never checked") : checked > 5 ? el("span", { class: "chip warn" }, `checked ${checked}d ago`) : null,
-    v.last_contacted_at ? el("span", { class: "chip" }, `contacted ${fmtDate(v.last_contacted_at)}`) : null,
-    v.flag ? el("span", { class: "chip warn" }, v.flag) : null,
-  ];
-  return el("div", { class: "card" },
-    el("div", { class: "name" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
-    el("div", { class: "meta" }, [v.geo, v.stage_focus].filter(Boolean).join(" · ")),
-    el("div", { class: "amount" }, String(score)),
-    el("div", { class: "pl" }, el("span", {}, "Follow-up score"), el("span", {}, `${score}%`)),
-    el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })),
-    el("p", { class: "why" }, (v.signal_summary || "Not scored yet.").split(" | ")[0]),
-    v.last_signal_date ? el("div", { class: "age" }, `Latest signal ${daysAgo(v.last_signal_date, now)}d ago`) : null,
-    el("div", { class: "chips", style: "margin-top:8px" }, chips),
-    quickActions(v),
-    evidenceRows(v, evidence));
+  // Compact: name, points, how many signals, and the single best one. Everything else is on the profile.
+  const all = evidence.filter((e) => e.vc_id === v.id && e.source_tier !== "legacy_unverified")
+    .sort((a, b) => (b.relevance === "logistics") - (a.relevance === "logistics") || (a.published_date < b.published_date ? 1 : -1));
+  const best = all[0], score = v.follow_up_score ?? 0;
+  return el("div", { class: "card compact" },
+    el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm),
+      el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Follow-up score" }, String(score))),
+    el("div", { class: "chips", style: "margin-top:6px" },
+      best ? [tag("type", best.type), relChip(best)] : null,
+      all.length ? el("span", { class: "chip" }, `${all.length} signal${all.length > 1 ? "s" : ""}`) : null,
+      v.check_ok === false ? el("span", { class: "chip c-red" }, "check failed") : null),
+    el("p", { class: "why one" }, best ? best.summary : (v.signal_summary || "Not scored yet.").split(" | ")[0]),
+    quickActions(v));
 }
 
 function miniRow(v, text) {
@@ -268,8 +251,16 @@ function hero(data, now) {
   return [...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
 }
 
-function column(title, hint, items) {
-  return el("div", { class: "col" }, el("h4", {}, title, el("span", {}, String(items.length))), hint ? el("div", { class: "hint" }, hint) : null, items.length ? items.map((n) => n) : el("div", { class: "empty" }, "Nothing here."));
+function column(title, hint, items, limit) {
+  const head = el("h4", {}, title, el("span", {}, String(items.length)));
+  const sub = hint ? el("div", { class: "hint" }, hint) : null;
+  if (!items.length) return el("div", { class: "col" }, head, sub, el("div", { class: "empty" }, "Nothing here."));
+  if (!limit || items.length <= limit) return el("div", { class: "col" }, head, sub, items);
+  // Long lists show the top few; the rest are one click away.
+  const rest = el("div", { style: "display:none" }, items.slice(limit));
+  const btn = el("button", { class: "showall" }, `Show all ${items.length}`);
+  btn.onclick = () => { const open = rest.style.display === "none"; rest.style.display = open ? "block" : "none"; btn.textContent = open ? "Show top " + limit : `Show all ${items.length}`; };
+  return el("div", { class: "col" }, head, sub, items.slice(0, limit), rest, btn);
 }
 
 // No login: the site is meant to be private (Vercel Deployment Protection).
@@ -306,7 +297,7 @@ function render(data) {
     hero(data, now),
     el("h2", {}, "Pipeline by action", el("small", {}, "Ranked by follow-up score")),
     el("div", { class: "board" },
-      column("Reach out", "Fresh signal, not yet contacted", reach.map((v) => card(v, data.evidence, now))),
+      column("Reach out", "Fresh signal, not yet contacted. Best first", reach.map((v) => card(v, data.evidence, now)), 10),
       column("Nudge", "Waiting on a reply, with a reason to follow up", nudge.map((v) => card(v, data.evidence, now))),
       column("Hold", "You already moved recently, or you're talking", hold.map((v) => card(v, data.evidence, now))),
       column("Quiet", "No signal in 30 days: don't spend energy here", quiet.map((v) => miniRow(v, v.check_ok === false ? "check failed" : v.stage_focus)))),
