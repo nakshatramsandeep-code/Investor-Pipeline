@@ -98,6 +98,18 @@
   .board.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   @media (max-width: 1250px) { .board.five { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @media (max-width: 800px) { .board.five { grid-template-columns: 1fr; } }
+  .chip { white-space: nowrap; }
+  .notice { border: 1px solid #5a2a2a; background: rgba(255,122,122,.07); color: #ffb3b3; border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
+  .insight.best { display: flex; flex-direction: column; gap: 8px; }
+  .insight.best .row { align-items: center; flex-wrap: nowrap; }
+  .insight.best h3 { margin: 0; }
+  .insight.best p { margin: 0; }
+  .bestname { font: 700 24px/1.2 var(--mono); }
+  .bestname a { color: var(--text); text-decoration: none; }
+  .bestname a:hover { color: #b9a7ff; }
+  .insight.best .score { font: 700 28px var(--mono); color: var(--green); }
+  .dot.ok { background: var(--green); }
+  .insight.best a.more { margin-top: auto; }
   .tabs { display: flex; gap: 6px; margin: 0 0 18px; }
   .tabs a { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: 13px; }
   .tabs a.on { background: var(--purple); border-color: var(--purple); color: #fff; }
@@ -223,16 +235,22 @@ function hero(data, now) {
   const age = finished ? daysAgo(finished, now) : null;
   const stale = age != null && age > 4;
 
+  // The big card is always the best match. Problems get their own slim notice above it.
+  const notices = [];
+  if (failed.length) notices.push(`${failed.length} VC${failed.length > 1 ? "s" : ""} could not be checked last run (${failed.map((v) => v.firm).join(", ")}). Their earlier results are shown.`);
+  if (run && run.error) notices.push(`Last run error: ${run.error}`);
+  if (stale) notices.push(`The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`);
+
   let insight;
-  if (failed.length || (run && run.error) || stale) {
-    insight = el("div", { class: "insight bad" }, el("h3", {}, el("span", { class: "dot" }, "!"),
-      failed.length ? `${failed.length} VC${failed.length > 1 ? "s" : ""} could not be checked` : "The last run needs attention"),
-      el("p", {}, failed.length ? `Their scores are from an earlier run: ${failed.map((v) => v.firm).join(", ")}.` : (run && run.error) || `The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`));
-  } else if (top) {
-    const ev = evidence.find((e) => e.vc_id === top.id);
-    insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "1"), `Strongest signal: ${top.firm}`),
-      el("p", {}, top.signal_summary.split(" | ")[0]),
-      el("div", { class: "chips" }, el("span", { class: "chip good" }, "Source-checked"), el("span", { class: "chip good" }, `Score ${top.follow_up_score}`), tag("type", ev && ev.type)));
+  if (top) {
+    const ev = evidence.filter((e) => e.vc_id === top.id && e.source_tier !== "legacy_unverified")
+      .sort((a, b) => (b.relevance === "logistics") - (a.relevance === "logistics") || (a.published_date < b.published_date ? 1 : -1))[0];
+    insight = el("div", { class: "insight best" },
+      el("div", { class: "row" }, el("h3", {}, el("span", { class: "dot ok" }, "1"), "Best match this week"), el("span", { class: "score" }, String(top.follow_up_score))),
+      el("div", { class: "bestname" }, el("a", { class: "vclink", href: `#/vc/${top.id}` }, top.firm)),
+      el("p", {}, ev ? ev.summary : top.signal_summary.split(" | ")[0]),
+      el("div", { class: "chips" }, ev ? [tag("type", ev.type), relChip(ev), trustChip(ev)] : null, tag("status", top.status)),
+      el("a", { class: "more", href: `#/vc/${top.id}` }, "Open profile and all signals →"));
   } else {
     insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "0"), "Nothing fresh this week"),
       el("p", {}, "No VC has a verified signal in the last 30 days. Don't force it."));
@@ -247,7 +265,7 @@ function hero(data, now) {
       el("div", { class: "tile" }, el("small", {}, "Reach out"), el("strong", {}, String(count("reach_out"))), " ", el("em", {}, "this week")),
       el("div", { class: "tile" }, el("small", {}, "Signals kept"), el("strong", {}, String(run ? run.signals_kept : 0)), " ", el("em", {}, run ? `${run.signals_dropped} dropped` : "")),
       el("div", { class: "tile" }, el("small", {}, "Last run"), el("strong", {}, age == null ? (run ? "running" : "never") : age === 0 ? "today" : `${age}d ago`), " ", el("em", {}, run ? run.status : ""))));
-  return el("div", { class: "hero" }, insight, kpi);
+  return [...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
 }
 
 function column(title, hint, items) {
@@ -300,9 +318,9 @@ function render(data) {
 function statusRow(v, now) {
   const when = v.last_contacted_at ? `contacted ${daysAgo(v.last_contacted_at, now)}d ago` : "not contacted";
   return el("div", { class: "card" },
-    el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm),
-      tag("action", v.recommended_action)),
+    el("div", { class: "name" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
     el("div", { class: "meta" }, `${when}${v.follow_up_score != null ? ` \u00b7 score ${v.follow_up_score}` : ""}`),
+    el("div", { class: "chips", style: "margin-top:8px" }, tag("action", v.recommended_action)),
     quickActions(v));
 }
 
