@@ -33,5 +33,5 @@ def make_signal(days_ago=3, type="portfolio_investment", url="https://x.com/a") 
     return Signal(type=type, summary="s", quote="q" * 25, url=url, published=ago(days_ago))
 
 
-def make_page(text, days_ago=3, url="https://x.com/a") -> Page:
+def make_page(text, days_ago=3, url="https://techcrunch.com/a") -> Page:
     return Page(url=url, title="t", published=ago(days_ago) if days_ago is not None else None, text=text)

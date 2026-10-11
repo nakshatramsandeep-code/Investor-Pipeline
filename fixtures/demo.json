@@ -1,57 +1,208 @@
 {
   "Dynamo Ventures": {
-    "pages": [{"url": "https://example.com/dynamo-leads-seed", "title": "Dynamo leads seed in freight SaaS", "days_ago": 3,
-      "text": "Dynamo Ventures led a $4M seed round in a freight visibility startup this week. \"We see a long overdue shift to software in freight forwarding,\" said a partner at Dynamo Ventures."}],
-    "llm": {"signals": [{"type": "portfolio_investment", "summary": "Led a $4M seed round in a freight visibility startup.",
-      "quote": "Dynamo Ventures led a $4M seed round in a freight visibility startup this week.", "url": "https://example.com/dynamo-leads-seed"}]}
+    "pages": [
+      {
+        "url": "https://techcrunch.com/dynamo-leads-seed",
+        "title": "Dynamo leads seed in freight SaaS",
+        "days_ago": 3,
+        "text": "Dynamo Ventures led a $4M seed round in a freight visibility startup this week. \"We see a long overdue shift to software in freight forwarding,\" said a partner at Dynamo Ventures. Jane Partner, General Partner, led the deal. Jane Partner, General Partner, led the deal."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "portfolio_investment",
+          "summary": "Led a $4M seed round in a freight visibility startup.",
+          "quote": "Dynamo Ventures led a $4M seed round in a freight visibility startup this week.",
+          "url": "https://techcrunch.com/dynamo-leads-seed",
+          "person": {
+            "name": "Jane Partner",
+            "role": "General Partner"
+          }
+        }
+      ]
+    }
   },
   "Flexport Fund": {
-    "pages": [{"url": "https://example.com/flexport-fund-podcast", "title": "Flexport Fund on customs tech", "days_ago": 9,
-      "text": "On the podcast, the Flexport Fund team explained why customs and trade compliance software is their focus for the next twelve months."}],
-    "llm": {"signals": [
-      {"type": "interview", "summary": "Said customs and trade compliance software is the focus for the next year.",
-       "quote": "why customs and trade compliance software is their focus for the next twelve months", "url": "https://example.com/flexport-fund-podcast"},
-      {"type": "blog_post", "summary": "Published a post about warehouse robotics.",
-       "quote": "Warehouse robotics will define the decade for every operator", "url": "https://example.com/made-up-by-the-model"}]}
+    "pages": [
+      {
+        "url": "https://techcrunch.com/flexport-fund-podcast",
+        "title": "Flexport Fund on customs tech",
+        "days_ago": 9,
+        "text": "On the podcast, the Flexport Fund team explained why customs and trade compliance software is their focus for the next twelve months."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "interview",
+          "summary": "Said customs and trade compliance software is the focus for the next year.",
+          "quote": "why customs and trade compliance software is their focus for the next twelve months",
+          "url": "https://techcrunch.com/flexport-fund-podcast"
+        },
+        {
+          "type": "blog_post",
+          "summary": "Published a post about warehouse robotics.",
+          "quote": "Warehouse robotics will define the decade for every operator",
+          "url": "https://techcrunch.com/made-up-by-the-model"
+        }
+      ]
+    }
   },
   "Schematic Ventures": {
-    "pages": [{"url": "https://example.com/schematic-note", "title": "Schematic note", "days_ago": 12,
-      "text": "Schematic Ventures hosted a small dinner for supply chain founders in Boston."}],
-    "llm": {"signals": [{"type": "event_appearance", "summary": "Raised a new $100M fund for supply chain.",
-      "quote": "Schematic Ventures announced a new $100M fund for supply chain software", "url": "https://example.com/schematic-note"}]}
+    "pages": [
+      {
+        "url": "https://techcrunch.com/schematic-note",
+        "title": "Schematic note",
+        "days_ago": 12,
+        "text": "Schematic Ventures hosted a small dinner for supply chain founders in Boston."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "event_appearance",
+          "summary": "Raised a new $100M fund for supply chain.",
+          "quote": "Schematic Ventures announced a new $100M fund for supply chain software",
+          "url": "https://techcrunch.com/schematic-note"
+        }
+      ]
+    }
   },
   "Field Ventures": {
-    "pages": [{"url": "https://example.com/field-ventures-blog", "title": "Why logistics AI now", "days_ago": 20,
-      "text": "Field Ventures partner writes: logistics operators are finally ready to buy AI that sits on top of their existing TMS. We co-backed a freight automation seed in July."}],
-    "llm": {"signals": [{"type": "blog_post", "summary": "Argued logistics operators are ready to buy AI layered on existing TMS.",
-      "quote": "logistics operators are finally ready to buy AI that sits on top of their existing TMS", "url": "https://example.com/field-ventures-blog"}]}
+    "pages": [
+      {
+        "url": "https://fieldventures.substack.com/p/why-logistics-ai-now",
+        "title": "Why logistics AI now",
+        "days_ago": 20,
+        "text": "Field Ventures partner writes: logistics operators are finally ready to buy AI that sits on top of their existing TMS. We co-backed a freight automation seed in July."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "blog_post",
+          "summary": "Argued logistics operators are ready to buy AI layered on existing TMS.",
+          "quote": "logistics operators are finally ready to buy AI that sits on top of their existing TMS",
+          "url": "https://fieldventures.substack.com/p/why-logistics-ai-now"
+        }
+      ]
+    }
   },
   "Prequel Ventures": {
-    "pages": [{"url": "https://example.com/prequel-name-clash", "title": "Prequel (film studio) raises", "days_ago": 2,
-      "text": "Prequel Studios, a film production company, raised funding for a new streaming slate and a supply chain of sets."}],
-    "llm": {"signals": [{"type": "portfolio_investment", "summary": "Raised funding.",
-      "quote": "raised funding for a new streaming slate and a supply chain of sets", "url": "https://example.com/prequel-name-clash"}]}
+    "pages": [
+      {
+        "url": "https://techcrunch.com/prequel-name-clash",
+        "title": "Prequel (film studio) raises",
+        "days_ago": 2,
+        "text": "Prequel Studios, a film production company, raised funding for a new streaming slate and a supply chain of sets."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "portfolio_investment",
+          "summary": "Raised funding.",
+          "quote": "raised funding for a new streaming slate and a supply chain of sets",
+          "url": "https://techcrunch.com/prequel-name-clash"
+        }
+      ]
+    }
   },
   "Navyug Global": {
-    "vc": {"status": "waiting", "last_contacted_days_ago": 14},
-    "pages": []
+    "vc": {
+      "status": "waiting",
+      "last_contacted_days_ago": 14
+    },
+    "pages": [
+      {
+        "url": "https://fundraiseinsider.com/navyug-report",
+        "title": "Navyug roundup",
+        "days_ago": 4,
+        "text": "Navyug Global is among logistics tech funds to watch this quarter, according to a roundup of seed investors."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "blog_post",
+          "summary": "Listed among logistics funds to watch.",
+          "quote": "Navyug Global is among logistics tech funds to watch this quarter",
+          "url": "https://fundraiseinsider.com/navyug-report"
+        }
+      ]
+    }
   },
   "Enrission India Capital": {
-    "vc": {"status": "waiting", "last_contacted_days_ago": 3},
-    "pages": []
+    "vc": {
+      "status": "waiting",
+      "last_contacted_days_ago": 3
+    },
+    "pages": [
+      {
+        "url": "https://www.linkedin.com/posts/enrission-hexalog",
+        "title": "Post",
+        "days_ago": 2,
+        "text": "Enrission India Capital is proud to back Hexalog again as it expands its logistics network across India."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "portfolio_investment",
+          "summary": "Backed Hexalog again.",
+          "quote": "Enrission India Capital is proud to back Hexalog again as it expands",
+          "url": "https://www.linkedin.com/posts/enrission-hexalog"
+        }
+      ]
+    }
   },
   "NB Ventures": {
-    "vc": {"status": "waiting", "last_contacted_days_ago": 20},
-    "pages": [{"url": "https://example.com/nb-ventures-edgistify", "title": "NB Ventures backs warehousing startup", "days_ago": 5,
-      "text": "NB Ventures has followed on its investment in Edgistify, a warehousing and fulfilment platform, with a new tranche to expand in the south."}],
-    "llm": {"signals": [{"type": "portfolio_investment", "summary": "Followed on its investment in warehousing platform Edgistify.",
-      "quote": "NB Ventures has followed on its investment in Edgistify", "url": "https://example.com/nb-ventures-edgistify"}]}
+    "vc": {
+      "status": "waiting",
+      "last_contacted_days_ago": 20
+    },
+    "pages": [
+      {
+        "url": "https://techcrunch.com/nb-ventures-edgistify",
+        "title": "NB Ventures backs warehousing startup",
+        "days_ago": 5,
+        "text": "NB Ventures has followed on its investment in Edgistify, a warehousing and fulfilment platform, with a new tranche to expand in the south."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "portfolio_investment",
+          "summary": "Followed on its investment in warehousing platform Edgistify.",
+          "quote": "NB Ventures has followed on its investment in Edgistify",
+          "url": "https://techcrunch.com/nb-ventures-edgistify"
+        }
+      ]
+    }
   },
   "Inflection Point Ventures": {
-    "vc": {"status": "waiting", "last_contacted_days_ago": 2},
-    "pages": [{"url": "https://example.com/ipv-daakit", "title": "IPV and Daakit", "days_ago": 10,
-      "text": "Inflection Point Ventures says its Daakit bet shows that last-mile logistics for small brands is under-served."}],
-    "llm": {"signals": [{"type": "interview", "summary": "Said last-mile logistics for small brands is under-served.",
-      "quote": "last-mile logistics for small brands is under-served", "url": "https://example.com/ipv-daakit"}]}
+    "vc": {
+      "status": "waiting",
+      "last_contacted_days_ago": 2
+    },
+    "pages": [
+      {
+        "url": "https://techcrunch.com/ipv-daakit",
+        "title": "IPV and Daakit",
+        "days_ago": 10,
+        "text": "Inflection Point Ventures says its Daakit bet shows that last-mile logistics for small brands is under-served."
+      }
+    ],
+    "llm": {
+      "signals": [
+        {
+          "type": "interview",
+          "summary": "Said last-mile logistics for small brands is under-served.",
+          "quote": "last-mile logistics for small brands is under-served",
+          "url": "https://techcrunch.com/ipv-daakit"
+        }
+      ]
+    }
   }
 }

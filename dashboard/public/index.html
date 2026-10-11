@@ -67,6 +67,28 @@
   .mini span:last-child { color: var(--muted); font-size: 12px; text-align: right; }
   .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 14px; font-size: 13px; }
   .skipped { margin-top: 30px; }
+  a.vclink { color: var(--text); text-decoration: none; }
+  a.vclink:hover { color: #b9a7ff; text-decoration: underline; }
+  .back { display: inline-block; margin-bottom: 14px; color: var(--muted); text-decoration: none; font-size: 13px; }
+  .back:hover { color: var(--text); }
+  .ph { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 18px; }
+  .ph h1 { margin-bottom: 10px; }
+  .big { font: 700 44px/1 var(--mono); }
+  .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 860px) { .pgrid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .panel.wide { grid-column: 1 / -1; }
+  .panel h3 { margin: 0 0 12px; font: 600 15px var(--mono); }
+  .person { padding: 10px 0; border-top: 1px solid var(--line); }
+  .person:first-of-type { border-top: 0; padding-top: 0; }
+  .person b { font-size: 15px; }
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; font-size: 13px; margin: 0; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; }
+  .note { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; border-top: 0; }
+  .tier-own_site { color: var(--green); } .tier-news { color: var(--blue); } .tier-social { color: var(--amber); }
 </style>
 </head>
 <body>
@@ -98,6 +120,11 @@ async function sendFeedback(ev, useful, btns) {
   } catch { alert("Could not save feedback."); }
 }
 
+const TIER = { own_site: "Firm's own site", news: "News / press", social: "Social post", unlisted: "Unlisted source" };
+function trustChip(e) {
+  return e.source_tier ? el("span", { class: `chip tier-${e.source_tier}` }, `${TIER[e.source_tier] || e.source_tier}: ${e.source_domain}`) : null;
+}
+
 function evidenceRows(v, evidence) {
   return evidence.filter((e) => e.vc_id === v.id).map((e) => {
     const href = safeUrl(e.url);
@@ -106,7 +133,7 @@ function evidenceRows(v, evidence) {
     const btns = [[up, true], [down, false]];
     up.onclick = () => sendFeedback(e, true, btns); down.onclick = () => sendFeedback(e, false, btns);
     return el("div", { class: "ev" },
-      el("div", { class: "chips" }, el("span", { class: "chip" }, label(e.type)), el("span", { class: "chip" }, fmtDate(e.published_date))),
+      el("div", { class: "chips" }, el("span", { class: "chip" }, label(e.type)), el("span", { class: "chip" }, fmtDate(e.published_date)), trustChip(e)),
       el("q", {}, e.quote),
       href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
   });
@@ -122,7 +149,7 @@ function card(v, evidence, now) {
     v.flag ? el("span", { class: "chip warn" }, v.flag) : null,
   ];
   return el("div", { class: "card" },
-    el("div", { class: "name" }, v.firm),
+    el("div", { class: "name" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
     el("div", { class: "meta" }, [v.geo, v.stage_focus].filter(Boolean).join(" · ")),
     el("div", { class: "amount" }, String(score)),
     el("div", { class: "pl" }, el("span", {}, "Follow-up score"), el("span", {}, `${score}%`)),
@@ -134,7 +161,7 @@ function card(v, evidence, now) {
 }
 
 function miniRow(v, text) {
-  return el("div", { class: "mini" }, el("span", {}, v.firm, v.check_ok === false ? " ⚠" : ""), el("span", {}, text));
+  return el("div", { class: "mini" }, el("span", {}, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm), v.check_ok === false ? " ⚠" : ""), el("span", {}, text));
 }
 
 function hero(data, now) {
@@ -199,6 +226,117 @@ function render(data) {
     unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} VCs have not been scored yet.`) : null);
 }
 
+function peopleFrom(evidence) {
+  const m = new Map();
+  for (const e of evidence) {
+    if (!e.person_name) continue;
+    const p = m.get(e.person_name) || { name: e.person_name, role: e.person_role, items: [] };
+    p.role = p.role || e.person_role; p.items.push(e); m.set(e.person_name, p);
+  }
+  return [...m.values()].sort((a, b) => b.items.length - a.items.length);
+}
+
+function whoPanel(contacts, evidence) {
+  const rows = [];
+  for (const c of contacts) {
+    const href = safeUrl(c.linkedin_url);
+    rows.push(el("div", { class: "person" }, el("b", {}, c.name), c.role ? ` \u00b7 ${c.role}` : "", " ", el("span", { class: "chip good" }, "Added by you"),
+      href ? el("div", {}, el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "LinkedIn profile")) : null,
+      c.note ? el("div", { class: "meta" }, c.note) : null));
+  }
+  for (const p of peopleFrom(evidence).filter((p) => !contacts.some((c) => c.name.toLowerCase() === p.name.toLowerCase()))) {
+    const e = p.items[0], href = safeUrl(e.url);
+    rows.push(el("div", { class: "person" }, el("b", {}, p.name), p.role ? ` \u00b7 ${p.role}` : "", " ", el("span", { class: "chip" }, "Named in a verified source"),
+      el("div", { class: "meta" }, `${p.items.length} signal${p.items.length > 1 ? "s" : ""}, latest ${fmtDate(e.published_date)} (${label(e.type)})`),
+      href ? el("div", {}, el("a", { href, target: "_blank", rel: "noopener noreferrer" }, `Source: ${e.source_domain}`)) : null));
+  }
+  return el("div", { class: "panel" }, el("h3", {}, "Who to reach out to"),
+    rows.length ? rows : el("div", { class: "empty" }, "No person named yet. People appear here when a verified source names someone at the firm. You can add one in the vc_contacts table."),
+    el("p", { class: "note" }, "Names come from the source page itself, never guessed. Emails are not shown here."));
+}
+
+function fitPanel(v) {
+  const site = safeUrl(v.website), seed = safeUrl(v.source_url);
+  const kv = [
+    ["Thesis", v.thesis], ["Stage focus", v.stage_focus], ["Region", v.geo],
+    ["Investing now", v.is_investing ? "Yes" : "No (paused)"],
+    ["Website", site ? el("a", { href: site, target: "_blank", rel: "noopener noreferrer" }, site) : "Not added yet"],
+  ];
+  return el("div", { class: "panel" }, el("h3", {}, "Fit and background"),
+    el("dl", { class: "kv" }, kv.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
+    v.flag ? el("div", { class: "chips", style: "margin-top:10px" }, el("span", { class: "chip warn" }, v.flag)) : null,
+    v.background ? el("p", { class: "note" }, `From your original list: ${v.background}. `, seed ? el("a", { href: seed, target: "_blank", rel: "noopener noreferrer" }, "list source") : null, " (not independently verified)") : null);
+}
+
+function relPanel(v, now) {
+  const kv = [["Status", label(v.status)], ["Last contacted", v.last_contacted_at ? fmtDate(v.last_contacted_at) : "Not recorded"],
+    ["Latest signal", v.last_signal_date ? `${fmtDate(v.last_signal_date)} (${daysAgo(v.last_signal_date, now)}d ago)` : "None yet"]];
+  return el("div", { class: "panel" }, el("h3", {}, "Relationship"),
+    el("dl", { class: "kv" }, kv.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
+    el("p", { class: "note" }, "Your private notes and contact history stay in Neon and are not shown on this public page."));
+}
+
+function checksPanel(checks) {
+  const rows = checks.map((c) => {
+    const reasons = {};
+    for (const d of (c.dropped || [])) reasons[d.reason] = (reasons[d.reason] || 0) + 1;
+    return el("tr", {}, el("td", {}, new Date(c.checked_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })),
+      el("td", {}, c.ok ? label(c.outcome) : "failed"), el("td", {}, String(c.n_pages)), el("td", {}, String(c.n_signals)),
+      el("td", {}, Object.keys(reasons).length ? el("div", { class: "chips" }, Object.entries(reasons).map(([r, n]) => el("span", { class: "chip" }, `${label(r)} \u00d7${n}`))) : "-"));
+  });
+  return el("div", { class: "panel wide" }, el("h3", {}, "Check history"),
+    rows.length ? el("table", {}, el("tr", {}, ["Date", "Outcome", "Pages", "Kept", "Dropped by validation"].map((h) => el("th", {}, h))), rows) : el("div", { class: "empty" }, "Not checked yet."));
+}
+
+function signalRow(e) {
+  const up = el("button", { class: e.useful === true ? "on" : "" }, "Useful");
+  const down = el("button", { class: e.useful === false ? "on" : "" }, "Not useful");
+  const b = [[up, true], [down, false]];
+  up.onclick = () => sendFeedback(e, true, b); down.onclick = () => sendFeedback(e, false, b);
+  const href = safeUrl(e.url);
+  return el("div", { class: "ev" },
+    el("div", { class: "chips" }, el("span", { class: "chip" }, label(e.type)), el("span", { class: "chip" }, fmtDate(e.published_date)), trustChip(e)),
+    el("p", { class: "why" }, e.summary), el("q", {}, e.quote),
+    href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
+}
+
+function renderProfile(d) {
+  const v = d.vc, now = new Date(d.now), score = v.follow_up_score ?? 0;
+  app.replaceChildren(
+    el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
+    el("div", { class: "ph" },
+      el("div", {}, el("h1", {}, v.firm),
+        el("div", { class: "chips" }, el("span", { class: "chip good" }, label(v.recommended_action || "not scored")), el("span", { class: "chip" }, label(v.status)),
+          el("span", { class: "chip" }, v.geo), el("span", { class: "chip" }, v.stage_focus)),
+        el("p", { class: "sub", style: "margin-top:10px;max-width:640px" }, v.signal_summary || "Not scored yet.")),
+      el("div", { style: "min-width:200px" }, el("div", { class: "big" }, String(score)),
+        el("div", { class: "pl" }, el("span", {}, "Follow-up score"), el("span", {}, `${score}%`)),
+        el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })))),
+    el("div", { class: "pgrid" },
+      whoPanel(d.contacts, d.evidence), relPanel(v, now),
+      el("div", { class: "panel wide" }, el("h3", {}, `Signals (${d.evidence.length})`),
+        d.evidence.length ? d.evidence.map(signalRow) : el("div", { class: "empty" }, "No verified signal from a trusted source yet.")),
+      fitPanel(v), el("div", {}), checksPanel(d.checks)));
+  window.scrollTo(0, 0);
+}
+
+async function loadProfile(id) {
+  app.replaceChildren(el("p", { class: "sub" }, "Loading..."));
+  try {
+    const r = await fetch(`/api/vc?id=${id}`);
+    if (!r.ok) throw new Error(r.status);
+    renderProfile(await r.json());
+  } catch {
+    app.replaceChildren(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
+      el("div", { class: "insight bad" }, el("h3", {}, "Could not load this investor"), el("p", {}, "Try again in a minute.")));
+  }
+}
+
+function route() {
+  const m = location.hash.match(/^#\/vc\/(\d+)$/);
+  return m ? loadProfile(Number(m[1])) : load();
+}
+
 async function load() {
   app.replaceChildren(el("p", { class: "sub" }, "Loading..."));
   try {
@@ -209,7 +347,8 @@ async function load() {
     app.replaceChildren(el("div", { class: "insight bad" }, el("h3", {}, "Could not load the pipeline"), el("p", {}, "Try again in a minute.")));
   }
 }
-load();
+window.addEventListener("hashchange", route);
+route();
 </script>
 </body>
 </html>

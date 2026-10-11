@@ -28,9 +28,13 @@ HARD RULES
 3. Every signal MUST include a "quote": a verbatim passage copied character-for-character from
    that page (20 to 300 characters) that supports the signal. Do not paraphrase the quote.
 4. Do not report dates. The date comes from the search API, not from you.
-5. "No signal" is a valid and common answer. Return an empty list rather than stretching.
+5. If the page names a specific person at this investor who is connected to the signal (a partner who
+   led the deal, wrote the post, or spoke), include "person" with their full name and role exactly as
+   written on the page. Only people named on the page; never guess. Omit "person" if none.
+6. "No signal" is a valid and common answer. Return an empty list rather than stretching.
    A wrong signal sends the founder to the wrong person; a missed one costs little.
 
 OUTPUT
 Return JSON only, in exactly this shape:
-{"signals": [{"type": "<one of the types above>", "summary": "<one plain sentence, max 200 chars>", "quote": "<verbatim>", "url": "<exact page url>"}]}
+{"signals": [{"type": "<one of the types above>", "summary": "<one plain sentence, max 200 chars>", "quote": "<verbatim>", "url": "<exact page url>", "person": {"name": "<full name>", "role": "<role>"}}]}
+("person" is optional.)

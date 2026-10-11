@@ -15,7 +15,7 @@ run_files/                      context.md (prompt), fit_rules.yaml, weights.yam
 pipeline/                       search.py  extract.py  validate.py  score.py  store.py  run.py
 dashboard/                      Vercel: static page + /api/pipeline (read) + /api/feedback (insert)
 scripts/                        setup_db.py, seed_db.py
-tests/  evals/                  60 unit tests; precision / recall / invented-URL eval
+tests/  evals/                  75 unit tests; precision / recall / invented-URL eval
 data/vc_seed_list.csv           the 50 VCs
 ```
 
@@ -59,10 +59,33 @@ Routing is a plain table, first match wins (`pipeline/score.py`, one unit test p
 | 6 | Contacted < 10 days ago, quiet | hold |
 | 7 | No signal in 30 days | quiet list |
 
-A signal survives only if: its URL is in the returned search results, its date comes from the
+A signal survives only if: its page comes from a trusted source (below), its URL is in the returned search results, its date comes from the
 Exa API and is within 30 days, its quote appears verbatim on the page, and the page names the
 right firm (including old names, e.g. Sequoia Capital India for Peak XV). Page text is treated as
 untrusted input. A failed search is logged and flagged, and never written as "no signal".
+
+## Trusted sources
+
+`run_files/sources.yaml` decides where a signal may come from. Accepted: the firm's own site, blog or
+newsletter (matched by firm name, or `vc_profile.website`) and a list of reputable news, trade press and
+press-release wires. Rejected: known listicles / aggregators (and excluded from the search itself), LinkedIn / X
+posts (`allow_social: false` by default), and any domain not on the list (`allow_unlisted: false`).
+Every kept signal records its domain and tier, shown as a badge on the dashboard, and scored
+slightly lower for news than for the firm's own site. Rejections are logged per check with their reason
+(`blocked_source`, `social_source_disabled`, `untrusted_source`), visible in each investor's check history.
+To accept a good outlet that is missing, add its domain to `news:`.
+
+## Investor profiles and who to contact
+
+Click an investor's name on the dashboard. The profile shows the signals with their sources, fit and
+background, relationship status and check history. **Who to reach out to** lists people named on a verified
+source page (the name must appear on the page; it is never guessed) plus any contact you add:
+
+```sql
+INSERT INTO vc_contacts (vc_id, name, role, linkedin_url) VALUES (28, 'Jane Doe', 'Partner', 'https://www.linkedin.com/in/...');
+```
+
+Emails you store in `vc_contacts.email` and your notes are not returned by the public API.
 
 ## Assumptions to confirm
 

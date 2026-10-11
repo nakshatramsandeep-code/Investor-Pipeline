@@ -17,6 +17,7 @@ class VC:
     stage_focus: str
     is_investing: bool
     flag: str
+    website: str = ""
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,10 @@ class Signal:
     quote: str
     url: str
     published: date                  # from the search API
+    source_domain: str = ""
+    source_tier: str = ""            # own_site | news | social | unlisted
+    person_name: str | None = None   # a person at the firm, named on the page
+    person_role: str | None = None
 
 
 @dataclass(frozen=True)

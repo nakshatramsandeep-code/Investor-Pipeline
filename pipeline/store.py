@@ -12,7 +12,7 @@ from .models import VC, VCResult
 # Explicit column list on purpose: never SELECT * (notes / contact_history are off limits).
 LOAD_SQL = """
 SELECT v.id, v.name, v.firm, v.thesis, v.status, v.last_contacted_at, v.last_signal_date,
-       p.geo, p.stage_focus, p.is_investing, p.flag
+       p.geo, p.stage_focus, p.is_investing, p.flag, p.website
 FROM vcs v JOIN vc_profile p ON p.vc_id = v.id
 ORDER BY v.id
 """
@@ -25,8 +25,11 @@ WHERE id = %s
 """
 
 EVIDENCE_SQL = """
-INSERT INTO signal_evidence (vc_id, run_id, type, summary, quote, url, published_date)
-VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (vc_id, url) DO NOTHING
+INSERT INTO signal_evidence (vc_id, run_id, type, summary, quote, url, published_date,
+                             source_domain, source_tier, person_name, person_role)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (vc_id, url) DO UPDATE SET run_id = EXCLUDED.run_id, source_domain = EXCLUDED.source_domain,
+    source_tier = EXCLUDED.source_tier, person_name = EXCLUDED.person_name, person_role = EXCLUDED.person_role
 """
 
 CHECK_SQL = """
@@ -64,7 +67,8 @@ class PgStore:
                     d = r.decision
                     cur.execute(UPDATE_SQL, (d.last_signal_date, d.summary, d.score, d.action, r.vc.id))
                     for s in r.signals:
-                        cur.execute(EVIDENCE_SQL, (r.vc.id, run_id, s.type, s.summary, s.quote, s.url, s.published))
+                        cur.execute(EVIDENCE_SQL, (r.vc.id, run_id, s.type, s.summary, s.quote, s.url, s.published,
+                                              s.source_domain, s.source_tier, s.person_name, s.person_role))
                 cur.execute(CHECK_SQL, (r.vc.id, run_id, r.ok, r.outcome, r.n_pages, len(r.signals),
                                         len(r.dropped), r.error, json.dumps(r.dropped)))
 

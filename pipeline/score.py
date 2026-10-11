@@ -34,7 +34,8 @@ def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> f
     scored = []
     for s in signals:
         age = max((today - s.published).days, 0)
-        scored.append(w.signal_types[s.type] * 0.5 ** (age / w.half_life_days))
+        tier = w.source_tiers.get(s.source_tier, 1.0)
+        scored.append(w.signal_types[s.type] * tier * 0.5 ** (age / w.half_life_days))
     scored.sort(reverse=True)
     strength = scored[0] + w.extra_signal * min(len(scored) - 1, 3)
     newest = max(s.published for s in signals)

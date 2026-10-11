@@ -1,0 +1,78 @@
+# Which sources a signal may come from. Read by code (schema-checked). A signal whose page is
+# not from an accepted source is dropped before scoring and logged with the reason.
+#
+# Tiers:
+#   own_site  the firm's own website / blog / newsletter (matched by firm name, or vc_profile.website)
+#   news      reputable press, trade press and press-release wires (listed below)
+#   social    LinkedIn / X posts: anyone can write these, so OFF by default
+version: 1
+
+allow_social: false      # true = accept LinkedIn / X posts at a reduced weight
+allow_unlisted: false    # true = accept any other domain at a low weight (not recommended)
+
+news:
+  - techcrunch.com
+  - reuters.com
+  - bloomberg.com
+  - ft.com
+  - wsj.com
+  - forbes.com
+  - fortune.com
+  - cnbc.com
+  - businessinsider.com
+  - axios.com
+  - venturebeat.com
+  - siliconangle.com
+  - thenextweb.com
+  - crunchbase.com
+  - pitchbook.com
+  - sifted.eu
+  - eu-startups.com
+  - tech.eu
+  - businesswire.com
+  - prnewswire.com
+  - globenewswire.com
+  - economictimes.indiatimes.com
+  - livemint.com
+  - business-standard.com
+  - financialexpress.com
+  - thehindubusinessline.com
+  - thehindu.com
+  - moneycontrol.com
+  - inc42.com
+  - entrackr.com
+  - yourstory.com
+  - vccircle.com
+  - techcircle.in
+  - medianama.com
+  - freightwaves.com
+  - supplychaindive.com
+  - supplychain247.com
+  - theloadstar.com
+  - joc.com
+  - logisticsmgmt.com
+  - dcvelocity.com
+  - ttnews.com
+  - finsmes.com
+  - techfundingnews.com
+
+social:
+  - linkedin.com
+  - x.com
+  - twitter.com
+  - facebook.com
+  - instagram.com
+
+# Known low-quality sources: listicles, aggregators, press-release mills. Never accepted,
+# and excluded from the search itself.
+blocked:
+  - papermark.com
+  - ellty.com
+  - peony.ink
+  - rho.co
+  - forpressrelease.com
+  - fundraiseinsider.com
+  - f4.fund
+  - superscout.co
+  - privateequitylist.com
+  - mamstartup.pl

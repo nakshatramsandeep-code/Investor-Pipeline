@@ -116,3 +116,12 @@ def test_quiet_does_not_clear_last_signal_date(rf):
 def test_signal_sets_last_signal_date_to_newest(rf):
     d = decide(make_vc(), [make_signal(days_ago=9, url="u1"), make_signal(days_ago=2, url="u2")], rf.fit, rf.weights, TODAY)
     assert d.last_signal_date == ago(2)
+
+
+def test_news_source_scores_below_own_site_for_same_signal(rf):
+    from dataclasses import replace
+    own = replace(make_signal(days_ago=3), source_tier="own_site")
+    news = replace(make_signal(days_ago=3), source_tier="news")
+    a = decide(make_vc(), [own], rf.fit, rf.weights, TODAY).score
+    b = decide(make_vc(), [news], rf.fit, rf.weights, TODAY).score
+    assert a > b

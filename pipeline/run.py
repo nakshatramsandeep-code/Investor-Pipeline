@@ -33,12 +33,12 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date) -> VCResult
         # Routing rule 1: no point spending search / LLM budget.
         return VCResult(vc, True, "skipped_fit", decide(vc, [], rf.fit, w, today))
     try:
-        pages = search.search(vc, rf.fit.topic_keywords, today, w.window_days)
+        pages = search.search(vc, rf.fit.topic_keywords, today, w.window_days, rf.sources.exclude_domains())
         raw = extractor.extract(rf.context, vc, pages)
     except (SearchError, ExtractError) as e:
         # A failed check is NOT "no signal": leave old values alone and flag it.
         return VCResult(vc, False, "failed", error=str(e)[:300])
-    signals, dropped = validate_signals(raw, pages, vc, today, w.window_days)
+    signals, dropped = validate_signals(raw, pages, vc, today, w.window_days, rf.sources)
     decision = decide(vc, signals, rf.fit, w, today)
     return VCResult(vc, True, "signal" if signals else "no_signal", decision, signals, dropped, len(pages))
 
@@ -61,7 +61,7 @@ class FixtureClients:
             ov["last_contacted_at"] = self.today - timedelta(days=ago)
         return replace(vc, **ov)
 
-    def search(self, vc, keywords, today, window_days):
+    def search(self, vc, keywords, today, window_days, exclude_domains=None):
         return [Page(p["url"], p.get("title", ""),
                      today - timedelta(days=p["days_ago"]) if p.get("days_ago") is not None else None,
                      p["text"]) for p in self.data.get(vc.firm, {}).get("pages", [])]

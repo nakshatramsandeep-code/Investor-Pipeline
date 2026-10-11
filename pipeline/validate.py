@@ -9,6 +9,7 @@ from urllib.parse import urldefrag
 from .config import SIGNAL_TYPES
 from .models import VC, Page, Signal
 from .names import firm_aliases, mentions
+from .sources import SourceRules, classify
 
 MIN_QUOTE_CHARS = 20
 
@@ -24,8 +25,19 @@ def norm_text(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
+def _person(raw, page_text: str) -> tuple[str | None, str | None]:
+    """A person is kept only if their full name appears on the page. Otherwise it is
+    discarded (the signal itself survives)."""
+    if not isinstance(raw, dict):
+        return None, None
+    name, role = raw.get("name"), raw.get("role")
+    if not isinstance(name, str) or len(name.split()) < 2 or not mentions(page_text, name.strip()):
+        return None, None
+    return name.strip()[:80], (role.strip()[:80] if isinstance(role, str) and role.strip() else None)
+
+
 def validate_signals(raw: list[dict], pages: list[Page], vc: VC, today: date,
-                     window_days: int) -> tuple[list[Signal], list[dict]]:
+                     window_days: int, sources: SourceRules) -> tuple[list[Signal], list[dict]]:
     """Returns (kept, dropped). Every drop carries a reason so it can be logged."""
     by_url = {norm_url(p.url): p for p in pages}
     oldest = today - timedelta(days=window_days)
@@ -48,6 +60,9 @@ def validate_signals(raw: list[dict], pages: list[Page], vc: VC, today: date,
         page = by_url.get(norm_url(url))
         if page is None:
             drop("url_not_in_results", s); continue        # invented URL
+        tier, domain, why = classify(page.url, vc, sources, vc.website)
+        if tier is None:
+            drop(why, s); continue                         # not a trusted source
         if page.published is None:
             drop("no_api_date", s); continue
         if page.published < oldest or page.published > today:
@@ -63,6 +78,8 @@ def validate_signals(raw: list[dict], pages: list[Page], vc: VC, today: date,
         if key in seen:
             drop("duplicate_url", s); continue
         seen.add(key)
-        kept.append(Signal(type=stype, summary=summary.strip()[:300],
-                           quote=quote.strip(), url=page.url, published=page.published))
+        pname, prole = _person(s.get("person"), page.text)
+        kept.append(Signal(type=stype, summary=summary.strip()[:300], quote=quote.strip(),
+                           url=page.url, published=page.published, source_domain=domain,
+                           source_tier=tier, person_name=pname, person_role=prole))
     return kept, dropped

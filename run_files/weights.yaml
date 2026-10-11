@@ -24,3 +24,9 @@ preferred_geos: [india, global]
 routing:
   waiting_nudge_days: 10       # waiting longer than this with no reply -> nudge
   quiet_nudge_score: 25        # score given to a "nudge" that has no new signal behind it
+
+source_tiers:            # multiplier on a signal's strength by where it came from (0..1)
+  own_site: 1.0
+  news: 0.95
+  social: 0.6
+  unlisted: 0.5

@@ -43,7 +43,8 @@ class ExaSearch:
         self.num_results = num_results
         self.max_chars = max_chars
 
-    def search(self, vc: VC, keywords: list[str], today: date, window_days: int) -> list[Page]:
+    def search(self, vc: VC, keywords: list[str], today: date, window_days: int,
+               exclude_domains: list[str] | None = None) -> list[Page]:
         start = today - timedelta(days=window_days)
         body = {
             "query": build_query(vc, keywords),
@@ -51,6 +52,8 @@ class ExaSearch:
             "startPublishedDate": f"{start.isoformat()}T00:00:00.000Z",
             "contents": {"text": {"maxCharacters": self.max_chars}},
         }
+        if exclude_domains:
+            body["excludeDomains"] = exclude_domains
         try:
             data = net.post_json(EXA_URL, {"x-api-key": self.api_key}, body)
         except net.HttpError as e:

@@ -83,6 +83,25 @@ CREATE TABLE IF NOT EXISTS signal_feedback (
     created_at   timestamptz NOT NULL DEFAULT now()
 );
 
+-- Source trust + people (added after v1; idempotent upgrades for existing databases)
+ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS source_domain text NOT NULL DEFAULT '';
+ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS source_tier text NOT NULL DEFAULT '';
+ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS person_name text;
+ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS person_role text;
+ALTER TABLE vc_profile ADD COLUMN IF NOT EXISTS website text NOT NULL DEFAULT '';
+
+-- Contacts Vikram enters himself (owner role only; the job never reads or writes this).
+CREATE TABLE IF NOT EXISTS vc_contacts (
+    id            serial PRIMARY KEY,
+    vc_id         integer NOT NULL REFERENCES vcs(id) ON DELETE CASCADE,
+    name          text NOT NULL,
+    role          text NOT NULL DEFAULT '',
+    linkedin_url  text NOT NULL DEFAULT '',
+    email         text NOT NULL DEFAULT '',
+    note          text NOT NULL DEFAULT '',
+    created_at    timestamptz NOT NULL DEFAULT now()
+);
+
 -- ---------------------------------------------------------------- roles
 -- Three least-privilege roles. Passwords are set by scripts/setup_db.py.
 -- Vikram keeps the owner role (the one that ran this file) for his notes.
@@ -111,7 +130,9 @@ GRANT UPDATE (last_signal_date, signal_summary, follow_up_score, recommended_act
 GRANT SELECT, INSERT, UPDATE ON run_log TO signal_job;
 GRANT INSERT ON signal_evidence, vc_check_log TO signal_job;
 -- ON CONFLICT (vc_id, url) needs to read the two conflict columns, nothing more.
-GRANT SELECT (vc_id, url) ON signal_evidence TO signal_job;
+GRANT SELECT (vc_id, url, run_id, source_domain, source_tier, person_name, person_role) ON signal_evidence TO signal_job;
+-- A re-seen URL refreshes only its provenance fields (summary / quote / url never change).
+GRANT UPDATE (run_id, source_domain, source_tier, person_name, person_role) ON signal_evidence TO signal_job;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO signal_job;
 
 -- dashboard_ro: read everything, write nothing.

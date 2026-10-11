@@ -10,14 +10,15 @@ QUOTE = "Acme Ventures led a $4M seed round in a freight visibility startup."
 
 
 def sig(**kw):
-    base = dict(type="portfolio_investment", summary="Led a seed.", quote=QUOTE, url="https://x.com/a")
+    base = dict(type="portfolio_investment", summary="Led a seed.", quote=QUOTE, url="https://techcrunch.com/a")
     base.update(kw)
     return base
 
 
-def run(raw, pages=None, vc=None):
+def run(raw, pages=None, vc=None, sources=None):
+    from pipeline.config import load_run_files
     pages = pages if pages is not None else [make_page(TEXT)]
-    return validate_signals(raw, pages, vc or make_vc(), TODAY, 30)
+    return validate_signals(raw, pages, vc or make_vc(), TODAY, 30, sources or load_run_files().sources)
 
 
 def test_good_signal_kept_with_api_date():
@@ -32,12 +33,12 @@ def test_model_supplied_date_is_ignored():
 
 
 def test_invented_url_dropped():
-    kept, dropped = run([sig(url="https://x.com/invented")])
+    kept, dropped = run([sig(url="https://techcrunch.com/invented")])
     assert not kept and dropped[0]["reason"] == "url_not_in_results"
 
 
 def test_url_fragment_and_trailing_slash_tolerated():
-    kept, _ = run([sig(url="https://X.com/a/#section")])
+    kept, _ = run([sig(url="https://TechCrunch.com/a/#section")])
     assert len(kept) == 1
 
 
@@ -130,3 +131,79 @@ def test_old_name_on_page_matches_renamed_firm():
                                                   ("the 8VC fund", "8VC", True)])
 def test_mentions(text, needle, expected):
     assert mentions(text, needle) is expected
+
+
+# ---------------------------------------------------------------- source trust + people
+
+def page_at(url, text=TEXT):
+    return make_page(text, url=url)
+
+
+@pytest.mark.parametrize("url,reason", [
+    ("https://fundraiseinsider.com/x", "blocked_source"),
+    ("https://www.papermark.com/blog/logistics-investors", "blocked_source"),
+    ("https://www.linkedin.com/posts/acme", "social_source_disabled"),
+    ("https://randomblog.example.org/post", "untrusted_source"),
+])
+def test_untrusted_sources_dropped(url, reason):
+    kept, dropped = run([sig(url=url)], [page_at(url)])
+    assert not kept and dropped[0]["reason"] == reason
+
+
+def test_trusted_news_kept_and_tagged():
+    kept, _ = run([sig(url="https://www.economictimes.indiatimes.com/a")], [page_at("https://www.economictimes.indiatimes.com/a")])
+    assert kept[0].source_tier == "news" and kept[0].source_domain == "economictimes.indiatimes.com"
+
+
+def test_subdomain_of_trusted_domain_kept():
+    kept, _ = run([sig(url="https://blogs.reuters.com/a")], [page_at("https://blogs.reuters.com/a")])
+    assert kept and kept[0].source_tier == "news"
+
+
+def test_lookalike_domain_is_not_trusted():
+    kept, dropped = run([sig(url="https://techcrunch.com.evil.io/a")], [page_at("https://techcrunch.com.evil.io/a")])
+    assert not kept and dropped[0]["reason"] == "untrusted_source"
+
+
+@pytest.mark.parametrize("url", ["https://acmeventures.com/blog", "https://acme.substack.com/p/x", "https://www.acmevc.com/n"])
+def test_firms_own_site_recognised(url):
+    kept, _ = run([sig(url=url)], [page_at(url)])
+    assert kept and kept[0].source_tier == "own_site"
+
+
+def test_other_firms_site_is_not_own_site():
+    url = "https://otherfund.com/a"
+    kept, dropped = run([sig(url=url)], [page_at(url)])
+    assert dropped[0]["reason"] == "untrusted_source"
+
+
+def test_explicit_website_counts_as_own_site():
+    vc = make_vc(website="https://www.acme-capital.io")
+    kept, _ = run([sig(url="https://acme-capital.io/news")], [page_at("https://acme-capital.io/news")], vc)
+    assert kept and kept[0].source_tier == "own_site"
+
+
+def test_social_allowed_when_switched_on():
+    from dataclasses import replace
+    from pipeline.config import load_run_files
+    src = replace(load_run_files().sources, allow_social=True)
+    url = "https://www.linkedin.com/posts/acme"
+    kept, _ = run([sig(url=url)], [page_at(url)], sources=src)
+    assert kept and kept[0].source_tier == "social"
+
+
+def test_person_kept_only_if_named_on_page():
+    page = make_page(TEXT + " Jane Partner said it was a great deal.")
+    kept, _ = run([sig(person={"name": "Jane Partner", "role": "General Partner"})], [page])
+    assert (kept[0].person_name, kept[0].person_role) == ("Jane Partner", "General Partner")
+
+
+def test_invented_person_dropped_but_signal_survives():
+    kept, _ = run([sig(person={"name": "John Madeup", "role": "Partner"})])
+    assert len(kept) == 1 and kept[0].person_name is None
+
+
+def test_single_name_person_rejected():
+    page = make_page(TEXT + " Jane said so.")
+    kept, _ = run([sig(person={"name": "Jane", "role": "Partner"})], [page])
+    assert kept[0].person_name is None

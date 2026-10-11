@@ -7,6 +7,8 @@ from pathlib import Path
 
 import yaml
 
+from .sources import SourceRules
+
 SIGNAL_TYPES = (
     "portfolio_investment", "fund_announcement", "interview",
     "blog_post", "event_appearance", "other",
@@ -39,6 +41,7 @@ class Weights:
     preferred_geos: list[str]
     waiting_nudge_days: int
     quiet_nudge_score: int
+    source_tiers: dict[str, float]
 
 
 @dataclass(frozen=True)
@@ -46,6 +49,7 @@ class RunFiles:
     context: str
     fit: FitRules
     weights: Weights
+    sources: SourceRules
 
 
 def _load_yaml(path: Path) -> dict:
@@ -121,6 +125,19 @@ def load_weights(path: Path) -> Weights:
         preferred_geos=_str_list(d, "preferred_geos", w),
         waiting_nudge_days=_get(rou, "waiting_nudge_days", int, f"{w}: routing"),
         quiet_nudge_score=_get(rou, "quiet_nudge_score", int, f"{w}: routing"),
+        source_tiers={k: _unit(v, f"{w}: source_tiers[{k}]") for k, v in _get(d, "source_tiers", dict, w).items()},
+    )
+
+
+def load_sources(path: Path) -> SourceRules:
+    d = _load_yaml(path)
+    w = path.name
+    return SourceRules(
+        allow_social=_get(d, "allow_social", bool, w),
+        allow_unlisted=_get(d, "allow_unlisted", bool, w),
+        news=tuple(_str_list(d, "news", w)),
+        social=tuple(_str_list(d, "social", w)),
+        blocked=tuple(_str_list(d, "blocked", w)),
     )
 
 
@@ -136,4 +153,5 @@ def load_run_files(directory: Path = DEFAULT_DIR) -> RunFiles:
         context=context,
         fit=load_fit_rules(directory / "fit_rules.yaml"),
         weights=load_weights(directory / "weights.yaml"),
+        sources=load_sources(directory / "sources.yaml"),
     )
