@@ -15,7 +15,7 @@ run_files/                      context.md (prompt), fit_rules.yaml, weights.yam
 pipeline/                       search.py  extract.py  validate.py  score.py  store.py  run.py
 dashboard/                      Vercel: static page + /api/pipeline (read) + /api/feedback (insert)
 scripts/                        setup_db.py, seed_db.py
-tests/  evals/                  95 unit tests; precision / recall / invented-URL eval
+tests/  evals/                  107 unit tests; precision / recall / invented-URL eval
 data/vc_seed_list.csv           the 50 VCs
 ```
 
@@ -52,12 +52,17 @@ Routing is a plain table, first match wins (`pipeline/score.py`, one unit test p
 | # | Situation | Action |
 |---|---|---|
 | 1 | Fit fails or declined | skip (no API spend) |
-| 2 | Contacted after the signal | hold |
-| 3 | Fresh signal, new VC | reach out |
-| 4 | Fresh signal, waiting | nudge |
-| 5 | Waiting > 10 days, quiet | nudge |
-| 6 | Contacted < 10 days ago, quiet | hold |
-| 7 | No signal in 30 days | quiet list |
+| 2 | In talks or approved; or contacted after the signal, less than 7 days ago | hold |
+| 3 | Prospect with a fresh signal and a score of at least 35 | reach out |
+| 4 | Pitched, and a fresh signal arrived after you reached out | follow up |
+| 5 | Pitched 7+ days ago with no reply (signal or not: silence is a reason) | follow up |
+| 6 | Pitched less than 7 days ago | hold (shown as Waiting, with the follow-up date) |
+| 7 | No signal in 30 days, or a weak one below the score floor | dormant |
+
+The dashboard re-buckets from your status and dates in the browser, so logging an action moves a card at once;
+scores and signals still come from the last run. Settings live in `run_files/weights.yaml` (`waiting_nudge_days`,
+`reach_out_min_score`, `general_content_factor`). General interviews, posts and talks that are not about logistics
+count for a third as much as a deal, so off-topic appearances don't lift a score.
 
 A signal survives only if: its page comes from a trusted source (below), its URL is in the returned search results, its date comes from the
 Exa API and is within 30 days, its quote appears verbatim on the page, and the page names the

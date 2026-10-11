@@ -119,6 +119,29 @@
   .card.compact .qa { margin-top: 8px; }
   .card.compact .qa button { padding: 1px 8px; }
   button.showall { width: 100%; margin-top: 4px; padding: 6px; color: var(--muted); }
+  .board.auto { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .sk { background: linear-gradient(90deg, var(--panel) 25%, var(--panel2) 50%, var(--panel) 75%); background-size: 200% 100%; animation: sh 1.2s infinite; border-radius: 12px; }
+  @keyframes sh { to { background-position: -200% 0; } }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #22c55e; color: #04210f; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; z-index: 9; box-shadow: 0 6px 24px rgba(0,0,0,.4); }
+  .runline { font-size: 12px; color: rgba(255,255,255,.85); }
+  .kpi h3 { margin: 0; font: 600 15px var(--mono); }
+  .tile.click { cursor: default; }
+  .tile strong { font-size: 26px; }
+  details.sec { margin-top: 26px; }
+  details.sec > summary { cursor: pointer; font: 600 16px var(--mono); list-style: none; display: flex; gap: 10px; align-items: baseline; }
+  details.sec > summary::before { content: "\25b8"; color: var(--muted); }
+  details.sec[open] > summary::before { content: "\25be"; }
+  details.sec > summary small { font: 400 12px system-ui; color: var(--muted); }
+  .sec input.filter { margin: 12px 0 10px; width: 260px; max-width: 100%; font: inherit; font-size: 13px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .quiet.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 14px; }
+  .emptyline { color: var(--muted); font-size: 13px; margin: 14px 0 0; }
+  .card.compact .meta { margin-top: 4px; font-size: 12px; }
+  .pts { font-size: 18px; }
+  .qa button.primary { padding: 4px 12px; font-weight: 600; }
+  ul.bullets { margin: 10px 0 0; padding-left: 18px; max-width: 680px; color: var(--muted); font-size: 14px; }
+  ul.bullets li { margin-bottom: 4px; }
+  .tiles.four { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 560px) { .tiles.four { grid-template-columns: repeat(2, 1fr); } }
   .tabs { display: flex; gap: 6px; margin: 0 0 18px; }
   .tabs a { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: 13px; }
   .tabs a.on { background: var(--purple); border-color: var(--purple); color: #fff; }
@@ -152,11 +175,11 @@ function el(tag, props = {}, ...kids) {
   return n;
 }
 const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === "https:" || x.protocol === "http:" ? x.href : null; } catch { return null; } };
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" }) : "never";
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : "never";
 const daysAgo = (d, now) => Math.max(0, Math.floor((now - new Date(d)) / 864e5));
 const label = (s) => String(s || "").replace(/_/g, " ");
 const LBL = {
-  status: { to_contact: "Prospect", waiting: "Pitched", in_conversation: "In talks", approved: "Approved", declined: "Passed" },
+  status: { to_contact: "Prospect", waiting: "Pitched", in_conversation: "In talks", approved: "Approved", declined: "Declined" },
   action: { reach_out: "Reach out now", nudge: "Follow up", hold: "Hold", quiet_list: "Dormant", skip: "Not a fit" },
   type: { portfolio_investment: "New investment", fund_announcement: "Fund news", interview: "Interview", blog_post: "Blog post", event_appearance: "Event / talk", other: "Other" },
 };
@@ -165,6 +188,11 @@ const COL = {
   action: { reach_out: "green", nudge: "amber", hold: "blue", quiet_list: "gray", skip: "red" },
   type: { portfolio_investment: "green", fund_announcement: "purple", interview: "blue", blog_post: "teal", event_appearance: "amber", other: "gray" },
 };
+const BUCKET = {
+  reach: ["Reach out", "green"], nudge: ["Follow up", "amber"], waiting: ["Waiting", "blue"], talks: ["In talks", "blue"],
+  approved: ["Approved", "green"], declined: ["Declined", "red"], dormant: ["Dormant", "gray"], skip: ["Not a fit", "red"],
+};
+const btag = (b) => el("span", { class: `chip c-${BUCKET[b][1]}` }, BUCKET[b][0]);
 const relChip = (e) => e.relevance === "logistics" ? el("span", { class: "chip c-green" }, "Logistics") : e.relevance ? el("span", { class: "chip c-gray" }, "General activity") : null;
 const tag = (kind, v) => v ? el("span", { class: `chip c-${COL[kind][v] || "gray"}` }, LBL[kind][v] || label(v)) : null;
 const scoreColor = (s) => s >= 70 ? "var(--green)" : s >= 40 ? "var(--blue)" : "var(--pink)";
@@ -183,84 +211,148 @@ function trustChip(e) {
   return e.source_tier ? el("span", { class: `chip tier-${e.source_tier}` }, `${TIER[e.source_tier] || e.source_tier}: ${e.source_domain}`) : null;
 }
 
-function quickActions(v) {
-  const btn = (text, kind) => el("button", { onclick: async () => { if (await editCall({ action: "log", vc_id: v.id, kind })) load(); } }, text);
-  if (v.status === "to_contact") return el("div", { class: "qa" }, btn("Mark reached out", "reached_out"));
-  if (v.status === "waiting") return el("div", { class: "qa" }, btn("They replied", "replied"), btn("Followed up", "follow_up"));
-  return null;
+// ---- one set of rules for where an investor belongs. Driven by YOUR status and dates, so logging
+// ---- an action moves the card immediately; scores and signals still come from the last run.
+const NUDGE_DAYS = 7;   // keep in step with routing.waiting_nudge_days in weights.yaml
+const MIN_REACH = 35;   // keep in step with routing.reach_out_min_score in weights.yaml
+
+const waitDays = (v, now) => v.last_contacted_at ? daysAgo(v.last_contacted_at, now) : null;
+
+function bucketOf(v, now) {
+  if (v.status === "declined") return "declined";
+  if (v.status === "approved") return "approved";
+  if (v.status === "in_conversation") return "talks";
+  if (v.status === "waiting") { const d = waitDays(v, now); return d == null || d >= NUDGE_DAYS ? "nudge" : "waiting"; }
+  if (v.recommended_action === "skip") return "skip";
+  return v.recommended_action === "reach_out" && (v.follow_up_score ?? 0) >= MIN_REACH ? "reach" : "dormant";
 }
 
-function card(v, evidence, now) {
-  // Compact: name, points, how many signals, and the single best one. Everything else is on the profile.
+function groupVcs(data, now) {
+  const g = { reach: [], nudge: [], waiting: [], talks: [], approved: [], declined: [], dormant: [], skip: [] };
+  for (const v of data.vcs) g[bucketOf(v, now)].push(v);
+  const byFirm = (a, b) => a.firm.localeCompare(b.firm);
+  g.reach.sort((a, b) => (a.check_ok === false) - (b.check_ok === false) || (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0));
+  g.nudge.sort((a, b) => (waitDays(b, now) ?? 999) - (waitDays(a, now) ?? 999));          // longest silence first
+  g.waiting.sort((a, b) => (waitDays(b, now) ?? 0) - (waitDays(a, now) ?? 0));
+  g.talks.sort((a, b) => (b.last_contacted_at || "") < (a.last_contacted_at || "") ? -1 : 1);
+  for (const k of ["approved", "declined", "dormant", "skip"]) g[k].sort(byFirm);
+  return g;
+}
+
+function signalsOf(v, evidence) {
   const all = evidence.filter((e) => e.vc_id === v.id && e.source_tier !== "legacy_unverified")
     .sort((a, b) => (b.relevance === "logistics") - (a.relevance === "logistics") || (a.published_date < b.published_date ? 1 : -1));
-  const best = all[0], score = v.follow_up_score ?? 0;
+  return { all, best: all[0] };
+}
+
+const toast = (text) => { const t = el("div", { class: "toast" }, text); document.body.append(t); setTimeout(() => t.remove(), 2600); };
+
+function quickActions(v, bucket) {
+  const make = (text, kind, primary) => {
+    const b = el("button", { class: primary ? "primary" : "" }, text);
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "Saving\u2026";
+      if (await editCall({ action: "log", vc_id: v.id, kind })) { toast(`${v.firm}: saved \u201c${text}\u201d`); load(undefined, true); }
+      else { b.disabled = false; b.textContent = text; }
+    };
+    return b;
+  };
+  const sets = { reach: [["Mark reached out", "reached_out", true]], nudge: [["Followed up", "follow_up", true], ["They replied", "replied"]],
+    waiting: [["They replied", "replied"]], talks: [["They approved", "approved"]] };
+  return sets[bucket] ? el("div", { class: "qa" }, sets[bucket].map(([t, k, p]) => make(t, k, p))) : null;
+}
+
+function card(v, evidence, now, bucket) {
+  const { all, best } = signalsOf(v, evidence), score = v.follow_up_score ?? 0, d = waitDays(v, now);
+  const due = v.last_contacted_at ? fmtDate(new Date(new Date(v.last_contacted_at).getTime() + NUDGE_DAYS * 864e5).toISOString()) : null;
+  const meta = {
+    nudge: d == null ? "Pitched \u00b7 no date recorded \u00b7 no reply" : `Pitched ${d}d ago \u00b7 no reply`,
+    waiting: `Pitched ${d}d ago \u00b7 follow up on ${due}`,
+    talks: d == null ? "In talks" : `In talks \u00b7 last contact ${d}d ago`,
+    approved: d == null ? "Committed to invest" : `Committed to invest \u00b7 last contact ${d}d ago`,
+    declined: d == null ? "Declined" : `Declined \u00b7 ${d}d ago`,
+  }[bucket] || null;
+  const scored = bucket === "reach" || (bucket === "nudge" && score);
+  const showSignal = (bucket === "reach" || bucket === "nudge") && best;
   return el("div", { class: "card compact" },
     el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm),
-      el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Follow-up score" }, String(score))),
-    el("div", { class: "chips", style: "margin-top:6px" },
-      best ? [tag("type", best.type), relChip(best)] : null,
-      all.length ? el("span", { class: "chip" }, `${all.length} signal${all.length > 1 ? "s" : ""}`) : null,
-      v.check_ok === false ? el("span", { class: "chip c-red" }, "check failed") : null),
-    el("p", { class: "why one" }, best ? best.summary : (v.signal_summary || "Not scored yet.").split(" | ")[0]),
-    quickActions(v));
+      scored ? el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Follow-up score" }, String(score)) : null),
+    meta ? el("div", { class: "meta" }, meta) : null,
+    showSignal || v.check_ok === false ? el("div", { class: "chips", style: "margin-top:6px" },
+      showSignal ? [tag("type", best.type), relChip(best), el("span", { class: "chip" }, `${daysAgo(best.published_date, now)}d ago`),
+        el("span", { class: "chip" }, `${all.length} signal${all.length > 1 ? "s" : ""}`)] : null,
+      v.check_ok === false ? el("span", { class: "chip c-red", title: "The last check failed, so this is older data" }, "stale") : null) : null,
+    showSignal ? el("p", { class: "why one" }, best.summary) : null,
+    quickActions(v, bucket));
 }
 
 function miniRow(v, text) {
-  return el("div", { class: "mini" }, el("span", {}, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm), v.check_ok === false ? " ⚠" : ""), el("span", {}, text));
+  return el("div", { class: "mini", "data-name": v.firm.toLowerCase() }, el("span", {}, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm), v.check_ok === false ? " \u26a0" : ""), el("span", {}, text));
 }
 
-function hero(data, now) {
+// ---- top panel: what to do first, and the counts that matter
+function pickFocus(g) {
+  const fresh = (v) => v.check_ok !== false;
+  const n = g.nudge.find(fresh); if (n) return { v: n, bucket: "nudge" };
+  const r = g.reach.find(fresh); if (r) return { v: r, bucket: "reach" };
+  return null;
+}
+
+function hero(data, now, g, focus) {
   const { run, vcs, evidence } = data;
-  const top = vcs.filter((v) => v.recommended_action === "reach_out").sort((a, b) => b.follow_up_score - a.follow_up_score)[0];
   const failed = vcs.filter((v) => v.check_ok === false);
   const finished = run && run.finished_at ? new Date(run.finished_at) : null;
   const age = finished ? daysAgo(finished, now) : null;
-  const stale = age != null && age > 4;
-
-  // The big card is always the best match. Problems get their own slim notice above it.
   const notices = [];
-  if (failed.length) notices.push(`${failed.length} VC${failed.length > 1 ? "s" : ""} could not be checked last run (${failed.map((v) => v.firm).join(", ")}). Their earlier results are shown.`);
+  if (failed.length) notices.push(`${failed.length} VC${failed.length > 1 ? "s" : ""} could not be checked last run (${failed.map((v) => v.firm).join(", ")}). Their earlier results are shown, marked stale.`);
   if (run && run.error) notices.push(`Last run error: ${run.error}`);
-  if (stale) notices.push(`The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`);
+  if (age != null && age > 4) notices.push(`The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`);
 
   let insight;
-  if (top) {
-    const ev = evidence.filter((e) => e.vc_id === top.id && e.source_tier !== "legacy_unverified")
-      .sort((a, b) => (b.relevance === "logistics") - (a.relevance === "logistics") || (a.published_date < b.published_date ? 1 : -1))[0];
+  if (focus) {
+    const v = focus.v, { best } = signalsOf(v, evidence), d = waitDays(v, now);
+    const title = focus.bucket === "nudge" ? "Follow up first" : "Best match this week";
+    const line = focus.bucket === "nudge" ? `Pitched ${d == null ? "a while ago" : d + " days ago"} with no reply.` + (best ? " " : "") : "";
     insight = el("div", { class: "insight best" },
-      el("div", { class: "row" }, el("h3", {}, el("span", { class: "dot ok" }, "1"), "Best match this week"), el("span", { class: "score" }, String(top.follow_up_score))),
-      el("div", { class: "bestname" }, el("a", { class: "vclink", href: `#/vc/${top.id}` }, top.firm)),
-      el("p", {}, ev ? ev.summary : top.signal_summary.split(" | ")[0]),
-      el("div", { class: "chips" }, ev ? [tag("type", ev.type), relChip(ev), trustChip(ev)] : null, tag("status", top.status)),
-      el("a", { class: "more", href: `#/vc/${top.id}` }, "Open profile and all signals →"));
+      el("div", { class: "row" }, el("h3", {}, el("span", { class: "dot ok" }, "1"), title), v.follow_up_score ? el("span", { class: "score" }, String(v.follow_up_score)) : null),
+      el("div", { class: "bestname" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
+      el("p", {}, line, best ? best.summary : ""),
+      el("div", { class: "chips" }, best ? [tag("type", best.type), relChip(best), trustChip(best)] : null, btag(focus.bucket)),
+      el("a", { class: "more", href: `#/vc/${v.id}` }, "Open profile and all signals \u2192"));
   } else {
-    insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "0"), "Nothing fresh this week"),
-      el("p", {}, "No VC has a verified signal in the last 30 days. Don't force it."));
+    insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "0"), "Nothing to act on"),
+      el("p", {}, "No one is due a follow-up and no prospect has a strong fresh signal. Don't force it."));
   }
 
-  const checked = run ? run.vcs_checked : 0, total = run ? run.vcs_total : vcs.length;
-  const pct = total ? Math.round(100 * checked / total) : 0;
-  const count = (a) => vcs.filter((v) => v.recommended_action === a).length;
+  const when = age == null ? (run ? "running" : "never") : age === 0 ? "today" : `${age}d ago`;
+  const tile = (small, n, em) => el("div", { class: "tile" }, el("small", {}, small), el("strong", {}, String(n)), " ", el("em", {}, em));
   const kpi = el("div", { class: "kpi" },
-    el("div", {}, el("div", { class: "bar-label" }, el("span", {}, "VCs checked last run"), el("span", {}, `${pct}%`)), el("div", { class: "track" }, el("i", { class: "fill", style: `display:block;width:${pct}%` }))),
-    el("div", { class: "tiles" },
-      el("div", { class: "tile" }, el("small", {}, "Reach out"), el("strong", {}, String(count("reach_out"))), " ", el("em", {}, "this week")),
-      el("div", { class: "tile" }, el("small", {}, "Signals kept"), el("strong", {}, String(run ? run.signals_kept : 0)), " ", el("em", {}, run ? `${run.signals_dropped} dropped` : "")),
-      el("div", { class: "tile" }, el("small", {}, "Last run"), el("strong", {}, age == null ? (run ? "running" : "never") : age === 0 ? "today" : `${age}d ago`), " ", el("em", {}, run ? run.status : ""))));
+    el("h3", {}, "Your pipeline today"),
+    el("div", { class: "tiles four" },
+      tile("Reach out", g.reach.length, "prospects"), tile("Follow up", g.nudge.length, "no reply"),
+      tile("In talks", g.talks.length, "live"), tile("Approved", g.approved.length, "committed")),
+    el("div", { class: "runline" }, run ? `Last run ${when}: ${run.vcs_checked}/${run.vcs_total} investors checked, ${run.signals_kept} signals kept.` : "No run yet."));
   return [...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
 }
 
-function column(title, hint, items, limit) {
-  const head = el("h4", {}, title, el("span", {}, String(items.length)));
+function column(title, hint, items, limit, total) {
+  const head = el("h4", {}, title, el("span", {}, String(total ?? items.length)));
   const sub = hint ? el("div", { class: "hint" }, hint) : null;
-  if (!items.length) return el("div", { class: "col" }, head, sub, el("div", { class: "empty" }, "Nothing here."));
   if (!limit || items.length <= limit) return el("div", { class: "col" }, head, sub, items);
   // Long lists show the top few; the rest are one click away.
   const rest = el("div", { style: "display:none" }, items.slice(limit));
   const btn = el("button", { class: "showall" }, `Show all ${items.length}`);
   btn.onclick = () => { const open = rest.style.display === "none"; rest.style.display = open ? "block" : "none"; btn.textContent = open ? "Show top " + limit : `Show all ${items.length}`; };
   return el("div", { class: "col" }, head, sub, items.slice(0, limit), rest, btn);
+}
+
+// ---- collapsible, filterable list for the long tail
+function listSection(title, hint, vs, textFn) {
+  if (!vs.length) return null;
+  const rows = vs.map((v) => miniRow(v, textFn(v)));
+  const box = el("input", { class: "filter", placeholder: `Filter ${vs.length} investors` });
+  box.oninput = () => { const q = box.value.trim().toLowerCase(); rows.forEach((r) => { r.style.display = r.dataset.name.includes(q) ? "" : "none"; }); };
+  return el("details", { class: "sec" }, el("summary", {}, title, el("small", {}, `${vs.length} \u00b7 ${hint}`)), box, el("div", { class: "quiet cols" }, rows));
 }
 
 // No login: the site is meant to be private (Vercel Deployment Protection).
@@ -281,53 +373,51 @@ function tabs(active) {
 function header(data, active) {
   return [el("div", { class: "brand" }, el("span", { class: "logo" }), "Investor Pipeline"),
     el("div", { class: "top" }, el("div", {},
-      el("h1", {}, active === "action" ? "Who to reach out to this week" : "My pipeline"),
-      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} VCs`), active === "action" ? " tracked \u00b7 signals from the last 30 days \u00b7 every claim links to its source" : " who to contact now, and where each conversation stands \u00b7 update from an investor's page or the quick buttons"))),
+      el("h1", {}, active === "action" ? "What to do today" : "My pipeline"),
+      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), active === "action"
+        ? " tracked \u00b7 follow-ups and new prospects \u00b7 every claim links to its source"
+        : " by stage: who to approach, who's pitched, who's talking, who said yes or no"))),
     tabs(active)];
 }
 
+const skeleton = () => [el("div", { class: "sk", style: "height:26px;width:240px;margin-bottom:18px" }),
+  el("div", { class: "hero" }, el("div", { class: "sk", style: "height:170px" }), el("div", { class: "sk", style: "height:170px" })),
+  el("div", { class: "board auto" }, [0, 1, 2].map(() => el("div", {}, [0, 1, 2].map(() => el("div", { class: "sk", style: "height:104px;margin-bottom:8px" })))))];
+
 function render(data) {
-  const now = new Date(data.now);
-  const by = (a) => data.vcs.filter((v) => v.recommended_action === a).sort((x, y) => (y.follow_up_score ?? 0) - (x.follow_up_score ?? 0));
-  const reach = by("reach_out"), nudge = by("nudge"), hold = by("hold"), quiet = by("quiet_list"), skip = by("skip");
+  const now = new Date(data.now), g = groupVcs(data, now), focus = pickFocus(g);
+  const lists = Object.fromEntries(Object.entries(g).map(([k, vs]) => [k, focus && focus.bucket === k ? vs.filter((v) => v.id !== focus.v.id) : vs]));
+  const defs = [["reach", "Reach out", "Strong fresh signal. Best first", 10], ["nudge", "Follow up", `Pitched ${NUDGE_DAYS}+ days ago, no reply`, null],
+    ["waiting", "Waiting", "Pitched recently; follow-up date shown", null], ["talks", "In talks", "Replied, call or meeting", null],
+    ["approved", "Approved", "Committed to invest", null], ["declined", "Declined", "Said no", null]];
+  const shown = defs.filter(([k]) => lists[k].length), none = defs.filter(([k]) => !g[k].length).map(([, t]) => t);
   const unscored = data.vcs.filter((v) => !v.recommended_action).length;
 
-  show(
-    ...header(data, "action"),
-    hero(data, now),
-    el("h2", {}, "Pipeline by action", el("small", {}, "Ranked by follow-up score")),
-    el("div", { class: "board" },
-      column("Reach out", "Fresh signal, not yet contacted. Best first", reach.map((v) => card(v, data.evidence, now)), 10),
-      column("Nudge", "Waiting on a reply, with a reason to follow up", nudge.map((v) => card(v, data.evidence, now))),
-      column("Hold", "You already moved recently, or you're talking", hold.map((v) => card(v, data.evidence, now))),
-      column("Quiet", "No signal in 30 days: don't spend energy here", quiet.map((v) => miniRow(v, v.check_ok === false ? "check failed" : v.stage_focus)))),
-    el("div", { class: "skipped" }, el("h2", {}, "Skipped", el("small", {}, "Not a fit right now")),
-      skip.length ? skip.map((v) => miniRow(v, (v.signal_summary || "").replace("Skipped: ", ""))) : el("div", { class: "empty" }, "None.")),
-    unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} VCs have not been scored yet.`) : null);
-}
-
-function statusRow(v, now) {
-  const when = v.last_contacted_at ? `contacted ${daysAgo(v.last_contacted_at, now)}d ago` : "not contacted";
-  return el("div", { class: "card" },
-    el("div", { class: "name" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
-    el("div", { class: "meta" }, `${when}${v.follow_up_score != null ? ` \u00b7 score ${v.follow_up_score}` : ""}`),
-    el("div", { class: "chips", style: "margin-top:8px" }, tag("action", v.recommended_action)),
-    quickActions(v));
+  show(...header(data, "action"),
+    hero(data, now, g, focus),
+    shown.length ? el("div", { class: "board auto" }, shown.map(([k, title, hint, limit]) =>
+      column(title, focus && focus.bucket === k ? hint + " \u00b7 top one is above" : hint, lists[k].map((v) => card(v, data.evidence, now, k)), limit, g[k].length))) : null,
+    none.length ? el("p", { class: "emptyline" }, `Nothing in: ${none.join(", ")}.`) : null,
+    listSection("Dormant", "no strong signal right now, nothing to do", g.dormant, (v) => v.check_ok === false ? "check failed" : v.stage_focus),
+    listSection("Not a fit", "filtered out by the fit rules", g.skip, (v) => (v.signal_summary || "").replace("Skipped: ", "")),
+    unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
 }
 
 function renderStatus(data) {
-  const now = new Date(data.now);
-  const hidden = data.vcs.filter((v) => v.status === "to_contact" && v.recommended_action !== "reach_out").length;
+  const now = new Date(data.now), g = groupVcs(data, now);
+  const pitched = [...g.nudge, ...g.waiting];
   const cols = [
-    ["Prospects to reach out", "Fresh signal: worth contacting now", data.vcs.filter((v) => v.status === "to_contact" && v.recommended_action === "reach_out").sort((a, b) => (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0))],
-    ["Pitched", "Waiting for a reply, longest first", data.vcs.filter((v) => v.status === "waiting").sort((a, b) => (a.last_contacted_at || "") < (b.last_contacted_at || "") ? -1 : 1)],
-    ["In talks", "Replied, call or meeting", data.vcs.filter((v) => v.status === "in_conversation").sort((a, b) => (b.last_contacted_at || "") < (a.last_contacted_at || "") ? -1 : 1)],
-    ["Approved", "Said yes", data.vcs.filter((v) => v.status === "approved")],
-    ["Passed", "Declined you", data.vcs.filter((v) => v.status === "declined").sort((a, b) => a.firm.localeCompare(b.firm))],
+    ["Prospects", "Strong signal: worth approaching", g.reach.map((v) => card(v, data.evidence, now, "reach")), 10, g.reach.length],
+    ["Pitched", "Follow-ups due first", pitched.map((v) => card(v, data.evidence, now, bucketOf(v, now))), null, pitched.length],
+    ["In talks", "Replied, call or meeting", g.talks.map((v) => card(v, data.evidence, now, "talks")), null, g.talks.length],
+    ["Approved", "Committed to invest", g.approved.map((v) => card(v, data.evidence, now, "approved")), null, g.approved.length],
+    ["Declined", "Said no", g.declined.map((v) => card(v, data.evidence, now, "declined")), null, g.declined.length],
   ];
+  const shown = cols.filter((c) => c[4]), none = cols.filter((c) => !c[4]).map((c) => c[0]);
   show(...header(data, "status"),
-    el("div", { class: "board five" }, cols.map(([title, hint, list]) => column(title, hint, list.map((v) => statusRow(v, now))))),
-    hidden ? el("p", { class: "sub", style: "margin-top:18px" }, `${hidden} other prospects are not shown: no fresh signal for them right now, so there's no reason to contact them yet. They stay in Dormant on the By action tab.`) : null);
+    shown.length ? el("div", { class: "board auto" }, shown.map(([t, h, items, limit, total]) => column(t, h, items, limit, total))) : null,
+    none.length ? el("p", { class: "emptyline" }, `Nothing yet in: ${none.join(", ")}.`) : null,
+    el("p", { class: "emptyline" }, `${g.dormant.length} prospects have no strong fresh signal (see Dormant on By action) and ${g.skip.length} aren't a fit (see Not a fit).`));
 }
 
 function peopleOf(d) {
@@ -370,12 +460,12 @@ function whoPanel(d) {
     contactForm(d.vc));
 }
 
-const KINDS = [["reached_out", "I reached out"], ["follow_up", "I followed up"], ["replied", "They replied"], ["call", "We had a call"], ["meeting", "We met"], ["approved", "They approved"], ["declined", "They declined"], ["note", "Just a note"]];
+const KINDS = [["reached_out", "I reached out"], ["follow_up", "I followed up"], ["replied", "They replied"], ["call", "We had a call"], ["meeting", "We met"], ["approved", "They approved (committed to invest)"], ["declined", "They declined"], ["note", "Just a note"]];
 
 function logPanel(v) {
   const kind = el("select", {}, KINDS.map(([k, t]) => el("option", { value: k }, t)));
   const day = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
-  const status = el("select", {}, el("option", { value: "" }, "Update status automatically"),
+  const status = el("select", {}, el("option", { value: "" }, "Keep automatic (recommended)"),
     ["to_contact", "waiting", "in_conversation", "approved", "declined"].map((x) => el("option", { value: x }, `Set to: ${LBL.status[x]}`)));
   const note = el("textarea", { rows: "3", placeholder: "What happened? (private)" });
   const save = el("button", { class: "primary", onclick: async () => {
@@ -384,8 +474,10 @@ function logPanel(v) {
   } }, "Save");
   return el("div", { class: "panel" }, el("h3", {}, "Log activity"),
     el("div", { class: "form" }, el("div", { class: "two" }, el("label", {}, "What happened", kind), el("label", {}, "Date", day)),
-      el("label", {}, "Status", status), el("label", {}, "Note", note), save),
-    el("p", { class: "note" }, `Currently: ${LBL.status[v.status]}. Saving updates your status and last-contacted date, and the next run uses them to decide whether to nudge or hold.`));
+      el("label", {}, "Note", note),
+      el("details", {}, el("summary", { class: "note" }, "Set the status manually (optional)"), el("div", { class: "form", style: "margin-top:8px" }, status)),
+      save),
+    el("p", { class: "note" }, `Currently: ${LBL.status[v.status]}. Saving updates your status and last-contacted date straight away and moves this investor to the right place on the dashboard.`));
 }
 
 function privatePanel(d) {
@@ -429,16 +521,16 @@ const REASON = {
   people_discovery_failed: "partner search failed",
 };
 
-function checkEntry(c) {
+function checkSummary(c) {
   const d = c.detail || {}, lines = [];
-  const when = new Date(c.checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const outcome = !c.ok ? ["red", "Check failed"] : c.outcome === "signal" ? ["green", "Found activity"] : c.outcome === "skipped_fit" ? ["gray", "Skipped: not a fit"] : ["blue", "Nothing new in 30 days"];
   if (!c.ok) lines.push(`Could not complete: ${c.error || "unknown error"}. The previous score was kept.`);
   else if (c.outcome === "skipped_fit") lines.push((d.reason || "Not a fit for this round") + ", so no searches were run.");
   else {
-    lines.push(d.pages_found != null ? `Searched ${d.pages_found} pages, ${d.pages_usable} from trusted sources.` : `Searched ${c.n_pages} pages.`);
+    lines.push(d.pages_found != null ? `Searched ${d.pages_found} pages, ${d.pages_usable} usable.` : `Searched ${c.n_pages} pages.`);
     const sk = Object.entries(d.skipped || {});
     if (sk.length) lines.push("Skipped untrusted sources: " + sk.map(([k, n]) => `${k} \u00d7${n}`).join(", ") + ".");
+    if (d.undated) lines.push(`Ignored ${d.undated} page${d.undated > 1 ? "s" : ""} from trusted sources with no publish date (dates must come from the search API).`);
     if (c.n_signals) lines.push(`Kept ${c.n_signals} signal${c.n_signals > 1 ? "s" : ""}` + (d.signals_people ? ` (${d.signals_people} from partners)` : "") + ".");
     if (d.people_checked && d.people_checked.length) lines.push("Partners checked: " + d.people_checked.join(", ") + ".");
     const rj = {};
@@ -446,13 +538,24 @@ function checkEntry(c) {
     const rl = Object.entries(rj);
     if (rl.length) lines.push("Rejected by validation: " + rl.map(([r, n]) => `${REASON[r] || label(r)} \u00d7${n}`).join(", ") + ".");
   }
-  return el("div", { class: "tl" }, el("div", {}, el("b", {}, when), " ", el("span", { class: `chip c-${outcome[0]}` }, outcome[1])), lines.map((t) => el("div", { class: "meta" }, t)));
+  return { outcome, lines };
 }
 
 function checksPanel(checks) {
+  // Identical back-to-back results are one entry with a count, not a wall of repeats.
+  const groups = [];
+  for (const c of checks) {
+    const sum = checkSummary(c), key = sum.outcome[1] + "|" + sum.lines.join("|");
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.count++; else groups.push({ key, sum, c, count: 1 });
+  }
+  const rows = groups.slice(0, 6).map(({ sum, c, count }) => el("div", { class: "tl" },
+    el("div", {}, el("b", {}, new Date(c.checked_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), " ",
+      el("span", { class: `chip c-${sum.outcome[0]}` }, sum.outcome[1]), count > 1 ? el("small", {}, ` \u00b7 same result in ${count} checks`) : null),
+    sum.lines.map((t) => el("div", { class: "meta" }, t))));
   return el("div", { class: "panel wide" }, el("h3", {}, "Check history"),
-    checks.length ? checks.map(checkEntry) : el("div", { class: "empty" }, "Not checked yet."),
-    el("p", { class: "note" }, "Each entry is one scheduled or manual run for this investor, newest first."));
+    rows.length ? rows : el("div", { class: "empty" }, "Not checked yet."),
+    el("p", { class: "note" }, "Each entry is a run for this investor, newest first. Repeated identical results are combined."));
 }
 
 function signalRow(e) {
@@ -475,9 +578,11 @@ function renderProfile(d) {
     el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
     el("div", { class: "ph" },
       el("div", {}, el("h1", {}, v.firm),
-        el("div", { class: "chips" }, tag("action", v.recommended_action) || el("span", { class: "chip" }, "Not scored"), tag("status", v.status),
+        el("div", { class: "chips" }, btag(bucketOf(v, now)), tag("status", v.status),
           el("span", { class: "chip" }, v.geo), el("span", { class: "chip" }, v.stage_focus)),
-        el("p", { class: "sub", style: "margin-top:10px;max-width:640px" }, v.signal_summary || "Not scored yet.")),
+        (v.signal_summary || "Not scored yet.").split(" | ").length > 1
+          ? el("ul", { class: "bullets" }, v.signal_summary.split(" | ").map((t) => el("li", {}, t)))
+          : el("p", { class: "sub", style: "margin-top:10px;max-width:640px" }, v.signal_summary || "Not scored yet.")),
       el("div", { style: "min-width:200px" }, el("div", { class: "big" }, String(score)),
         el("div", { class: "pl" }, el("span", {}, "Follow-up score"), el("span", {}, `${score}%`)),
         el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })))),
@@ -491,7 +596,7 @@ function renderProfile(d) {
 }
 
 async function loadProfile(id) {
-  show(el("p", { class: "sub" }, "Loading..."));
+  show(el("div", { class: "sk", style: "height:34px;width:260px;margin-bottom:18px" }), el("div", { class: "sk", style: "height:220px;margin-bottom:12px" }), el("div", { class: "sk", style: "height:220px" }));
   try {
     const r = await fetch(`/api/vc?id=${id}`);
     if (!r.ok) throw new Error(r.status);
@@ -508,9 +613,9 @@ function route() {
   return load(location.hash === "#/status" ? "status" : "action");
 }
 
-async function load(view) {
+async function load(view, quiet) {
   view = view || (location.hash === "#/status" ? "status" : "action");
-  show(el("p", { class: "sub" }, "Loading..."));
+  if (!quiet) show(...skeleton());
   try {
     const r = await fetch("/api/pipeline");
     if (!r.ok) throw new Error(r.status);

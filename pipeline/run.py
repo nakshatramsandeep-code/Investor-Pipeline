@@ -55,19 +55,21 @@ MAX_SIGNALS = 6              # signals kept per firm (its own plus its partners'
 MAX_PAGES_TO_MODEL = 20      # newest usable pages sent to the model per search
 
 
-def _usable(pages: list[Page], vc: VC, rf: RunFiles) -> tuple[list[Page], dict[str, int]]:
-    """Send the model only pages the validator could accept (trusted source, API date). The rest are
-    counted by domain so the check history can say what was skipped and why."""
-    usable, skipped = [], {}
+def _usable(pages: list[Page], vc: VC, rf: RunFiles) -> tuple[list[Page], dict[str, int], int]:
+    """Send the model only pages the validator could accept (trusted source, API date). Untrusted pages are
+    counted by domain and undated ones separately, so the check history says exactly what was skipped and why."""
+    usable, skipped, undated = [], {}, 0
     for p in pages:
         tier, domain, _ = classify(p.url, vc, rf.sources, vc.website)
-        if tier is None or p.published is None:
+        if tier is None:
             key = domain or "unknown"
             skipped[key] = skipped.get(key, 0) + 1
+        elif p.published is None:
+            undated += 1
         else:
             usable.append(p)
     usable.sort(key=lambda p: p.published, reverse=True)
-    return usable[:MAX_PAGES_TO_MODEL], skipped
+    return usable[:MAX_PAGES_TO_MODEL], skipped, undated
 
 
 def _add(into: dict[str, int], more: dict[str, int]) -> None:
@@ -86,7 +88,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
     exclude, include = rf.sources.exclude_domains(), rf.sources.include_domains()
     try:
         found_pages = search.search(vc, rf.fit.topic_keywords, today, w.window_days, exclude, include)
-        pages, skipped = _usable(found_pages, vc, rf)
+        pages, skipped, undated = _usable(found_pages, vc, rf)
         raw = extractor.extract(rf.context, vc, pages)
     except (SearchError, ExtractError) as e:
         # A failed check is NOT "no signal": leave old values alone and flag it.
@@ -112,7 +114,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
             pvc = replace(vc, name=person.name)
             try:
                 pfound = search.search(pvc, rf.fit.topic_keywords, today, w.window_days, exclude, include)
-                ppages, pskipped = _usable(pfound, pvc, rf)
+                ppages, pskipped, pundated = _usable(pfound, pvc, rf)
                 psigs, pdrop = validate_signals(extractor.extract(rf.context, pvc, ppages), ppages, pvc,
                                                 today, w.window_days, rf.sources)
             except (SearchError, ExtractError):
@@ -122,6 +124,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
             n_found += len(pfound)
             n_usable += len(ppages)
             _add(skipped, pskipped)
+            undated += pundated
             dropped += [{**d, "type": f"{person.name}: {d['type']}"[:60]} for d in pdrop]
             signals = _merge(signals, [replace(s, person_name=person.name, person_role=person.role or None)
                                        for s in psigs])
@@ -130,7 +133,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
     decision = decide(vc, signals, rf.fit, w, today)
     detail = {"pages_found": n_found, "pages_usable": n_usable,
               "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),
-              "people_checked": checked, "signals_firm": n_firm,
+              "undated": undated, "people_checked": checked, "signals_firm": n_firm,
               "signals_people": sum(1 for s in signals if s.person_name)}
     return VCResult(vc, True, "signal" if signals else "no_signal", decision, signals, dropped, n_found,
                     people_found=found, detail=detail)

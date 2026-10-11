@@ -22,7 +22,8 @@ bonuses:
 preferred_geos: [india, global]
 
 routing:
-  waiting_nudge_days: 10       # waiting longer than this with no reply -> nudge
+  waiting_nudge_days: 7        # pitched this long ago with no reply -> follow up (silence is a reason)
+  reach_out_min_score: 35      # a prospect needs at least this score to be called 'reach out'
   quiet_nudge_score: 25        # score given to a "nudge" that has no new signal behind it
 
 source_tiers:            # multiplier on a signal's strength by where it came from (0..1)
@@ -30,6 +31,8 @@ source_tiers:            # multiplier on a signal's strength by where it came fr
   news: 0.95
   social: 0.6
   unlisted: 0.5
+
+general_content_factor: 0.3   # general interviews / blogs / events (not deals) count much less
 
 relevance:               # multiplier by topic: logistics / supply chain activity counts most
   logistics: 1.0

@@ -32,11 +32,20 @@ def test_rule3_fresh_signal_new_vc_reaches_out(rf):
 
 
 def test_rule4_fresh_signal_after_outreach_nudges(rf):
-    vc = make_vc(status="waiting", last_contacted_at=ago(20))
+    vc = make_vc(status="waiting", last_contacted_at=ago(5))        # pitched 5 days ago, signal 2 days ago
     assert r(vc, [make_signal(days_ago=2)], rf) == (4, "nudge")
 
 
-def test_rule5_waiting_over_10_days_quiet_nudges(rf):
+def test_overdue_waiting_nudges_even_when_he_contacted_after_the_signal(rf):
+    vc = make_vc(status="waiting", last_contacted_at=ago(9))        # old signal, contacted after it, 9 days of silence
+    assert r(vc, [make_signal(days_ago=15)], rf) == (5, "nudge")
+
+
+def test_overdue_waiting_nudges_with_a_fresh_signal_too(rf):
+    assert r(make_vc(status="waiting", last_contacted_at=ago(20)), [make_signal(days_ago=2)], rf) == (5, "nudge")
+
+
+def test_rule5_waiting_over_a_week_quiet_nudges(rf):
     assert r(make_vc(status="waiting", last_contacted_at=ago(11)), [], rf) == (5, "nudge")
 
 
@@ -44,8 +53,9 @@ def test_rule5_waiting_unknown_contact_date_nudges(rf):
     assert r(make_vc(status="waiting"), [], rf) == (5, "nudge")
 
 
-def test_rule6_waiting_exactly_10_days_still_holds(rf):
-    assert r(make_vc(status="waiting", last_contacted_at=ago(10)), [], rf) == (6, "hold")
+def test_waiting_6_days_still_holds_and_7_days_nudges(rf):
+    assert r(make_vc(status="waiting", last_contacted_at=ago(6)), [], rf) == (6, "hold")
+    assert r(make_vc(status="waiting", last_contacted_at=ago(7)), [], rf) == (5, "nudge")
 
 
 def test_rule6_recently_contacted_quiet_holds(rf):
@@ -159,3 +169,35 @@ def test_many_general_signals_do_not_outrank_a_logistics_signal(rf):
     logi = [replace(make_signal(days_ago=3), relevance="logistics")]
     gen = [replace(make_signal(days_ago=3, url=f"https://t.com/{i}"), relevance="general") for i in range(5)]
     assert decide(make_vc(), logi, rf.fit, rf.weights, TODAY).score > decide(make_vc(), gen, rf.fit, rf.weights, TODAY).score
+
+
+def test_weak_signal_below_the_floor_is_not_reach_out(rf):
+    from dataclasses import replace
+    weak = [replace(make_signal(days_ago=28, type="other"), relevance="general", source_tier="news")]
+    d = decide(make_vc(), weak, rf.fit, rf.weights, TODAY)
+    assert d.score < rf.weights.reach_out_min_score and d.action == "quiet_list" and d.summary.startswith("Weak signal")
+
+
+def test_strong_signal_clears_the_floor(rf):
+    from dataclasses import replace
+    strong = [replace(make_signal(days_ago=2), relevance="logistics", source_tier="own_site")]
+    d = decide(make_vc(), strong, rf.fit, rf.weights, TODAY)
+    assert d.action == "reach_out" and d.score >= rf.weights.reach_out_min_score
+
+
+def test_general_interview_counts_far_less_than_a_general_deal(rf):
+    from dataclasses import replace
+    deal = decide(make_vc(), [replace(make_signal(days_ago=2, type="portfolio_investment"), relevance="general")], rf.fit, rf.weights, TODAY).score
+    talk = decide(make_vc(), [replace(make_signal(days_ago=2, type="interview"), relevance="general")], rf.fit, rf.weights, TODAY).score
+    assert deal > talk
+
+
+def test_overdue_nudge_score_grows_with_the_wait(rf):
+    short = decide(make_vc(status="waiting", last_contacted_at=ago(8)), [], rf.fit, rf.weights, TODAY).score
+    long = decide(make_vc(status="waiting", last_contacted_at=ago(20)), [], rf.fit, rf.weights, TODAY).score
+    assert long > short
+
+
+def test_overdue_nudge_summary_says_how_long(rf):
+    d = decide(make_vc(status="waiting", last_contacted_at=ago(9)), [make_signal(days_ago=2)], rf.fit, rf.weights, TODAY)
+    assert d.action == "nudge" and d.summary.startswith("Waiting 9 days")

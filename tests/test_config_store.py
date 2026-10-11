@@ -196,7 +196,8 @@ def test_only_usable_pages_reach_the_model_and_skips_are_counted(rf):
     r = process_vc(make_vc(), c, c, rf, TODAY, check_people=False)
     assert all("linkedin" not in u and "fundraiseinsider" not in u and "undated" not in u for u in c.sent)
     assert r.detail["pages_found"] == 5 and r.detail["pages_usable"] == 2
-    assert r.detail["skipped"] == {"linkedin.com": 1, "fundraiseinsider.com": 1, "reuters.com": 1}
+    assert r.detail["skipped"] == {"linkedin.com": 1, "fundraiseinsider.com": 1}   # untrusted
+    assert r.detail["undated"] == 1                                                  # trusted source, no API date
 
 
 def test_signals_capped_and_newest_first(rf):
