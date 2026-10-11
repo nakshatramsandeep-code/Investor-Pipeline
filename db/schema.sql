@@ -172,6 +172,9 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO dashboard_ro;
 GRANT INSERT ON signal_feedback TO dashboard_fb;
 GRANT USAGE ON SEQUENCE signal_feedback_id_seq TO dashboard_fb;
 
+-- signal_job may fill a firm's blank website (learned from verified own-site pages); it never overwrites one.
+GRANT UPDATE (website) ON vc_profile TO signal_job;
+
 -- signal_job also records the people it finds at each firm.
 GRANT SELECT, INSERT ON vc_people TO signal_job;
 GRANT UPDATE (role, source_url, source_domain, source_tier, quote, discovered_at) ON vc_people TO signal_job;

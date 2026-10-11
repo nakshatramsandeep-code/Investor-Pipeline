@@ -142,6 +142,12 @@
   ul.bullets li { margin-bottom: 4px; }
   .tiles.four { grid-template-columns: repeat(4, 1fr); }
   @media (max-width: 560px) { .tiles.four { grid-template-columns: repeat(2, 1fr); } }
+  .namerow { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  .namerow h1 { margin: 0; }
+  .vlogo { width: 52px; height: 52px; border-radius: 13px; flex: none; }
+  img.vlogo { background: #fff; object-fit: contain; padding: 7px; }
+  .vlogo.initials { display: grid; place-items: center; background: linear-gradient(135deg, var(--purple), var(--purple2)); color: #fff; font: 700 18px var(--mono); }
+  button.seemore { margin-top: 4px; color: var(--muted); }
   .tabs { display: flex; gap: 6px; margin: 0 0 18px; }
   .tabs a { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: 13px; }
   .tabs a.on { background: var(--purple); border-color: var(--purple); color: #fff; }
@@ -420,6 +426,19 @@ function renderStatus(data) {
     el("p", { class: "emptyline" }, `${g.dormant.length} prospects have no strong fresh signal (see Dormant on By action) and ${g.skip.length} aren't a fit (see Not a fit).`));
 }
 
+// Logo: the firm's favicon, from its website when we know it. If there is none (or it fails to load) fall back to initials.
+function logoFor(v) {
+  const initials = (v.firm.replace(/\(.*?\)/g, "").match(/[A-Za-z0-9]+/g) || ["?"]).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  const fallback = () => el("div", { class: "vlogo initials", "aria-hidden": "true" }, initials);
+  let host = null;
+  try { host = v.website ? new URL(v.website.includes("//") ? v.website : "https://" + v.website).hostname.replace(/^www\./, "") : null; } catch { host = null; }
+  if (!host) return fallback();
+  const img = el("img", { class: "vlogo", alt: "", width: "52", height: "52", referrerpolicy: "no-referrer",
+    src: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128` });
+  img.onerror = () => img.replaceWith(fallback());
+  return img;
+}
+
 function peopleOf(d) {
   const m = new Map();
   const add = (name, patch) => { const k = name.toLowerCase(); m.set(k, { name, role: "", ...(m.get(k) || {}), ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v)) }); };
@@ -549,12 +568,15 @@ function checksPanel(checks) {
     const last = groups[groups.length - 1];
     if (last && last.key === key) last.count++; else groups.push({ key, sum, c, count: 1 });
   }
-  const rows = groups.slice(0, 6).map(({ sum, c, count }) => el("div", { class: "tl" },
+  const rows = groups.slice(0, 12).map(({ sum, c, count }) => el("div", { class: "tl" },
     el("div", {}, el("b", {}, new Date(c.checked_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), " ",
       el("span", { class: `chip c-${sum.outcome[0]}` }, sum.outcome[1]), count > 1 ? el("small", {}, ` \u00b7 same result in ${count} checks`) : null),
     sum.lines.map((t) => el("div", { class: "meta" }, t))));
+  const rest = el("div", { style: "display:none" }, rows.slice(2));
+  const more = rows.length > 2 ? el("button", { class: "seemore" }, `See ${rows.length - 2} more`) : null;
+  if (more) more.onclick = () => { const open = rest.style.display === "none"; rest.style.display = open ? "block" : "none"; more.textContent = open ? "Show less" : `See ${rows.length - 2} more`; };
   return el("div", { class: "panel wide" }, el("h3", {}, "Check history"),
-    rows.length ? rows : el("div", { class: "empty" }, "Not checked yet."),
+    rows.length ? [rows.slice(0, 2), rest, more] : el("div", { class: "empty" }, "Not checked yet."),
     el("p", { class: "note" }, "Each entry is a run for this investor, newest first. Repeated identical results are combined."));
 }
 
@@ -577,7 +599,7 @@ function renderProfile(d) {
   show(
     el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
     el("div", { class: "ph" },
-      el("div", {}, el("h1", {}, v.firm),
+      el("div", {}, el("div", { class: "namerow" }, logoFor(v), el("h1", {}, v.firm)),
         el("div", { class: "chips" }, btag(bucketOf(v, now)), tag("status", v.status),
           el("span", { class: "chip" }, v.geo), el("span", { class: "chip" }, v.stage_focus)),
         (v.signal_summary || "Not scored yet.").split(" | ").length > 1

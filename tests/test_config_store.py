@@ -240,3 +240,31 @@ def test_gemini_empty_twice_is_a_failure(monkeypatch):
     from conftest import make_page
     with pytest.raises(extract.ExtractError):
         extract.GeminiExtract(api_key="k").extract("ctx", make_vc(), [make_page("Acme Ventures text")])
+
+
+# ---------------------------------------------------------------- website learning
+
+def test_registrable_domain():
+    from pipeline.sources import registrable
+    assert registrable("newsletter.equal.vc") == "equal.vc"
+    assert registrable("admin.fundalogical.com") == "fundalogical.com"
+    assert registrable("dynamo.vc") == "dynamo.vc"
+    assert registrable("www.example.co.in") == "example.co.in"
+
+
+def test_guess_website_prefers_the_common_real_domain_and_skips_platforms():
+    from pipeline.sources import guess_website
+    items = [("dynamo.substack.com", "own_site"), ("dynamo.substack.com", "own_site"), ("blog.dynamo.vc", "own_site"),
+             ("dynamo.vc", "own_site"), ("techcrunch.com", "news")]
+    assert guess_website(items) == "https://dynamo.vc"
+    assert guess_website([("fieldventures.substack.com", "own_site"), ("techcrunch.com", "news")]) is None
+
+
+def test_website_is_learned_only_when_blank(rf):
+    from dataclasses import replace
+    from conftest import make_page
+    c = ManyPages(good=2)
+    c.pages = [replace(p, url=p.url.replace("techcrunch.com", "acmeventures.com")) for p in c.pages[:2]]
+    r = process_vc(make_vc(), c, c, rf, TODAY, check_people=False)
+    assert r.website == "https://acmeventures.com"
+    assert process_vc(make_vc(website="https://acme.vc"), c, c, rf, TODAY, check_people=False).website is None

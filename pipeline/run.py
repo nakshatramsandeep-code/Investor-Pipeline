@@ -21,7 +21,7 @@ from .models import VC, Page, Person, Signal, VCResult
 from .score import ACTION_ORDER, decide, fit_gate
 from .search import ExaSearch, SearchError
 from .store import CsvStore, PgStore
-from .sources import classify
+from .sources import classify, guess_website
 from .validate import norm_url, validate_people, validate_signals
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -135,8 +135,11 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
               "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),
               "undated": undated, "people_checked": checked, "signals_firm": n_firm,
               "signals_people": sum(1 for s in signals if s.person_name)}
+    learned = None if vc.website else guess_website(
+        [(s.source_domain, s.source_tier) for s in signals]
+        + [(p.source_domain, p.source_tier) for p in found + list(known_people or []) if not p.manual])
     return VCResult(vc, True, "signal" if signals else "no_signal", decision, signals, dropped, n_found,
-                    people_found=found, detail=detail)
+                    people_found=found, website=learned, detail=detail)
 
 
 # ---------------------------------------------------------------- offline demo

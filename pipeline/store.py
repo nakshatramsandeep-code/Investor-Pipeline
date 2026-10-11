@@ -33,6 +33,8 @@ ON CONFLICT (vc_id, url) DO UPDATE SET run_id = EXCLUDED.run_id, source_domain =
     relevance = EXCLUDED.relevance
 """
 
+WEBSITE_SQL = "UPDATE vc_profile SET website = %s WHERE vc_id = %s AND website = ''"
+
 CHECK_SQL = """
 INSERT INTO vc_check_log (vc_id, run_id, ok, outcome, n_pages, n_signals, n_dropped, error, dropped, detail)
 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -99,6 +101,8 @@ class PgStore:
                 for p in r.people_found:
                     cur.execute(PERSON_UPSERT_SQL, (r.vc.id, p.name, p.role, p.source_url,
                                                     p.source_domain, p.source_tier, p.quote))
+                if r.ok and r.website:
+                    cur.execute(WEBSITE_SQL, (r.website, r.vc.id))     # only fills a blank; never overwrites
                 cur.execute(CHECK_SQL, (r.vc.id, run_id, r.ok, r.outcome, r.n_pages, len(r.signals),
                                         len(r.dropped), r.error, json.dumps(r.dropped), json.dumps(r.detail)))
 

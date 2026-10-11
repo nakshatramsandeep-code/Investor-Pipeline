@@ -41,6 +41,31 @@ def _alnum(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+PLATFORM_HOSTS = re.compile(r"substack|medium\.com|wordpress|beehiiv|ghost\.io|notion|github|blogspot|payloadcms|linkedin|youtube|twitter|x\.com")
+SECOND_LEVEL = {"co", "com", "org", "net", "ac", "gov", "edu"}
+
+
+def registrable(domain: str) -> str:
+    """newsletter.equal.vc -> equal.vc ; admin.fundalogical.com -> fundalogical.com ; foo.co.in stays foo.co.in."""
+    labels = domain.lower().split(".")
+    keep = 3 if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in SECOND_LEVEL else 2
+    return ".".join(labels[-keep:])
+
+
+def guess_website(items: list[tuple[str, str]]) -> str | None:
+    """items = (domain, tier) pairs from verified own-site pages. Returns the most common real domain
+    (never a blogging platform), or None."""
+    counts: dict[str, int] = {}
+    for domain, tier in items:
+        if tier == "own_site" and domain and not PLATFORM_HOSTS.search(domain):
+            d = registrable(domain)
+            counts[d] = counts.get(d, 0) + 1
+    if not counts:
+        return None
+    best = sorted(counts.items(), key=lambda kv: (-kv[1], len(kv[0])))[0][0]
+    return "https://" + best
+
+
 def firm_slugs(firm: str) -> set[str]:
     """Names a firm's own site is likely to use: 'Dynamo Ventures' -> dynamo, dynamoventures, dynamovc..."""
     slugs: set[str] = set()

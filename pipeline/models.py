@@ -74,4 +74,5 @@ class VCResult:
     n_pages: int = 0
     error: str | None = None
     people_found: list[Person] = field(default_factory=list)   # new / refreshed, to upsert
+    website: str | None = None                                 # learned from verified own-site pages
     detail: dict = field(default_factory=dict)                 # what the check did, for the history view
