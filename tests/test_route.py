@@ -139,3 +139,23 @@ def test_in_conversation_without_signal_says_so(rf):
 
 def test_declined_still_beats_in_conversation_rule(rf):
     assert r(make_vc(status="declined"), [], rf) == (1, "skip")
+
+
+def test_approved_always_holds(rf):
+    assert r(make_vc(status="approved"), [make_signal()], rf) == (2, "hold")
+    d = decide(make_vc(status="approved"), [], rf.fit, rf.weights, TODAY)
+    assert d.action == "hold" and "Approved" in d.summary
+
+
+def test_logistics_activity_outscores_general_activity(rf):
+    from dataclasses import replace
+    logi = decide(make_vc(), [replace(make_signal(), relevance="logistics")], rf.fit, rf.weights, TODAY).score
+    gen = decide(make_vc(), [replace(make_signal(), relevance="general")], rf.fit, rf.weights, TODAY).score
+    assert logi > gen > 0
+
+
+def test_many_general_signals_do_not_outrank_a_logistics_signal(rf):
+    from dataclasses import replace
+    logi = [replace(make_signal(days_ago=3), relevance="logistics")]
+    gen = [replace(make_signal(days_ago=3, url=f"https://t.com/{i}"), relevance="general") for i in range(5)]
+    assert decide(make_vc(), logi, rf.fit, rf.weights, TODAY).score > decide(make_vc(), gen, rf.fit, rf.weights, TODAY).score

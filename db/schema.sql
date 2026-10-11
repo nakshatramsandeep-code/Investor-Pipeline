@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS vcs (
     firm                text NOT NULL,
     thesis              text NOT NULL DEFAULT '',
     status              text NOT NULL DEFAULT 'to_contact'
-                        CHECK (status IN ('to_contact', 'waiting', 'in_conversation', 'declined')),
+                        CHECK (status IN ('to_contact', 'waiting', 'in_conversation', 'approved', 'declined')),
 
     -- Vikram's columns. The signal job can never touch these.
     notes               text,
@@ -83,11 +83,14 @@ CREATE TABLE IF NOT EXISTS signal_feedback (
     created_at   timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE vc_check_log ADD COLUMN IF NOT EXISTS detail jsonb NOT NULL DEFAULT '{}';
+
 -- Source trust + people (added after v1; idempotent upgrades for existing databases)
 ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS source_domain text NOT NULL DEFAULT '';
 ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS source_tier text NOT NULL DEFAULT '';
 ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS person_name text;
 ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS person_role text;
+ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS relevance text NOT NULL DEFAULT 'logistics';
 ALTER TABLE vc_profile ADD COLUMN IF NOT EXISTS website text NOT NULL DEFAULT '';
 
 -- Contacts Vikram enters himself (owner role only; the job never reads or writes this).
@@ -106,7 +109,7 @@ CREATE TABLE IF NOT EXISTS vc_contacts (
 CREATE TABLE IF NOT EXISTS vc_interactions (
     id          bigserial PRIMARY KEY,
     vc_id       integer NOT NULL REFERENCES vcs(id) ON DELETE CASCADE,
-    kind        text NOT NULL CHECK (kind IN ('reached_out','follow_up','replied','call','meeting','declined','note')),
+    kind        text NOT NULL CHECK (kind IN ('reached_out','follow_up','replied','call','meeting','approved','declined','note')),
     note        text NOT NULL DEFAULT '',
     occurred_on date NOT NULL DEFAULT current_date,
     created_at  timestamptz NOT NULL DEFAULT now()
@@ -157,9 +160,9 @@ GRANT UPDATE (last_signal_date, signal_summary, follow_up_score, recommended_act
 GRANT SELECT, INSERT, UPDATE ON run_log TO signal_job;
 GRANT INSERT ON signal_evidence, vc_check_log TO signal_job;
 -- ON CONFLICT (vc_id, url) needs to read the two conflict columns, nothing more.
-GRANT SELECT (vc_id, url, run_id, source_domain, source_tier, person_name, person_role) ON signal_evidence TO signal_job;
+GRANT SELECT (vc_id, url, run_id, source_domain, source_tier, person_name, person_role, relevance) ON signal_evidence TO signal_job;
 -- A re-seen URL refreshes only its provenance fields (summary / quote / url never change).
-GRANT UPDATE (run_id, source_domain, source_tier, person_name, person_role) ON signal_evidence TO signal_job;
+GRANT UPDATE (run_id, source_domain, source_tier, person_name, person_role, relevance) ON signal_evidence TO signal_job;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO signal_job;
 
 -- dashboard_ro: read everything, write nothing.

@@ -21,6 +21,7 @@ from .models import VC, Page, Person, Signal, VCResult
 from .score import ACTION_ORDER, decide, fit_gate
 from .search import ExaSearch, SearchError
 from .store import CsvStore, PgStore
+from .sources import classify
 from .validate import norm_url, validate_people, validate_signals
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,22 +51,49 @@ def _merge(signals: list[Signal], extra: list[Signal]) -> list[Signal]:
     return list(by_url.values())
 
 
+MAX_SIGNALS = 6              # signals kept per firm (its own plus its partners')
+MAX_PAGES_TO_MODEL = 20      # newest usable pages sent to the model per search
+
+
+def _usable(pages: list[Page], vc: VC, rf: RunFiles) -> tuple[list[Page], dict[str, int]]:
+    """Send the model only pages the validator could accept (trusted source, API date). The rest are
+    counted by domain so the check history can say what was skipped and why."""
+    usable, skipped = [], {}
+    for p in pages:
+        tier, domain, _ = classify(p.url, vc, rf.sources, vc.website)
+        if tier is None or p.published is None:
+            key = domain or "unknown"
+            skipped[key] = skipped.get(key, 0) + 1
+        else:
+            usable.append(p)
+    usable.sort(key=lambda p: p.published, reverse=True)
+    return usable[:MAX_PAGES_TO_MODEL], skipped
+
+
+def _add(into: dict[str, int], more: dict[str, int]) -> None:
+    for k, v in more.items():
+        into[k] = into.get(k, 0) + v
+
+
 def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
                known_people: list[Person] | None = None, check_people: bool = True) -> VCResult:
     w = rf.weights
     fit_ok, _, _ = fit_gate(vc, rf.fit)
     if not fit_ok or vc.status == "declined":
         # Routing rule 1: no point spending search / LLM budget.
-        return VCResult(vc, True, "skipped_fit", decide(vc, [], rf.fit, w, today))
-    exclude = rf.sources.exclude_domains()
+        d = decide(vc, [], rf.fit, w, today)
+        return VCResult(vc, True, "skipped_fit", d, detail={"reason": d.summary})
+    exclude, include = rf.sources.exclude_domains(), rf.sources.include_domains()
     try:
-        pages = search.search(vc, rf.fit.topic_keywords, today, w.window_days, exclude)
+        found_pages = search.search(vc, rf.fit.topic_keywords, today, w.window_days, exclude, include)
+        pages, skipped = _usable(found_pages, vc, rf)
         raw = extractor.extract(rf.context, vc, pages)
     except (SearchError, ExtractError) as e:
         # A failed check is NOT "no signal": leave old values alone and flag it.
-        return VCResult(vc, False, "failed", error=str(e)[:300])
+        return VCResult(vc, False, "failed", error=str(e)[:300], detail={"error": str(e)[:300]})
     signals, dropped = validate_signals(raw, pages, vc, today, w.window_days, rf.sources)
-    n_pages, found = len(pages), []
+    n_found, n_usable, found, checked = len(found_pages), len(pages), [], []
+    n_firm = len(signals)
 
     if check_people:
         known = list(known_people or [])
@@ -74,9 +102,8 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
                 found = _discover_people(vc, search, extractor, rf)
             except (SearchError, ExtractError) as e:
                 dropped.append({"reason": "people_discovery_failed", "url": "", "type": str(e)[:80]})
-        everyone = sorted([p for p in known if p.manual], key=lambda p: p.name) + \
-            [p for p in (found + [k for k in known if not k.manual]) if p.name.lower() not in
-             {m.name.lower() for m in known if m.manual}]
+        manual = {m.name.lower() for m in known if m.manual}
+        everyone = sorted([p for p in known if p.manual], key=lambda p: p.name) +             [p for p in (found + [k for k in known if not k.manual]) if p.name.lower() not in manual]
         seen: set[str] = set()
         for person in everyone:
             if person.name.lower() in seen or len(seen) >= PEOPLE_CHECKED:
@@ -84,20 +111,29 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
             seen.add(person.name.lower())
             pvc = replace(vc, name=person.name)
             try:
-                ppages = search.search(pvc, rf.fit.topic_keywords, today, w.window_days, exclude)
+                pfound = search.search(pvc, rf.fit.topic_keywords, today, w.window_days, exclude, include)
+                ppages, pskipped = _usable(pfound, pvc, rf)
                 psigs, pdrop = validate_signals(extractor.extract(rf.context, pvc, ppages), ppages, pvc,
                                                 today, w.window_days, rf.sources)
-            except (SearchError, ExtractError) as e:
+            except (SearchError, ExtractError):
                 dropped.append({"reason": "person_check_failed", "url": "", "type": person.name[:60]})
                 continue
-            n_pages += len(ppages)
+            checked.append(person.name)
+            n_found += len(pfound)
+            n_usable += len(ppages)
+            _add(skipped, pskipped)
             dropped += [{**d, "type": f"{person.name}: {d['type']}"[:60]} for d in pdrop]
             signals = _merge(signals, [replace(s, person_name=person.name, person_role=person.role or None)
                                        for s in psigs])
 
+    signals = sorted(signals, key=lambda s: s.published, reverse=True)[:MAX_SIGNALS]
     decision = decide(vc, signals, rf.fit, w, today)
-    return VCResult(vc, True, "signal" if signals else "no_signal", decision, signals, dropped, n_pages,
-                    people_found=found)
+    detail = {"pages_found": n_found, "pages_usable": n_usable,
+              "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),
+              "people_checked": checked, "signals_firm": n_firm,
+              "signals_people": sum(1 for s in signals if s.person_name)}
+    return VCResult(vc, True, "signal" if signals else "no_signal", decision, signals, dropped, n_found,
+                    people_found=found, detail=detail)
 
 
 # ---------------------------------------------------------------- offline demo
@@ -128,7 +164,7 @@ class FixtureClients:
                      today - timedelta(days=p["days_ago"]) if p.get("days_ago") is not None else None,
                      p["text"]) for p in raw_pages]
 
-    def search(self, vc, keywords, today, window_days, exclude_domains=None):
+    def search(self, vc, keywords, today, window_days, exclude_domains=None, include_domains=None):
         return self._pages(self._entry(vc).get("pages", []), today)
 
     def extract(self, context, vc, pages):

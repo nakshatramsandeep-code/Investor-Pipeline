@@ -105,7 +105,7 @@ class PeopleClients:
         self.page = make_page("At the summit, Jane Partner of Acme Ventures said freight visibility is underfunded in software.",
                               url="https://techcrunch.com/summit")
 
-    def search(self, vc, kw, today, window, exclude=None):
+    def search(self, vc, kw, today, window, exclude=None, include=None):
         if vc.name:
             self.person_searches.append(vc.name)
             return [self.page]
@@ -165,3 +165,77 @@ def test_person_search_failure_does_not_fail_the_vc(rf):
     c = Boom()
     r = process_vc(make_vc(), c, c, rf, TODAY)
     assert r.ok and any(d["reason"] == "person_check_failed" for d in r.dropped)
+
+
+# ---------------------------------------------------------------- more signals + check detail
+
+class ManyPages:
+    """Search returns trusted, untrusted and undated pages; the model proposes a signal per good page."""
+
+    def __init__(self, good=8):
+        from conftest import make_page
+        self.pages = [make_page(f"Acme Ventures backed startup number {i} in freight visibility today.",
+                                days_ago=i + 1, url=f"https://techcrunch.com/p{i}") for i in range(good)]
+        self.pages += [make_page("Acme Ventures post", url="https://www.linkedin.com/posts/a"),
+                       make_page("Acme Ventures list", url="https://fundraiseinsider.com/x"),
+                       make_page("Acme Ventures undated", days_ago=None, url="https://reuters.com/undated")]
+        self.sent = []
+
+    def search(self, vc, kw, today, window, exclude=None, include=None):
+        return self.pages
+
+    def extract(self, ctx, vc, pages):
+        self.sent = [p.url for p in pages]
+        return [{"type": "portfolio_investment", "summary": f"Backed startup {i}.",
+                 "quote": f"Acme Ventures backed startup number {i} in freight visibility", "url": p.url}
+                for i, p in enumerate(pages)]
+
+
+def test_only_usable_pages_reach_the_model_and_skips_are_counted(rf):
+    c = ManyPages(good=2)
+    r = process_vc(make_vc(), c, c, rf, TODAY, check_people=False)
+    assert all("linkedin" not in u and "fundraiseinsider" not in u and "undated" not in u for u in c.sent)
+    assert r.detail["pages_found"] == 5 and r.detail["pages_usable"] == 2
+    assert r.detail["skipped"] == {"linkedin.com": 1, "fundraiseinsider.com": 1, "reuters.com": 1}
+
+
+def test_signals_capped_and_newest_first(rf):
+    c = ManyPages(good=8)
+    r = process_vc(make_vc(), c, c, rf, TODAY, check_people=False)
+    assert len(r.signals) == 6
+    assert [s.published for s in r.signals] == sorted((s.published for s in r.signals), reverse=True)
+
+
+def test_detail_records_people_checked(rf):
+    c = PeopleClients()
+    r = process_vc(make_vc(), c, c, rf, TODAY)
+    assert r.detail["people_checked"] == ["Jane Partner"] and r.detail["signals_people"] == 1
+
+
+def test_firm_is_searched_from_three_angles():
+    from pipeline.search import build_queries
+    qs = build_queries(make_vc(firm="Acme Ventures"), ["logistics"])
+    assert len(qs) == 3 and all('"Acme Ventures"' in q for q in qs)
+    assert any("conference" in q for q in qs) and any("blog" in q for q in qs) and any("invests" in q for q in qs)
+
+
+def test_empty_gemini_candidate_is_retried_once(monkeypatch):
+    from pipeline import extract
+    calls = []
+
+    def fake_post(url, headers, body, **k):
+        calls.append(1)
+        return {"candidates": [{"content": {}}]} if len(calls) == 1 else {"candidates": [{"content": {"parts": [{"text": "{\"signals\": []}"}]}}]}
+    monkeypatch.setattr(extract.net, "post_json", fake_post)
+    g = extract.GeminiExtract(api_key="k")
+    from conftest import make_page
+    assert g.extract("ctx", make_vc(), [make_page("Acme Ventures text")]) == [] and len(calls) == 2
+
+
+def test_gemini_empty_twice_is_a_failure(monkeypatch):
+    import pytest
+    from pipeline import extract
+    monkeypatch.setattr(extract.net, "post_json", lambda *a, **k: {"candidates": [{"content": {}}]})
+    from conftest import make_page
+    with pytest.raises(extract.ExtractError):
+        extract.GeminiExtract(api_key="k").extract("ctx", make_vc(), [make_page("Acme Ventures text")])

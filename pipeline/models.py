@@ -39,6 +39,7 @@ class Signal:
     source_tier: str = ""            # own_site | news | social | unlisted
     person_name: str | None = None   # a person at the firm, named on the page
     person_role: str | None = None
+    relevance: str = "general"        # logistics | general
 
 
 @dataclass(frozen=True)
@@ -73,3 +74,4 @@ class VCResult:
     n_pages: int = 0
     error: str | None = None
     people_found: list[Person] = field(default_factory=list)   # new / refreshed, to upsert
+    detail: dict = field(default_factory=dict)                 # what the check did, for the history view

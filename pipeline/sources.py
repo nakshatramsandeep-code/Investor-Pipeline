@@ -19,6 +19,10 @@ class SourceRules:
     social: tuple[str, ...]
     blocked: tuple[str, ...]
 
+    def include_domains(self) -> list[str]:
+        """Trusted outlets, for a search that can only return usable pages."""
+        return list(self.news)
+
     def exclude_domains(self) -> list[str]:
         """Domains to keep out of the search itself (saves result slots for usable pages)."""
         return list(self.blocked) + ([] if self.allow_social else list(self.social))

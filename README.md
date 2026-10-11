@@ -15,7 +15,7 @@ run_files/                      context.md (prompt), fit_rules.yaml, weights.yam
 pipeline/                       search.py  extract.py  validate.py  score.py  store.py  run.py
 dashboard/                      Vercel: static page + /api/pipeline (read) + /api/feedback (insert)
 scripts/                        setup_db.py, seed_db.py
-tests/  evals/                  90 unit tests; precision / recall / invented-URL eval
+tests/  evals/                  95 unit tests; precision / recall / invented-URL eval
 data/vc_seed_list.csv           the 50 VCs
 ```
 
@@ -103,10 +103,11 @@ call or met, or they declined. It updates `status` and `last_contacted_at`, whic
 whether to nudge or hold. A new status, `in_conversation`, always routes to hold. The "My pipeline" tab groups
 every investor by status, and cards have quick buttons.
 
-Reading the dashboard needs no login. **Saving does**: set `EDIT_KEY` (any long random string) and
-`DASHBOARD_ED_URL` (user `dashboard_ed`, which can only change your four columns and add to the activity log
-and contacts) in Vercel. The page asks for the key once per browser. Without them editing stays off.
-Your notes and activity log are only returned to a request carrying the key.
+There is no login. Saving needs `DASHBOARD_ED_URL` in Vercel (user `dashboard_ed`, which can only change your
+four columns and add to the activity log and contacts). Because anyone who opens the URL could then read your
+notes and change your statuses, turn on **Vercel Deployment Protection** (Settings -> Deployment Protection) so
+only you can open the site. Statuses: Prospect, Pitched, In talks, Approved, Passed. Approved and In talks always
+route to hold.
 
 ## Assumptions to confirm
 

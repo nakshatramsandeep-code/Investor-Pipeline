@@ -88,6 +88,16 @@
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 7px 8px; border-top: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 500; border-top: 0; }
+  .chip.c-green { color: #4ade80; background: rgba(74,222,128,.12); border-color: rgba(74,222,128,.32); }
+  .chip.c-amber { color: #f5b14a; background: rgba(245,177,74,.12); border-color: rgba(245,177,74,.32); }
+  .chip.c-blue { color: #7aa7ff; background: rgba(91,140,255,.13); border-color: rgba(91,140,255,.34); }
+  .chip.c-purple { color: #b9a4ff; background: rgba(123,92,255,.15); border-color: rgba(123,92,255,.38); }
+  .chip.c-teal { color: #3ddbd9; background: rgba(61,219,217,.11); border-color: rgba(61,219,217,.3); }
+  .chip.c-red { color: #ff8a8a; background: rgba(255,122,122,.12); border-color: rgba(255,122,122,.32); }
+  .chip.c-gray { color: #a3a3b8; }
+  .board.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  @media (max-width: 1250px) { .board.five { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 800px) { .board.five { grid-template-columns: 1fr; } }
   .tabs { display: flex; gap: 6px; margin: 0 0 18px; }
   .tabs a { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: 13px; }
   .tabs a.on { background: var(--purple); border-color: var(--purple); color: #fff; }
@@ -107,6 +117,7 @@
 <main id="app"></main>
 <script>
 const app = document.getElementById("app");
+const show = (...nodes) => app.replaceChildren(...nodes.flat(Infinity).filter((n) => n != null && n !== false));
 
 // Everything from the database (including model-written summaries) is untrusted text: build DOM, never innerHTML.
 function el(tag, props = {}, ...kids) {
@@ -121,6 +132,18 @@ const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === "http
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" }) : "never";
 const daysAgo = (d, now) => Math.max(0, Math.floor((now - new Date(d)) / 864e5));
 const label = (s) => String(s || "").replace(/_/g, " ");
+const LBL = {
+  status: { to_contact: "Prospect", waiting: "Pitched", in_conversation: "In talks", approved: "Approved", declined: "Passed" },
+  action: { reach_out: "Reach out now", nudge: "Follow up", hold: "Hold", quiet_list: "Dormant", skip: "Not a fit" },
+  type: { portfolio_investment: "New investment", fund_announcement: "Fund news", interview: "Interview", blog_post: "Blog post", event_appearance: "Event / talk", other: "Other" },
+};
+const COL = {
+  status: { to_contact: "purple", waiting: "amber", in_conversation: "blue", approved: "green", declined: "red" },
+  action: { reach_out: "green", nudge: "amber", hold: "blue", quiet_list: "gray", skip: "red" },
+  type: { portfolio_investment: "green", fund_announcement: "purple", interview: "blue", blog_post: "teal", event_appearance: "amber", other: "gray" },
+};
+const relChip = (e) => e.relevance === "logistics" ? el("span", { class: "chip c-green" }, "Logistics") : e.relevance ? el("span", { class: "chip c-gray" }, "General activity") : null;
+const tag = (kind, v) => v ? el("span", { class: `chip c-${COL[kind][v] || "gray"}` }, LBL[kind][v] || label(v)) : null;
 const scoreColor = (s) => s >= 70 ? "var(--green)" : s >= 40 ? "var(--blue)" : "var(--pink)";
 
 async function sendFeedback(ev, useful, btns) {
@@ -145,7 +168,7 @@ function evidenceRows(v, evidence) {
     const btns = [[up, true], [down, false]];
     up.onclick = () => sendFeedback(e, true, btns); down.onclick = () => sendFeedback(e, false, btns);
     return el("div", { class: "ev" },
-      el("div", { class: "chips" }, el("span", { class: "chip" }, label(e.type)), el("span", { class: "chip" }, fmtDate(e.published_date)), trustChip(e)),
+      el("div", { class: "chips" }, tag("type", e.type), relChip(e), el("span", { class: "chip" }, fmtDate(e.published_date)), trustChip(e)),
       el("q", {}, e.quote),
       href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
   });
@@ -162,6 +185,7 @@ function card(v, evidence, now) {
   const score = v.follow_up_score ?? 0;
   const checked = v.checked_at ? daysAgo(v.checked_at, now) : null;
   const chips = [
+    tag("status", v.status),
     v.check_ok === false ? el("span", { class: "chip bad" }, "check failed: old values") : null,
     checked == null ? el("span", { class: "chip warn" }, "never checked") : checked > 5 ? el("span", { class: "chip warn" }, `checked ${checked}d ago`) : null,
     v.last_contacted_at ? el("span", { class: "chip" }, `contacted ${fmtDate(v.last_contacted_at)}`) : null,
@@ -201,7 +225,7 @@ function hero(data, now) {
     const ev = evidence.find((e) => e.vc_id === top.id);
     insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "1"), `Strongest signal: ${top.firm}`),
       el("p", {}, top.signal_summary),
-      el("div", { class: "chips" }, el("span", { class: "chip good" }, "Source-checked"), el("span", { class: "chip good" }, `Score ${top.follow_up_score}`), ev ? el("span", { class: "chip" }, label(ev.type)) : null));
+      el("div", { class: "chips" }, el("span", { class: "chip good" }, "Source-checked"), el("span", { class: "chip good" }, `Score ${top.follow_up_score}`), tag("type", ev && ev.type)));
   } else {
     insight = el("div", { class: "insight" }, el("h3", {}, el("span", { class: "dot" }, "0"), "Nothing fresh this week"),
       el("p", {}, "No VC has a verified signal in the last 30 days. Don't force it."));
@@ -223,24 +247,13 @@ function column(title, hint, items) {
   return el("div", { class: "col" }, el("h4", {}, title, el("span", {}, String(items.length))), hint ? el("div", { class: "hint" }, hint) : null, items.length ? items.map((n) => n) : el("div", { class: "empty" }, "Nothing here."));
 }
 
-const KEY_STORE = "pipeline_edit_key";
-const editKey = {
-  get() { try { return localStorage.getItem(KEY_STORE) || ""; } catch { return ""; } },
-  set(v) { try { localStorage.setItem(KEY_STORE, v); } catch {} },
-  clear() { try { localStorage.removeItem(KEY_STORE); } catch {} },
-};
-
-// Saving needs the edit key (reading never does). Asked once, remembered in this browser.
+// No login: the site is meant to be private (Vercel Deployment Protection).
 async function editCall(body) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let key = editKey.get();
-    if (!key) { key = (prompt("Enter your edit key to save changes") || "").trim(); if (!key) return false; editKey.set(key); }
-    const r = await fetch("/api/edit", { method: "POST", headers: { "content-type": "application/json", "x-edit-key": key }, body: JSON.stringify(body) });
+  try {
+    const r = await fetch("/api/edit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     if (r.ok) return true;
-    if (r.status === 401) { editKey.clear(); continue; }
-    alert(r.status === 403 ? "Editing is not switched on for this deployment yet (EDIT_KEY and DASHBOARD_ED_URL are missing)." : "Could not save.");
-    return false;
-  }
+    alert(r.status === 403 ? "Editing is not switched on yet (DASHBOARD_ED_URL is missing in Vercel)." : "Could not save.");
+  } catch { alert("Could not save."); }
   return false;
 }
 
@@ -253,7 +266,7 @@ function header(data, active) {
   return [el("div", { class: "brand" }, el("span", { class: "logo" }), "Investor Pipeline"),
     el("div", { class: "top" }, el("div", {},
       el("h1", {}, active === "action" ? "Who to reach out to this week" : "My pipeline"),
-      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} VCs`), active === "action" ? " tracked \u00b7 signals from the last 30 days \u00b7 every claim links to its source" : " by where each conversation stands \u00b7 update from an investor's page or the quick buttons"))),
+      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} VCs`), active === "action" ? " tracked \u00b7 signals from the last 30 days \u00b7 every claim links to its source" : " who to contact now, and where each conversation stands \u00b7 update from an investor's page or the quick buttons"))),
     tabs(active)];
 }
 
@@ -263,7 +276,7 @@ function render(data) {
   const reach = by("reach_out"), nudge = by("nudge"), hold = by("hold"), quiet = by("quiet_list"), skip = by("skip");
   const unscored = data.vcs.filter((v) => !v.recommended_action).length;
 
-  app.replaceChildren(
+  show(
     ...header(data, "action"),
     hero(data, now),
     el("h2", {}, "Pipeline by action", el("small", {}, "Ranked by follow-up score")),
@@ -281,22 +294,24 @@ function statusRow(v, now) {
   const when = v.last_contacted_at ? `contacted ${daysAgo(v.last_contacted_at, now)}d ago` : "not contacted";
   return el("div", { class: "card" },
     el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm),
-      v.recommended_action ? el("span", { class: "chip" }, label(v.recommended_action)) : null),
+      tag("action", v.recommended_action)),
     el("div", { class: "meta" }, `${when}${v.follow_up_score != null ? ` \u00b7 score ${v.follow_up_score}` : ""}`),
     quickActions(v));
 }
 
 function renderStatus(data) {
   const now = new Date(data.now);
+  const hidden = data.vcs.filter((v) => v.status === "to_contact" && v.recommended_action !== "reach_out").length;
   const cols = [
-    ["to_contact", "To contact", "Not reached yet", (a, b) => (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0)],
-    ["waiting", "Waiting for a reply", "Longest wait first", (a, b) => (a.last_contacted_at || "") < (b.last_contacted_at || "") ? -1 : 1],
-    ["in_conversation", "In conversation", "Replied, call or meeting", (a, b) => (b.last_contacted_at || "") < (a.last_contacted_at || "") ? -1 : 1],
-    ["declined", "Declined", "Passed on you", (a, b) => a.firm.localeCompare(b.firm)],
+    ["Prospects to reach out", "Fresh signal: worth contacting now", data.vcs.filter((v) => v.status === "to_contact" && v.recommended_action === "reach_out").sort((a, b) => (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0))],
+    ["Pitched", "Waiting for a reply, longest first", data.vcs.filter((v) => v.status === "waiting").sort((a, b) => (a.last_contacted_at || "") < (b.last_contacted_at || "") ? -1 : 1)],
+    ["In talks", "Replied, call or meeting", data.vcs.filter((v) => v.status === "in_conversation").sort((a, b) => (b.last_contacted_at || "") < (a.last_contacted_at || "") ? -1 : 1)],
+    ["Approved", "Said yes", data.vcs.filter((v) => v.status === "approved")],
+    ["Passed", "Declined you", data.vcs.filter((v) => v.status === "declined").sort((a, b) => a.firm.localeCompare(b.firm))],
   ];
-  app.replaceChildren(...header(data, "status"),
-    el("div", { class: "board" }, cols.map(([st, title, hint, cmp]) =>
-      column(title, hint, data.vcs.filter((v) => v.status === st).sort(cmp).map((v) => statusRow(v, now))))));
+  show(...header(data, "status"),
+    el("div", { class: "board five" }, cols.map(([title, hint, list]) => column(title, hint, list.map((v) => statusRow(v, now))))),
+    hidden ? el("p", { class: "sub", style: "margin-top:18px" }, `${hidden} other prospects are not shown: no fresh signal for them right now, so there's no reason to contact them yet. They stay in Dormant on the By action tab.`) : null);
 }
 
 function peopleOf(d) {
@@ -339,13 +354,13 @@ function whoPanel(d) {
     contactForm(d.vc));
 }
 
-const KINDS = [["reached_out", "I reached out"], ["follow_up", "I followed up"], ["replied", "They replied"], ["call", "We had a call"], ["meeting", "We met"], ["declined", "They declined"], ["note", "Just a note"]];
+const KINDS = [["reached_out", "I reached out"], ["follow_up", "I followed up"], ["replied", "They replied"], ["call", "We had a call"], ["meeting", "We met"], ["approved", "They approved"], ["declined", "They declined"], ["note", "Just a note"]];
 
 function logPanel(v) {
   const kind = el("select", {}, KINDS.map(([k, t]) => el("option", { value: k }, t)));
   const day = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
   const status = el("select", {}, el("option", { value: "" }, "Update status automatically"),
-    ["to_contact", "waiting", "in_conversation", "declined"].map((x) => el("option", { value: x }, `Set to: ${label(x)}`)));
+    ["to_contact", "waiting", "in_conversation", "approved", "declined"].map((x) => el("option", { value: x }, `Set to: ${LBL.status[x]}`)));
   const note = el("textarea", { rows: "3", placeholder: "What happened? (private)" });
   const save = el("button", { class: "primary", onclick: async () => {
     const ok = await editCall({ action: "log", vc_id: v.id, kind: kind.value, occurred_on: day.value, note: note.value, status: status.value || undefined });
@@ -354,19 +369,18 @@ function logPanel(v) {
   return el("div", { class: "panel" }, el("h3", {}, "Log activity"),
     el("div", { class: "form" }, el("div", { class: "two" }, el("label", {}, "What happened", kind), el("label", {}, "Date", day)),
       el("label", {}, "Status", status), el("label", {}, "Note", note), save),
-    el("p", { class: "note" }, `Currently: ${label(v.status)}. Saving updates your status and last-contacted date, and the next run uses them to decide whether to nudge or hold.`));
+    el("p", { class: "note" }, `Currently: ${LBL.status[v.status]}. Saving updates your status and last-contacted date, and the next run uses them to decide whether to nudge or hold.`));
 }
 
 function privatePanel(d) {
   if (!d.editor) {
     return el("div", { class: "panel" }, el("h3", {}, "Notes and history"),
-      el("p", { class: "note", style: "margin:0 0 10px" }, "Your notes and activity log are private. Enter your edit key to see and edit them."),
-      el("button", { onclick: () => { const k = (prompt("Enter your edit key") || "").trim(); if (k) { editKey.set(k); loadProfile(d.vc.id); } } }, "Unlock"));
+      el("p", { class: "note", style: "margin:0" }, "Editing is not switched on yet. Add DASHBOARD_ED_URL in Vercel to keep notes and log activity."));
   }
-  const notes = el("textarea", { rows: "5" }); notes.value = d.notes || "";
-  const timeline = (d.interactions || []).map((i) => el("div", { class: "tl" }, el("b", {}, label(i.kind)), " ", el("small", {}, fmtDate(i.occurred_on)), i.note ? el("div", {}, i.note) : null));
+  const notes = el("textarea", { rows: "5", placeholder: "Anything worth remembering about this investor" }); notes.value = d.notes || "";
+  const timeline = (d.interactions || []).map((i) => el("div", { class: "tl" }, el("b", {}, (KINDS.find(([k]) => k === i.kind) || [0, label(i.kind)])[1]), " ", el("small", {}, fmtDate(i.occurred_on)), i.note ? el("div", {}, i.note) : null));
   return el("div", { class: "panel" }, el("h3", {}, "Your notes and history"),
-    el("div", { class: "form" }, el("label", {}, "Notes (private)", notes),
+    el("div", { class: "form" }, el("label", {}, "Notes", notes),
       el("button", { onclick: async () => { if (await editCall({ action: "notes", vc_id: d.vc.id, notes: notes.value })) alert("Saved."); } }, "Save notes")),
     el("div", { style: "margin-top:14px" }, timeline.length ? timeline : el("div", { class: "empty" }, "No activity logged yet.")));
 }
@@ -385,22 +399,44 @@ function fitPanel(v) {
 }
 
 function relPanel(v, now) {
-  const kv = [["Status", label(v.status)], ["Last contacted", v.last_contacted_at ? `${fmtDate(v.last_contacted_at)} (${daysAgo(v.last_contacted_at, now)}d ago)` : "Not recorded"],
+  const kv = [["Status", tag("status", v.status)], ["Last contacted", v.last_contacted_at ? `${fmtDate(v.last_contacted_at)} (${daysAgo(v.last_contacted_at, now)}d ago)` : "Not recorded"],
     ["Latest signal", v.last_signal_date ? `${fmtDate(v.last_signal_date)} (${daysAgo(v.last_signal_date, now)}d ago)` : "None yet"]];
   return el("div", { class: "panel" }, el("h3", {}, "Relationship"),
     el("dl", { class: "kv" }, kv.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])));
 }
 
+const REASON = {
+  blocked_source: "low-quality source", social_source_disabled: "social post (not trusted)", untrusted_source: "source not on the trusted list",
+  quote_not_on_page: "quote not found on the page", url_not_in_results: "link was not in the search results", wrong_firm: "page was about a different firm",
+  wrong_person: "page didn't name the person", outside_window: "older than 30 days", no_api_date: "no publish date",
+  duplicate_url: "duplicate", unknown_type: "unrecognised type", malformed: "malformed", person_check_failed: "a partner check failed",
+  people_discovery_failed: "partner search failed",
+};
+
+function checkEntry(c) {
+  const d = c.detail || {}, lines = [];
+  const when = new Date(c.checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const outcome = !c.ok ? ["red", "Check failed"] : c.outcome === "signal" ? ["green", "Found activity"] : c.outcome === "skipped_fit" ? ["gray", "Skipped: not a fit"] : ["blue", "Nothing new in 30 days"];
+  if (!c.ok) lines.push(`Could not complete: ${c.error || "unknown error"}. The previous score was kept.`);
+  else if (c.outcome === "skipped_fit") lines.push((d.reason || "Not a fit for this round") + ", so no searches were run.");
+  else {
+    lines.push(d.pages_found != null ? `Searched ${d.pages_found} pages, ${d.pages_usable} from trusted sources.` : `Searched ${c.n_pages} pages.`);
+    const sk = Object.entries(d.skipped || {});
+    if (sk.length) lines.push("Skipped untrusted sources: " + sk.map(([k, n]) => `${k} \u00d7${n}`).join(", ") + ".");
+    if (c.n_signals) lines.push(`Kept ${c.n_signals} signal${c.n_signals > 1 ? "s" : ""}` + (d.signals_people ? ` (${d.signals_people} from partners)` : "") + ".");
+    if (d.people_checked && d.people_checked.length) lines.push("Partners checked: " + d.people_checked.join(", ") + ".");
+    const rj = {};
+    for (const x of (c.dropped || [])) rj[x.reason] = (rj[x.reason] || 0) + 1;
+    const rl = Object.entries(rj);
+    if (rl.length) lines.push("Rejected by validation: " + rl.map(([r, n]) => `${REASON[r] || label(r)} \u00d7${n}`).join(", ") + ".");
+  }
+  return el("div", { class: "tl" }, el("div", {}, el("b", {}, when), " ", el("span", { class: `chip c-${outcome[0]}` }, outcome[1])), lines.map((t) => el("div", { class: "meta" }, t)));
+}
+
 function checksPanel(checks) {
-  const rows = checks.map((c) => {
-    const reasons = {};
-    for (const d of (c.dropped || [])) reasons[d.reason] = (reasons[d.reason] || 0) + 1;
-    return el("tr", {}, el("td", {}, new Date(c.checked_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })),
-      el("td", {}, c.ok ? label(c.outcome) : "failed"), el("td", {}, String(c.n_pages)), el("td", {}, String(c.n_signals)),
-      el("td", {}, Object.keys(reasons).length ? el("div", { class: "chips" }, Object.entries(reasons).map(([r, n]) => el("span", { class: "chip" }, `${label(r)} \u00d7${n}`))) : "-"));
-  });
   return el("div", { class: "panel wide" }, el("h3", {}, "Check history"),
-    rows.length ? el("table", {}, el("tr", {}, ["Date", "Outcome", "Pages", "Kept", "Dropped by validation"].map((h) => el("th", {}, h))), rows) : el("div", { class: "empty" }, "Not checked yet."));
+    checks.length ? checks.map(checkEntry) : el("div", { class: "empty" }, "Not checked yet."),
+    el("p", { class: "note" }, "Each entry is one scheduled or manual run for this investor, newest first."));
 }
 
 function signalRow(e) {
@@ -410,7 +446,7 @@ function signalRow(e) {
   up.onclick = () => sendFeedback(e, true, b); down.onclick = () => sendFeedback(e, false, b);
   const href = safeUrl(e.url);
   return el("div", { class: "ev" },
-    el("div", { class: "chips" }, el("span", { class: "chip" }, label(e.type)), el("span", { class: "chip" }, fmtDate(e.published_date)), trustChip(e),
+    el("div", { class: "chips" }, tag("type", e.type), relChip(e), el("span", { class: "chip" }, fmtDate(e.published_date)), trustChip(e),
       e.person_name ? el("span", { class: "chip" }, `by ${e.person_name}`) : null),
     el("p", { class: "why" }, e.summary), el("q", {}, e.quote),
     href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
@@ -419,11 +455,11 @@ function signalRow(e) {
 function renderProfile(d) {
   const v = d.vc, now = new Date(d.now), score = v.follow_up_score ?? 0;
   const unverified = d.evidence.filter((e) => e.source_tier === "legacy_unverified").length;
-  app.replaceChildren(
+  show(
     el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
     el("div", { class: "ph" },
       el("div", {}, el("h1", {}, v.firm),
-        el("div", { class: "chips" }, el("span", { class: "chip good" }, label(v.recommended_action || "not scored")), el("span", { class: "chip" }, label(v.status)),
+        el("div", { class: "chips" }, tag("action", v.recommended_action) || el("span", { class: "chip" }, "Not scored"), tag("status", v.status),
           el("span", { class: "chip" }, v.geo), el("span", { class: "chip" }, v.stage_focus)),
         el("p", { class: "sub", style: "margin-top:10px;max-width:640px" }, v.signal_summary || "Not scored yet.")),
       el("div", { style: "min-width:200px" }, el("div", { class: "big" }, String(score)),
@@ -439,13 +475,13 @@ function renderProfile(d) {
 }
 
 async function loadProfile(id) {
-  app.replaceChildren(el("p", { class: "sub" }, "Loading..."));
+  show(el("p", { class: "sub" }, "Loading..."));
   try {
-    const r = await fetch(`/api/vc?id=${id}`, { headers: editKey.get() ? { "x-edit-key": editKey.get() } : {} });
+    const r = await fetch(`/api/vc?id=${id}`);
     if (!r.ok) throw new Error(r.status);
     renderProfile(await r.json());
   } catch {
-    app.replaceChildren(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
+    show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
       el("div", { class: "insight bad" }, el("h3", {}, "Could not load this investor"), el("p", {}, "Try again in a minute.")));
   }
 }
@@ -458,14 +494,14 @@ function route() {
 
 async function load(view) {
   view = view || (location.hash === "#/status" ? "status" : "action");
-  app.replaceChildren(el("p", { class: "sub" }, "Loading..."));
+  show(el("p", { class: "sub" }, "Loading..."));
   try {
     const r = await fetch("/api/pipeline");
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     view === "status" ? renderStatus(data) : render(data);
   } catch {
-    app.replaceChildren(el("div", { class: "insight bad" }, el("h3", {}, "Could not load the pipeline"), el("p", {}, "Try again in a minute.")));
+    show(el("div", { class: "insight bad" }, el("h3", {}, "Could not load the pipeline"), el("p", {}, "Try again in a minute.")));
   }
 }
 window.addEventListener("hashchange", route);

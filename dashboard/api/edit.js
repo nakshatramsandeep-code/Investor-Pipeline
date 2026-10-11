@@ -1,16 +1,15 @@
 const { neon } = require("@neondatabase/serverless");
-const isEditor = require("./_edit");
 
 // Vikram's edits, through the dashboard_ed role: it can change status, last_contacted_at, notes and
 // contact_history, and add to the activity log and contacts. Nothing else.
-const STATUSES = ["to_contact", "waiting", "in_conversation", "declined"];
-const KINDS = ["reached_out", "follow_up", "replied", "call", "meeting", "declined", "note"];
+// There is no login: keep the site private with Vercel Deployment Protection.
+const STATUSES = ["to_contact", "waiting", "in_conversation", "approved", "declined"];
+const KINDS = ["reached_out", "follow_up", "replied", "call", "meeting", "approved", "declined", "note"];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
-  if (!process.env.EDIT_KEY || !process.env.DASHBOARD_ED_URL) return res.status(403).json({ error: "editing is not enabled" });
-  if (!isEditor(req)) return res.status(401).json({ error: "wrong edit key" });
+  if (!process.env.DASHBOARD_ED_URL) return res.status(403).json({ error: "editing is not enabled" });
 
   const b = req.body || {};
   const id = b.vc_id;
@@ -28,8 +27,9 @@ module.exports = async function handler(req, res) {
 
       const q = [sql`INSERT INTO vc_interactions (vc_id, kind, note, occurred_on) VALUES (${id}, ${kind}, ${note}, ${day})`];
       if (kind !== "note") q.push(sql`UPDATE vcs SET last_contacted_at = GREATEST(COALESCE(last_contacted_at, ${day}::date), ${day}::date) WHERE id = ${id}`);
-      if (kind === "reached_out" || kind === "follow_up") q.push(sql`UPDATE vcs SET status = CASE WHEN status = 'in_conversation' THEN status ELSE 'waiting' END WHERE id = ${id}`);
-      if (kind === "replied" || kind === "call" || kind === "meeting") q.push(sql`UPDATE vcs SET status = 'in_conversation' WHERE id = ${id}`);
+      if (kind === "reached_out" || kind === "follow_up") q.push(sql`UPDATE vcs SET status = CASE WHEN status IN ('in_conversation', 'approved') THEN status ELSE 'waiting' END WHERE id = ${id}`);
+      if (kind === "replied" || kind === "call" || kind === "meeting") q.push(sql`UPDATE vcs SET status = CASE WHEN status = 'approved' THEN status ELSE 'in_conversation' END WHERE id = ${id}`);
+      if (kind === "approved") q.push(sql`UPDATE vcs SET status = 'approved' WHERE id = ${id}`);
       if (kind === "declined") q.push(sql`UPDATE vcs SET status = 'declined' WHERE id = ${id}`);
       if (b.status) q.push(sql`UPDATE vcs SET status = ${b.status} WHERE id = ${id}`);   // explicit choice wins
       await sql.transaction(q);

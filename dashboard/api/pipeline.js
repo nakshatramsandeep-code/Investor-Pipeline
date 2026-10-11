@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
             SELECT checked_at, ok, outcome, error FROM vc_check_log
             WHERE vc_id = v.id ORDER BY checked_at DESC LIMIT 1) c ON true`,
       sql`SELECT e.id, e.vc_id, e.type, e.summary, e.quote, e.url, e.published_date::text AS published_date,
-                 e.source_domain, e.source_tier,
+                 e.source_domain, e.source_tier, e.relevance,
                  (SELECT f.useful FROM signal_feedback f WHERE f.evidence_id = e.id
                   ORDER BY f.created_at DESC LIMIT 1) AS useful
           FROM signal_evidence e

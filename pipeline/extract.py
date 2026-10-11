@@ -60,6 +60,19 @@ def parse_response(raw: str) -> list[dict]:
     return [s for s in sigs if isinstance(s, dict)]
 
 
+def _generate(url: str, api_key: str, body: dict) -> str:
+    """Call Gemini and return the text of the first candidate. An empty candidate (no 'parts', e.g. a
+    blocked or truncated reply) is retried once before it is reported as a failure."""
+    last: Exception | None = None
+    for _ in range(2):
+        try:
+            data = net.post_json(url, {"x-goog-api-key": api_key}, body, timeout=90)
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError, TypeError) as e:
+            last = e
+    raise ExtractError(f"gemini returned an empty response: {last}")
+
+
 class GeminiExtract:
     def __init__(self, api_key: str | None = None, model: str | None = None):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
@@ -75,10 +88,8 @@ class GeminiExtract:
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
         }
         try:
-            data = net.post_json(GEMINI_URL.format(model=self.model),
-                                 {"x-goog-api-key": self.api_key}, body, timeout=90)
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-        except (net.HttpError, KeyError, IndexError, TypeError) as e:
+            text = _generate(GEMINI_URL.format(model=self.model), self.api_key, body)
+        except net.HttpError as e:
             raise ExtractError(f"gemini call failed: {e}") from e
         return parse_response(text)
 
@@ -90,11 +101,8 @@ class GeminiExtract:
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
         }
         try:
-            data = net.post_json(GEMINI_URL.format(model=self.model),
-                                 {"x-goog-api-key": self.api_key}, body, timeout=90)
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-            obj = json.loads(text)
-        except (net.HttpError, KeyError, IndexError, TypeError, json.JSONDecodeError) as e:
+            obj = json.loads(_generate(GEMINI_URL.format(model=self.model), self.api_key, body))
+        except (net.HttpError, json.JSONDecodeError) as e:
             raise ExtractError(f"gemini people call failed: {e}") from e
         people = obj.get("people") if isinstance(obj, dict) else None
         if not isinstance(people, list):

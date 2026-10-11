@@ -42,6 +42,7 @@ class Weights:
     waiting_nudge_days: int
     quiet_nudge_score: int
     source_tiers: dict[str, float]
+    relevance: dict[str, float]
 
 
 @dataclass(frozen=True)
@@ -125,6 +126,7 @@ def load_weights(path: Path) -> Weights:
         preferred_geos=_str_list(d, "preferred_geos", w),
         waiting_nudge_days=_get(rou, "waiting_nudge_days", int, f"{w}: routing"),
         quiet_nudge_score=_get(rou, "quiet_nudge_score", int, f"{w}: routing"),
+        relevance={k: _unit(v, f"{w}: relevance[{k}]") for k, v in _get(d, "relevance", dict, w).items()},
         source_tiers={k: _unit(v, f"{w}: source_tiers[{k}]") for k, v in _get(d, "source_tiers", dict, w).items()},
     )
 

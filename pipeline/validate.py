@@ -81,7 +81,8 @@ def validate_signals(raw: list[dict], pages: list[Page], vc: VC, today: date,
         pname, prole = _person(s.get("person"), page.text)
         kept.append(Signal(type=stype, summary=summary.strip()[:300], quote=quote.strip(),
                            url=page.url, published=page.published, source_domain=domain,
-                           source_tier=tier, person_name=pname, person_role=prole))
+                           source_tier=tier, person_name=pname, person_role=prole,
+                           relevance="logistics" if s.get("relevance") == "logistics" else "general"))
     return kept, dropped
 
 

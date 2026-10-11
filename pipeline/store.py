@@ -26,15 +26,16 @@ WHERE id = %s
 
 EVIDENCE_SQL = """
 INSERT INTO signal_evidence (vc_id, run_id, type, summary, quote, url, published_date,
-                             source_domain, source_tier, person_name, person_role)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             source_domain, source_tier, person_name, person_role, relevance)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (vc_id, url) DO UPDATE SET run_id = EXCLUDED.run_id, source_domain = EXCLUDED.source_domain,
-    source_tier = EXCLUDED.source_tier, person_name = EXCLUDED.person_name, person_role = EXCLUDED.person_role
+    source_tier = EXCLUDED.source_tier, person_name = EXCLUDED.person_name, person_role = EXCLUDED.person_role,
+    relevance = EXCLUDED.relevance
 """
 
 CHECK_SQL = """
-INSERT INTO vc_check_log (vc_id, run_id, ok, outcome, n_pages, n_signals, n_dropped, error, dropped)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+INSERT INTO vc_check_log (vc_id, run_id, ok, outcome, n_pages, n_signals, n_dropped, error, dropped, detail)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 
 
@@ -94,12 +95,12 @@ class PgStore:
                     cur.execute(UPDATE_SQL, (d.last_signal_date, d.summary, d.score, d.action, r.vc.id))
                     for s in r.signals:
                         cur.execute(EVIDENCE_SQL, (r.vc.id, run_id, s.type, s.summary, s.quote, s.url, s.published,
-                                              s.source_domain, s.source_tier, s.person_name, s.person_role))
+                                              s.source_domain, s.source_tier, s.person_name, s.person_role, s.relevance))
                 for p in r.people_found:
                     cur.execute(PERSON_UPSERT_SQL, (r.vc.id, p.name, p.role, p.source_url,
                                                     p.source_domain, p.source_tier, p.quote))
                 cur.execute(CHECK_SQL, (r.vc.id, run_id, r.ok, r.outcome, r.n_pages, len(r.signals),
-                                        len(r.dropped), r.error, json.dumps(r.dropped)))
+                                        len(r.dropped), r.error, json.dumps(r.dropped), json.dumps(r.detail)))
 
     def finish_run(self, run_id: int, status: str, checked: int, failed: int,
                    kept: int, dropped: int, error: str | None = None) -> None:

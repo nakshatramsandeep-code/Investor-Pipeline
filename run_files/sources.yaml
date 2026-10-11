@@ -55,6 +55,9 @@ news:
   - ttnews.com
   - finsmes.com
   - techfundingnews.com
+  - e27.co
+  - logisticsviewpoints.com
+  - theedgemalaysia.com
 
 social:
   - linkedin.com
@@ -76,3 +79,14 @@ blocked:
   - superscout.co
   - privateequitylist.com
   - mamstartup.pl
+  # Noise that filled over half of all search results: search-engine profile pages and spam / scraper sites.
+  - exa.ai
+  - fliarbi.com
+  - merriam-webster.com
+  - tracxn.com
+  - getpodcast.com
+  - newskart.com
+  - ceointerviews.ai
+  - yespress.io
+  - the1news.com
+  - onlinestorenews.com

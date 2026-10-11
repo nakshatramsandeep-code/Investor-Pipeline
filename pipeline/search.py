@@ -26,6 +26,17 @@ def build_query(vc: VC, keywords: list[str]) -> str:
     return " ".join(parts)
 
 
+def build_queries(vc: VC, keywords: list[str]) -> list[str]:
+    """Three angles on what a fund has done lately: deals, writing, and events."""
+    firm = firm_aliases(vc.firm)[0]
+    topic = " OR ".join(keywords)
+    return [
+        f'"{firm}" invests OR led OR raised OR portfolio OR "new fund" {topic}',
+        f'"{firm}" blog OR newsletter OR essay OR thesis OR "market map" {topic}',
+        f'"{firm}" speaker OR panel OR keynote OR conference OR podcast OR interview {topic}',
+    ]
+
+
 def _parse_date(s: str | None) -> date | None:
     if not s:
         return None
@@ -44,29 +55,38 @@ class ExaSearch:
         self.max_chars = max_chars
 
     def search(self, vc: VC, keywords: list[str], today: date, window_days: int,
-               exclude_domains: list[str] | None = None) -> list[Page]:
+               exclude_domains: list[str] | None = None, include_domains: list[str] | None = None) -> list[Page]:
+        """A firm is searched from three angles (deals, writing, events) so one noisy angle can't
+        hide the others; a single person gets one combined query. Results are merged by URL."""
         start = today - timedelta(days=window_days)
-        body = {
-            "query": build_query(vc, keywords),
-            "numResults": self.num_results,
-            "startPublishedDate": f"{start.isoformat()}T00:00:00.000Z",
-            "contents": {"text": {"maxCharacters": self.max_chars}},
-        }
-        if exclude_domains:
-            body["excludeDomains"] = exclude_domains
-        try:
-            data = net.post_json(EXA_URL, {"x-api-key": self.api_key}, body)
-        except net.HttpError as e:
-            raise SearchError(str(e)) from e
+        queries = [(build_query(vc, keywords), None)] if vc.name else [(q, None) for q in build_queries(vc, keywords)]
+        if include_domains:
+            # One extra query limited to trusted outlets: every result is usable.
+            queries.append((build_query(vc, keywords), include_domains))
         pages, seen = [], set()
-        for r in data.get("results", []):
-            url = r.get("url")
-            if not url or url in seen:
-                continue
-            seen.add(url)
-            pages.append(Page(url=url, title=r.get("title") or "",
-                              published=_parse_date(r.get("publishedDate")),
-                              text=r.get("text") or ""))
+        for query, only in queries:
+            body = {
+                "query": query,
+                "numResults": self.num_results,
+                "startPublishedDate": f"{start.isoformat()}T00:00:00.000Z",
+                "contents": {"text": {"maxCharacters": self.max_chars}},
+            }
+            if only:
+                body["includeDomains"] = only
+            elif exclude_domains:
+                body["excludeDomains"] = exclude_domains
+            try:
+                data = net.post_json(EXA_URL, {"x-api-key": self.api_key}, body)
+            except net.HttpError as e:
+                raise SearchError(str(e)) from e
+            for r in data.get("results", []):
+                url = r.get("url")
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                pages.append(Page(url=url, title=r.get("title") or "",
+                                  published=_parse_date(r.get("publishedDate")),
+                                  text=r.get("text") or ""))
         return pages
 
     def search_people(self, vc: VC, exclude_domains: list[str] | None = None) -> list[Page]:

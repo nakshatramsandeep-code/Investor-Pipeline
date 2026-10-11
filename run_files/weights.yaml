@@ -30,3 +30,7 @@ source_tiers:            # multiplier on a signal's strength by where it came fr
   news: 0.95
   social: 0.6
   unlisted: 0.5
+
+relevance:               # multiplier by topic: logistics / supply chain activity counts most
+  logistics: 1.0
+  general: 0.5           # any other recent activity by the fund: still a sign it is active

@@ -255,3 +255,9 @@ def test_person_page_must_name_the_firm():
 def test_founders_ranked_before_partners():
     got = people([person(), person(name="Bob Founder", role="Founder", quote="Bob Founder is the Founder of Acme Ventures")])
     assert [p.name for p in got] == ["Bob Founder", "Jane Partner"]
+
+
+def test_relevance_defaults_to_general_and_accepts_logistics():
+    assert run([sig()])[0][0].relevance == "general"
+    assert run([sig(relevance="logistics")])[0][0].relevance == "logistics"
+    assert run([sig(relevance="banana")])[0][0].relevance == "general"

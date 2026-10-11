@@ -28,22 +28,25 @@ def fit_gate(vc: VC, rules: FitRules) -> tuple[bool, float, str]:
 
 
 def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> float:
-    """0..1. Best single signal (type weight x recency decay) + small bonus per extra one."""
+    """0..1. Best single signal (type x source x topic x recency) plus small bonuses. Every bonus is
+    scaled by topic relevance, so five general signals can't outrank a logistics signal."""
     if not signals:
         return 0.0
     scored = []
     for s in signals:
         age = max((today - s.published).days, 0)
         tier = w.source_tiers.get(s.source_tier, 1.0)
-        scored.append(w.signal_types[s.type] * tier * 0.5 ** (age / w.half_life_days))
+        topic = w.relevance.get(s.relevance, 1.0)
+        scored.append((w.signal_types[s.type] * tier * topic * 0.5 ** (age / w.half_life_days), topic))
     scored.sort(reverse=True)
-    strength = scored[0] + w.extra_signal * min(len(scored) - 1, 3)
+    best, best_topic = scored[0]
+    strength = best + w.extra_signal * sum(t for _, t in scored[1:4])
     newest = max(s.published for s in signals)
     if vc.last_signal_date is None or newest > vc.last_signal_date:
-        strength += w.new_since_last_run
+        strength += w.new_since_last_run * best_topic
     geo = vc.geo.lower()
     if any(g in geo for g in w.preferred_geos):
-        strength += w.preferred_geo
+        strength += w.preferred_geo * best_topic
     return min(strength, 1.0)
 
 
@@ -59,7 +62,7 @@ def route(vc: VC, signals: list[Signal], fit_ok: bool, w: Weights, today: date) 
 
     if not fit_ok or vc.status == "declined":
         return 1, "skip"
-    if vc.status == "in_conversation":
+    if vc.status in ("in_conversation", "approved"):
         return 2, "hold"                                   # a live conversation: don't nudge or re-pitch
     if newest and vc.last_contacted_at and vc.last_contacted_at >= newest:
         return 2, "hold"                                   # he already reached out after the signal
@@ -88,6 +91,8 @@ def decide(vc: VC, signals: list[Signal], rules: FitRules, w: Weights, today: da
     if action == "skip":
         why = reason or "Already declined"
         return Decision(rule, action, 0, f"Skipped: {why}", None)
+    if vc.status == "approved" and not signals:
+        return Decision(rule, action, 0, "Approved. Keep the relationship warm.", None)
     if vc.status == "in_conversation" and not signals:
         return Decision(rule, action, 0, "In conversation. Keep the thread going.", None)
     if signals:
