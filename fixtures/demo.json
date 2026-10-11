@@ -21,6 +21,71 @@
           }
         }
       ]
+    },
+    "people": {
+      "pages": [
+        {
+          "url": "https://dynamo.vc/team",
+          "title": "Team",
+          "text": "Jane Partner is a General Partner at Dynamo Ventures and leads logistics investing. Bob Founder is the Founder and Managing Partner of Dynamo Ventures. Sam Analyst joined Dynamo Ventures as an Analyst last year."
+        }
+      ],
+      "llm": {
+        "people": [
+          {
+            "name": "Bob Founder",
+            "role": "Founder and Managing Partner",
+            "quote": "Bob Founder is the Founder and Managing Partner of Dynamo Ventures.",
+            "url": "https://dynamo.vc/team"
+          },
+          {
+            "name": "Jane Partner",
+            "role": "General Partner",
+            "quote": "Jane Partner is a General Partner at Dynamo Ventures and leads logistics investing.",
+            "url": "https://dynamo.vc/team"
+          },
+          {
+            "name": "Carl Madeup",
+            "role": "Partner",
+            "quote": "Carl Madeup is a Partner at Dynamo Ventures and writes often.",
+            "url": "https://dynamo.vc/team"
+          },
+          {
+            "name": "Sam Analyst",
+            "role": "Analyst",
+            "quote": "Sam Analyst joined Dynamo Ventures as an Analyst last year.",
+            "url": "https://dynamo.vc/team"
+          }
+        ]
+      }
+    },
+    "person_activity": {
+      "Jane Partner": {
+        "pages": [
+          {
+            "url": "https://techcrunch.com/freighttech-summit-recap",
+            "title": "FreightTech Summit",
+            "days_ago": 6,
+            "text": "At the FreightTech Summit, Jane Partner of Dynamo Ventures argued that carrier visibility tooling is the most underfunded layer of the freight stack."
+          }
+        ],
+        "llm": {
+          "signals": [
+            {
+              "type": "event_appearance",
+              "summary": "Spoke at the FreightTech Summit on carrier visibility tooling.",
+              "quote": "Jane Partner of Dynamo Ventures argued that carrier visibility tooling is the most underfunded layer",
+              "url": "https://techcrunch.com/freighttech-summit-recap"
+            }
+          ]
+        }
+      },
+      "Bob Founder": {
+        "pages": [],
+        "llm": {
+          "signals": []
+        }
+      }
     }
   },
   "Flexport Fund": {
@@ -135,7 +200,7 @@
   },
   "Enrission India Capital": {
     "vc": {
-      "status": "waiting",
+      "status": "in_conversation",
       "last_contacted_days_ago": 3
     },
     "pages": [

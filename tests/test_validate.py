@@ -207,3 +207,51 @@ def test_single_name_person_rejected():
     page = make_page(TEXT + " Jane said so.")
     kept, _ = run([sig(person={"name": "Jane", "role": "Partner"})], [page])
     assert kept[0].person_name is None
+
+
+# ---------------------------------------------------------------- people discovery
+
+TEAM = ("Jane Partner is a General Partner at Acme Ventures and leads logistics. "
+        "Bob Founder is the Founder of Acme Ventures. Sam Analyst joined Acme Ventures as an Analyst.")
+TEAM_URL = "https://acmeventures.com/team"
+
+
+def people(raw, text=TEAM, url=TEAM_URL, vc=None):
+    from pipeline.config import load_run_files
+    from pipeline.validate import validate_people
+    return validate_people(raw, [make_page(text, url=url)], vc or make_vc(), load_run_files().sources)
+
+
+def person(name="Jane Partner", role="General Partner", quote="Jane Partner is a General Partner at Acme Ventures", url=TEAM_URL):
+    return {"name": name, "role": role, "quote": quote, "url": url}
+
+
+def test_person_named_on_trusted_page_kept():
+    got = people([person()])
+    assert [(p.name, p.role, p.source_tier) for p in got] == [("Jane Partner", "General Partner", "own_site")]
+
+
+def test_person_not_on_page_dropped():
+    assert people([person(name="Carl Madeup", quote="Carl Madeup is a Partner at Acme Ventures")]) == []
+
+
+def test_quote_must_contain_the_name():
+    assert people([person(quote="leads logistics")]) == []
+
+
+def test_junior_role_dropped():
+    assert people([person(name="Sam Analyst", role="Analyst", quote="Sam Analyst joined Acme Ventures as an Analyst")]) == []
+
+
+def test_person_on_untrusted_page_dropped():
+    url = "https://randomblog.example.org/team"
+    assert people([person(url=url)], url=url) == []
+
+
+def test_person_page_must_name_the_firm():
+    assert people([person()], text="Jane Partner is a General Partner at Some Other Fund and leads logistics.") == []
+
+
+def test_founders_ranked_before_partners():
+    got = people([person(), person(name="Bob Founder", role="Founder", quote="Bob Founder is the Founder of Acme Ventures")])
+    assert [p.name for p in got] == ["Bob Founder", "Jane Partner"]

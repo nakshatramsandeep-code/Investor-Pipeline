@@ -125,3 +125,17 @@ def test_news_source_scores_below_own_site_for_same_signal(rf):
     a = decide(make_vc(), [own], rf.fit, rf.weights, TODAY).score
     b = decide(make_vc(), [news], rf.fit, rf.weights, TODAY).score
     assert a > b
+
+
+def test_in_conversation_holds_even_with_a_fresh_signal(rf):
+    vc = make_vc(status="in_conversation", last_contacted_at=ago(20))
+    assert r(vc, [make_signal(days_ago=1)], rf) == (2, "hold")
+
+
+def test_in_conversation_without_signal_says_so(rf):
+    d = decide(make_vc(status="in_conversation"), [], rf.fit, rf.weights, TODAY)
+    assert d.action == "hold" and "In conversation" in d.summary
+
+
+def test_declined_still_beats_in_conversation_rule(rf):
+    assert r(make_vc(status="declined"), [], rf) == (1, "skip")

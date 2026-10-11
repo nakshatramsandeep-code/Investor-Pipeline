@@ -68,3 +68,20 @@ class ExaSearch:
                               published=_parse_date(r.get("publishedDate")),
                               text=r.get("text") or ""))
         return pages
+
+    def search_people(self, vc: VC, exclude_domains: list[str] | None = None) -> list[Page]:
+        """Pages naming the firm's founders and partners. No date window: team pages are evergreen."""
+        firm = firm_aliases(vc.firm)[0]
+        body = {
+            "query": f'"{firm}" founder OR "managing partner" OR "general partner" OR partners team',
+            "numResults": 8,
+            "contents": {"text": {"maxCharacters": self.max_chars}},
+        }
+        if exclude_domains:
+            body["excludeDomains"] = exclude_domains
+        try:
+            data = net.post_json(EXA_URL, {"x-api-key": self.api_key}, body)
+        except net.HttpError as e:
+            raise SearchError(str(e)) from e
+        return [Page(url=r["url"], title=r.get("title") or "", published=_parse_date(r.get("publishedDate")),
+                     text=r.get("text") or "") for r in data.get("results", []) if r.get("url")]

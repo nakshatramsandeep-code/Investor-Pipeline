@@ -15,7 +15,7 @@ run_files/                      context.md (prompt), fit_rules.yaml, weights.yam
 pipeline/                       search.py  extract.py  validate.py  score.py  store.py  run.py
 dashboard/                      Vercel: static page + /api/pipeline (read) + /api/feedback (insert)
 scripts/                        setup_db.py, seed_db.py
-tests/  evals/                  75 unit tests; precision / recall / invented-URL eval
+tests/  evals/                  90 unit tests; precision / recall / invented-URL eval
 data/vc_seed_list.csv           the 50 VCs
 ```
 
@@ -86,6 +86,27 @@ INSERT INTO vc_contacts (vc_id, name, role, linkedin_url) VALUES (28, 'Jane Doe'
 ```
 
 Emails you store in `vc_contacts.email` and your notes are not returned by the public API.
+
+## People and their activity
+
+Each run, for firms that pass the fit gate, the job (1) finds the firm's founders and partners, (2) searches
+each person's own recent activity (talks, events, posts, interviews), and (3) merges what it finds into the
+firm's signals, tagged with the person. A person is stored only if a trusted page names them, with a verbatim
+quote containing their name, on a page that also names the firm, and a senior role (founder, managing
+partner, general partner, partner, principal). Partners are re-discovered every 45 days; up to 3 people per
+firm are checked each run, your own contacts (`vc_contacts`) first. `python -m pipeline.run --no-people` skips this.
+
+## Logging your outreach
+
+On an investor's page, **Log activity** records that you reached out, followed up, they replied, you had a
+call or met, or they declined. It updates `status` and `last_contacted_at`, which the next run uses to decide
+whether to nudge or hold. A new status, `in_conversation`, always routes to hold. The "My pipeline" tab groups
+every investor by status, and cards have quick buttons.
+
+Reading the dashboard needs no login. **Saving does**: set `EDIT_KEY` (any long random string) and
+`DASHBOARD_ED_URL` (user `dashboard_ed`, which can only change your four columns and add to the activity log
+and contacts) in Vercel. The page asks for the key once per browser. Without them editing stays off.
+Your notes and activity log are only returned to a request carrying the key.
 
 ## Assumptions to confirm
 

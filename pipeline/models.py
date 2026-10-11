@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 
 
 @dataclass(frozen=True)
@@ -42,6 +42,18 @@ class Signal:
 
 
 @dataclass(frozen=True)
+class Person:
+    name: str
+    role: str = ""
+    source_url: str = ""
+    source_domain: str = ""
+    source_tier: str = ""             # own_site | news | manual (added by Vikram)
+    quote: str = ""
+    discovered_at: datetime | None = None
+    manual: bool = False
+
+
+@dataclass(frozen=True)
 class Decision:
     rule: int                        # which row of the routing table matched
     action: str                      # reach_out | nudge | hold | quiet_list | skip
@@ -60,3 +72,4 @@ class VCResult:
     dropped: list[dict] = field(default_factory=list)
     n_pages: int = 0
     error: str | None = None
+    people_found: list[Person] = field(default_factory=list)   # new / refreshed, to upsert

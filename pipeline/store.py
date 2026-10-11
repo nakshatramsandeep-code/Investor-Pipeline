@@ -7,7 +7,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from .models import VC, VCResult
+from .models import VC, Person, VCResult
 
 # Explicit column list on purpose: never SELECT * (notes / contact_history are off limits).
 LOAD_SQL = """
@@ -38,6 +38,22 @@ VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 
 
+PEOPLE_SQL = """
+SELECT vc_id, name, role, source_url, source_domain, source_tier, quote, discovered_at, false
+FROM vc_people
+UNION ALL
+SELECT vc_id, name, role, '', '', 'manual', '', NULL, true FROM vc_contacts
+"""
+
+PERSON_UPSERT_SQL = """
+INSERT INTO vc_people (vc_id, name, role, source_url, source_domain, source_tier, quote)
+VALUES (%s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (vc_id, name) DO UPDATE SET role = EXCLUDED.role, source_url = EXCLUDED.source_url,
+    source_domain = EXCLUDED.source_domain, source_tier = EXCLUDED.source_tier,
+    quote = EXCLUDED.quote, discovered_at = now()
+"""
+
+
 class PgStore:
     def __init__(self, dsn: str):
         import psycopg  # imported lazily so offline demo needs no database driver
@@ -49,6 +65,16 @@ class PgStore:
             rows = cur.fetchall()
         self.conn.rollback()
         return [VC(*r) for r in rows]
+
+    def load_people(self) -> dict[int, list[Person]]:
+        with self.conn.cursor() as cur:
+            cur.execute(PEOPLE_SQL)
+            rows = cur.fetchall()
+        self.conn.rollback()
+        out: dict[int, list[Person]] = {}
+        for vc_id, name, role, url, dom, tier, quote, at, manual in rows:
+            out.setdefault(vc_id, []).append(Person(name, role, url, dom, tier, quote, at, manual))
+        return out
 
     def start_run(self, total: int) -> int:
         with self.conn.cursor() as cur:
@@ -69,6 +95,9 @@ class PgStore:
                     for s in r.signals:
                         cur.execute(EVIDENCE_SQL, (r.vc.id, run_id, s.type, s.summary, s.quote, s.url, s.published,
                                               s.source_domain, s.source_tier, s.person_name, s.person_role))
+                for p in r.people_found:
+                    cur.execute(PERSON_UPSERT_SQL, (r.vc.id, p.name, p.role, p.source_url,
+                                                    p.source_domain, p.source_tier, p.quote))
                 cur.execute(CHECK_SQL, (r.vc.id, run_id, r.ok, r.outcome, r.n_pages, len(r.signals),
                                         len(r.dropped), r.error, json.dumps(r.dropped)))
 
@@ -101,6 +130,9 @@ class CsvStore:
                               geo=row.get("region") or "Unknown", stage_focus=row.get("stage_focus", ""),
                               is_investing="not currently investing" not in flag.lower(), flag=flag))
         return out
+
+    def load_people(self) -> dict[int, list[Person]]:
+        return {}
 
     def start_run(self, total: int) -> int:
         return 0

@@ -59,6 +59,8 @@ def route(vc: VC, signals: list[Signal], fit_ok: bool, w: Weights, today: date) 
 
     if not fit_ok or vc.status == "declined":
         return 1, "skip"
+    if vc.status == "in_conversation":
+        return 2, "hold"                                   # a live conversation: don't nudge or re-pitch
     if newest and vc.last_contacted_at and vc.last_contacted_at >= newest:
         return 2, "hold"                                   # he already reached out after the signal
     if newest and vc.status == "to_contact":
@@ -86,6 +88,8 @@ def decide(vc: VC, signals: list[Signal], rules: FitRules, w: Weights, today: da
     if action == "skip":
         why = reason or "Already declined"
         return Decision(rule, action, 0, f"Skipped: {why}", None)
+    if vc.status == "in_conversation" and not signals:
+        return Decision(rule, action, 0, "In conversation. Keep the thread going.", None)
     if signals:
         score = round(100 * signal_strength(signals, vc, w, today) * fit_mult)
         return Decision(rule, action, score, _summarise(signals), newest)

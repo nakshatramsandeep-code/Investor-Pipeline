@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from urllib.parse import urldefrag
 
 from .config import SIGNAL_TYPES
-from .models import VC, Page, Signal
+from .models import VC, Page, Person, Signal
 from .names import firm_aliases, mentions
 from .sources import SourceRules, classify
 
@@ -83,3 +83,40 @@ def validate_signals(raw: list[dict], pages: list[Page], vc: VC, today: date,
                            url=page.url, published=page.published, source_domain=domain,
                            source_tier=tier, person_name=pname, person_role=prole))
     return kept, dropped
+
+
+SENIOR_ROLE = re.compile(r"founder|managing|general partner|\bpartner\b|principal|chair|\bceo\b|president", re.I)
+ROLE_RANK = (("founder", 0), ("managing", 1), ("general partner", 2), ("chair", 3), ("ceo", 3), ("partner", 4), ("principal", 5))
+
+
+def _rank(role: str) -> int:
+    r = role.lower()
+    return min((rank for key, rank in ROLE_RANK if key in r), default=9)
+
+
+def validate_people(raw: list[dict], pages: list[Page], vc: VC, sources: SourceRules,
+                    limit: int = 5) -> list[Person]:
+    """Keep a person only if a trusted page names them, with a verbatim quote that contains their
+    name, on a page that also names the firm, and a senior role. Never a guess."""
+    by_url = {norm_url(p.url): p for p in pages}
+    aliases = firm_aliases(vc.firm)
+    out: dict[str, Person] = {}
+    for r in raw:
+        name, role, quote, url = (r.get("name"), r.get("role"), r.get("quote"), r.get("url"))
+        if not all(isinstance(x, str) and x.strip() for x in (name, role, quote, url)):
+            continue
+        name, role = name.strip(), role.strip()[:80]
+        page = by_url.get(norm_url(url))
+        if page is None or len(name.split()) < 2 or not SENIOR_ROLE.search(role):
+            continue
+        tier, domain, _ = classify(page.url, vc, sources, vc.website)
+        if tier is None:
+            continue
+        q = norm_text(quote)
+        if len(q) < MIN_QUOTE_CHARS or q not in norm_text(page.text) or not mentions(quote, name):
+            continue
+        if not any(mentions(page.text, a) for a in aliases) or not mentions(page.text, name):
+            continue
+        out.setdefault(name.lower(), Person(name=name[:80], role=role, source_url=page.url,
+                                            source_domain=domain, source_tier=tier, quote=quote.strip()[:300]))
+    return sorted(out.values(), key=lambda p: _rank(p.role))[:limit]
