@@ -21,7 +21,19 @@ soft_penalties:
   "verify": 0.9                    # unverified facts about this firm
   "leans hardware": 0.8
   "leans deep tech": 0.85
-  "check seed cheque fit": 0.85
+  "check seed cheque fit": 0.7     # big fund: a seed cheque may not be their thing
   "check saas fit": 0.85
   "low-quality source": 0.85
   "corporate": 0.85
+
+# Fit beyond the flags: how well does this fund match a Seed logistics-SaaS pitch? Each factor multiplies the score
+# (and is shown on the investor's profile), so a fund that fits badly cannot rank 'strong' on freshness alone.
+fit_factors:
+  growth_stage: 0.85               # stage focus stretches to growth / late: seed is not the core
+  generalist_thesis: 0.8           # thesis never mentions your topic (see topic_keywords)
+  conflict: 0.5                    # a recent signal mentions one of the competitors below
+growth_stage_words: [growth, late]
+
+# Names of companies that compete with yours. If a fund's recent signals mention one, the fund is flagged
+# "possible conflict" and scored down. Fill this in: it is empty because I don't know your competitors.
+competitors: []

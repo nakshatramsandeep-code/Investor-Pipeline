@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
       const ed = neon(process.env.DASHBOARD_ED_URL);
       const [priv, interactions] = await retry(() => Promise.all([
         ed`SELECT notes, contact_history FROM vcs WHERE id = ${id}`,
-        ed`SELECT id, kind, note, occurred_on::text AS occurred_on FROM vc_interactions WHERE vc_id = ${id} ORDER BY occurred_on DESC, id DESC LIMIT 30`,
+        ed`SELECT id, kind, note, person, channel, occurred_on::text AS occurred_on FROM vc_interactions WHERE vc_id = ${id} ORDER BY occurred_on DESC, id DESC LIMIT 30`,
       ]));
       out.editor = true;
       out.notes = priv[0] ? priv[0].notes : null;

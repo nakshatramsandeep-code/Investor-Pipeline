@@ -28,6 +28,9 @@ class FitRules:
     stage_must_match_any: list[str]
     hard_exclude_flags: list[str]
     soft_penalties: dict[str, float]
+    fit_factors: dict[str, float]
+    growth_stage_words: list[str]
+    competitors: list[str]
 
 
 @dataclass(frozen=True)
@@ -101,6 +104,21 @@ def _pos_int(v, name: str) -> int:
     return v
 
 
+def _fit_factors(d: dict, w: str) -> dict[str, float]:
+    f = _get(d, "fit_factors", dict, w)
+    missing = {"growth_stage", "generalist_thesis", "conflict"} - set(f)
+    if missing:
+        raise ConfigError(f"{w}: fit_factors is missing {sorted(missing)}")
+    return {k: _unit(v, f"{w}: fit_factors[{k}]") for k, v in f.items()}
+
+
+def _str_list_or_empty(d: dict, key: str, where: str) -> list[str]:
+    items = d.get(key) or []
+    if not isinstance(items, list) or not all(isinstance(i, str) and i.strip() for i in items):
+        raise ConfigError(f"{where}: '{key}' must be a list of non-empty strings")
+    return [i.strip() for i in items]
+
+
 def load_fit_rules(path: Path) -> FitRules:
     d = _load_yaml(path)
     w = path.name
@@ -111,6 +129,9 @@ def load_fit_rules(path: Path) -> FitRules:
         stage_must_match_any=_str_list(d, "stage_must_match_any", w),
         hard_exclude_flags=_str_list(d, "hard_exclude_flags", w),
         soft_penalties={str(k).lower(): _unit(v, f"{w}: soft_penalties[{k}]") for k, v in penalties.items()},
+        fit_factors=_fit_factors(d, w),
+        growth_stage_words=_str_list(d, "growth_stage_words", w),
+        competitors=_str_list_or_empty(d, "competitors", w),
     )
 
 

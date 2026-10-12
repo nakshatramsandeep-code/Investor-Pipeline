@@ -218,7 +218,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
     decision = decide(vc, signals, rf.fit, w, today)
     detail = {"pages_found": n_found, "pages_usable": n_usable,
               "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),
-              "undated": undated, "people_checked": checked, "signals_firm": n_firm, "signals_new": n_new, "signals_on_file": len(on_file),
+              "undated": undated, "people_checked": checked, "signals_firm": n_firm, "signals_new": n_new, "signals_on_file": len(on_file), "fit": decision.fit,
               "signals_people": sum(1 for s in signals if s.person_name),
               "provider": getattr(search, "last_provider", None), "searches": getattr(search, "call_count", 0) - calls0}
     learned = None if vc.website else guess_website(
@@ -226,6 +226,10 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
         + [(p.source_domain, p.source_tier) for p in found + list(known_people or []) if not p.manual])
     return VCResult(vc, True, "signal" if signals else "no_signal", decision, signals, dropped, n_found,
                     people_found=found, website=learned, detail=detail)
+
+
+def decide_fit(vc: VC, signals: list[Signal], rf: RunFiles, today: date) -> dict:
+    return decide(vc, signals, rf.fit, rf.weights, today).fit
 
 
 def rescore_vc(vc: VC, existing: list[Signal], rf: RunFiles, today: date) -> VCResult:
@@ -240,7 +244,7 @@ def rescore_vc(vc: VC, existing: list[Signal], rf: RunFiles, today: date) -> VCR
     on_file = [e for e in existing if (today - e.published).days <= w.window_days]
     signals = sorted(dedupe_events(on_file, vc.firm), key=lambda s: s.published, reverse=True)[:MAX_SIGNALS]
     return VCResult(vc, True, "rescored", decide(vc, signals, rf.fit, w, today), signals,
-                    detail={"rescored": True, "signals_on_file": len(on_file), "signals_kept": len(signals),
+                    detail={"rescored": True, "signals_on_file": len(on_file), "signals_kept": len(signals), "fit": decide_fit(vc, signals, rf, today),
                             "score_note": "re-scored from saved signals; no search was made"})
 
 
@@ -307,7 +311,7 @@ def print_table(results: list[VCResult]) -> None:
 
 def rescore_all(store, vcs: list[VC], rf: RunFiles, args, write: bool) -> int:
     evidence = store.load_evidence(args.today - timedelta(days=rf.weights.window_days))
-    run_id = store.start_run(len(vcs)) if write else 0
+    run_id = store.start_run(len(vcs), "rescore") if write else 0
     results = [rescore_vc(v, evidence.get(v.id, []), rf, args.today) for v in vcs]
     if write:
         for r in results:

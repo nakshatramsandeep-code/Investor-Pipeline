@@ -160,6 +160,27 @@ uses that topic. In testing it surfaced far fewer pages that name a specific fun
 signals; check "Skipped untrusted sources" in an investor's check history and add good outlets to
 `run_files/sources.yaml`.
 
+## Fit is part of the score
+
+Beyond the flag penalties, `run_files/fit_rules.yaml` scores how well a fund matches a Seed logistics pitch:
+a stage focus that stretches to growth/late (x0.85), a thesis that never mentions your topic (x0.8, "generalist"),
+and a "check seed cheque fit" flag (x0.7). The multiplier and each reason are stored with every check and shown on
+the investor's profile ("How fit changes the score"), so a big or off-topic fund can't rank "strong" on freshness
+alone. **Fill in `competitors:`** with the names of companies that compete with yours: a fund whose recent signals
+mention one is flagged "possible conflict" and scored down (x0.5). It is empty because the pipeline can't know them.
+
+## What the dashboard tells you about coverage
+
+The top panel shows **Coverage**: how many investors that need a search were actually searched (a real search, not a
+re-score) in the last 8 days, and the oldest search date. Declined and not-a-fit investors need no search. Signal
+counts on cards are logistics signals only ("1 logistics signal, +4 other"); a signal that is about to leave the
+14-day reach-out window shows "Cools in N days". A partner's activity is shown only if it is about logistics.
+
+My pipeline has a searchable table of every investor (name, partner, thesis, region; filter by stage; sort by
+score, last contact, or least recently searched), so any fund, including dormant ones, can be opened or logged.
+"Mark reached out" asks who, how (email / LinkedIn / warm intro / ...) and when, and stores it with the log entry.
+Run kinds: a free re-score is recorded as kind 'rescore' and never shows as the "last run".
+
 ## Signals persist; re-scoring is free
 
 A signal stays valid for its 30-day window no matter what a later search returns. Each run merges the signals it

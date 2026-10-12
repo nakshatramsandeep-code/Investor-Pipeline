@@ -5,6 +5,7 @@ from datetime import date
 
 from .config import FitRules, Weights
 from .models import VC, Decision, Signal, effective_status
+from .names import mentions
 
 ACTION_ORDER = {"reach_out": 0, "nudge": 1, "hold": 2, "quiet_list": 3, "skip": 4}
 
@@ -25,6 +26,31 @@ def fit_gate(vc: VC, rules: FitRules) -> tuple[bool, float, str]:
         if key in haystack:
             mult *= factor
     return True, mult, ""
+
+
+def fit_report(vc: VC, rules: FitRules, signals: list[Signal]) -> tuple[float, list[str]]:
+    """The fit multiplier (0..1) and the plain-English reasons behind it. Starts from the flag penalties in
+    fit_gate, then adds: growth-stage reach, a generalist thesis, and possible conflicts with competitors."""
+    _, mult, _ = fit_gate(vc, rules)
+    reasons: list[str] = []
+    haystack = f"{vc.flag.lower()} {vc.stage_focus.lower()}"
+    for key, factor in rules.soft_penalties.items():
+        if key in haystack:
+            reasons.append(f"{key.capitalize()} (\u00d7{factor:g})")
+    f = rules.fit_factors
+    if any(word in vc.stage_focus.lower() for word in rules.growth_stage_words):
+        mult *= f["growth_stage"]
+        reasons.append(f"Stage focus reaches growth, so seed is not their core (\u00d7{f['growth_stage']:g})")
+    thesis = vc.thesis.lower()
+    if not any(k.lower() in thesis for k in rules.topic_keywords):
+        mult *= f["generalist_thesis"]
+        reasons.append(f"Generalist thesis, not logistics-first (\u00d7{f['generalist_thesis']:g})")
+    text = " ".join(f"{s.summary} {s.quote}" for s in signals)
+    hit = next((c for c in rules.competitors if mentions(text, c)), None)
+    if hit:
+        mult *= f["conflict"]
+        reasons.append(f"Possible conflict: a recent signal mentions {hit} (\u00d7{f['conflict']:g})")
+    return mult, reasons
 
 
 def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> float:
@@ -93,7 +119,9 @@ def _summarise(signals: list[Signal]) -> str:
 
 
 def decide(vc: VC, signals: list[Signal], rules: FitRules, w: Weights, today: date) -> Decision:
-    fit_ok, fit_mult, reason = fit_gate(vc, rules)
+    fit_ok, _, reason = fit_gate(vc, rules)
+    fit_mult, fit_reasons = fit_report(vc, rules, signals) if fit_ok else (0.0, [])
+    fit = {"multiplier": round(fit_mult, 2), "reasons": fit_reasons}
     rule, action = route(vc, signals, fit_ok, w, today)
     newest = max((s.published for s in signals), default=None)
     waited = _days_since(vc.last_contacted_at, today)
@@ -113,17 +141,17 @@ def decide(vc: VC, signals: list[Signal], rules: FitRules, w: Weights, today: da
         if rule == 5:
             summary = f"Waiting {waited} days for a reply. " + summary if waited is not None else summary
         if action == "reach_out" and score < w.reach_out_min_score:
-            return Decision(7, "quiet_list", score, "Weak signal. " + summary, newest)   # below the floor
+            return Decision(7, "quiet_list", score, "Weak signal. " + summary, newest, fit)   # below the floor
         if action == "quiet_list" and effective_status(vc, today) == "to_contact":
             if not any(s.relevance == "logistics" for s in signals):
                 summary = "Active, but nothing about logistics. " + summary
             else:
                 summary = f"No recent logistics signal (older than {w.reach_out_max_age} days). " + summary
-        return Decision(rule, action, score, summary, newest)
+        return Decision(rule, action, score, summary, newest, fit)
     if action == "nudge":
         n = waited
         text = f"{n} days" if n is not None else "an unknown time"
         urgency = max(0, (n or w.waiting_nudge_days) - w.waiting_nudge_days)
         score = min(60, w.quiet_nudge_score + 2 * urgency)
-        return Decision(rule, action, round(score * fit_mult), f"No new signal. Waiting on a reply for {text}.", None)
+        return Decision(rule, action, round(score * fit_mult), f"No new signal. Waiting on a reply for {text}.", None, fit)
     return Decision(rule, action, 0, f"No signal in the last {w.window_days} days.", None)

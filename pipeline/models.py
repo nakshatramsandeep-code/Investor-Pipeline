@@ -64,6 +64,7 @@ class Decision:
     score: int                       # 0..100
     summary: str
     last_signal_date: date | None    # None = leave the stored value alone
+    fit: dict = field(default_factory=dict)   # {'multiplier': 0.6, 'reasons': [...]} for the dashboard
 
 
 @dataclass

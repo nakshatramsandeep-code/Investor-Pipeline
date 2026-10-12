@@ -171,6 +171,24 @@
   button.linkbtn { border: 0; background: none; color: #b9a7ff; padding: 0 0 0 8px; font-size: 12px; cursor: pointer; text-decoration: underline; }
   button.delbtn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; float: right; }
   button.delbtn:hover { color: var(--red); }
+  .tbl { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
+  .tbl .inner { min-width: 980px; }
+  .trow { display: grid; grid-template-columns: var(--cols); gap: 12px; padding: 10px 14px; align-items: center; border-top: 1px solid var(--line); font-size: 13px; }
+  .trow.head { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 12px; border-top: 0; border-radius: 12px 12px 0 0; }
+  .trow .vc b { display: block; font-size: 14px; } .trow .vc a { color: var(--text); text-decoration: none; } .trow .vc a:hover { color: #b9a7ff; }
+  .trow .vc small { color: var(--muted); }
+  .trow .dim { color: var(--muted); }
+  .trow .qa { margin: 0; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 12px; }
+  .toolbar input, .toolbar select { font: inherit; font-size: 13px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  .toolbar input { flex: 1; min-width: 220px; }
+  .toolbar .count { color: var(--muted); font-size: 12.5px; }
+  .coverage { font-size: 12px; color: rgba(255,255,255,.9); margin-top: 4px; }
+  .coverage.warn { color: #ffe3a8; }
+  .reachform { display: grid; gap: 8px; width: 100%; margin-top: 4px; }
+  .reachform .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .reachform select, .reachform input { font: inherit; font-size: 13px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; width: 100%; }
+  .suggested { margin-top: 4px; font-size: 12.5px; color: #dcdcf0; }
   .tabs { display: flex; gap: 6px; margin: 0 0 18px; }
   .tabs a { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: 13px; }
   .tabs a.on { background: var(--purple); border-color: var(--purple); color: #fff; }
@@ -257,6 +275,11 @@ const NUDGE_DAYS = 7;        // keep in step with routing.waiting_nudge_days in 
 const MIN_REACH = 35;        // keep in step with routing.reach_out_min_score
 const MAX_SIGNAL_AGE = 14;   // keep in step with routing.reach_out_max_signal_age_days
 
+// Days until the freshest logistics signal falls out of the "reach out" window (null if there is none).
+function coolsIn(v, evidence, now) {
+  const ages = evidence.filter((e) => e.vc_id === v.id && e.relevance === "logistics" && e.source_tier !== "legacy_unverified").map((e) => daysAgo(e.published_date, now));
+  return ages.length ? MAX_SIGNAL_AGE - Math.min(...ages) : null;
+}
 const waitDays = (v, now) => v.last_contacted_at ? daysAgo(v.last_contacted_at, now) : null;
 // Investors with a logistics signal fresh enough to justify a cold approach.
 const hotSet = (evidence, now) => new Set(evidence.filter((e) => e.relevance === "logistics" && e.source_tier !== "legacy_unverified" && daysAgo(e.published_date, now) <= MAX_SIGNAL_AGE).map((e) => e.vc_id));
@@ -285,6 +308,30 @@ function groupVcs(data, now) {
   g.talks.sort((a, b) => (b.last_contacted_at || "") < (a.last_contacted_at || "") ? -1 : 1);
   for (const k of ["approved", "declined", "dormant", "skip"]) g[k].sort(byFirm);
   return g;
+}
+
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const CHANNELS = [["email", "Email"], ["linkedin", "LinkedIn"], ["warm_intro", "Warm intro"], ["phone", "Phone"], ["event", "In person / event"], ["other", "Other"]];
+const ROLE_ORDER = [[/founder/i, 0], [/managing/i, 1], [/general partner/i, 2], [/partner/i, 3]];
+const roleRank = (r) => (ROLE_ORDER.find(([re]) => re.test(r || "")) || [0, 9])[1];
+
+// People at each firm: contacts you added first, then those named on trusted pages. Kept globally so cards can use them.
+function buildPeopleIndex(data) {
+  const m = new Map(), put = (id, c) => { if (!m.has(id)) m.set(id, []); m.get(id).push(c); };
+  for (const c of data.contacts || []) put(c.vc_id, { ...c, manual: true });
+  for (const p of data.people || []) put(p.vc_id, { ...p, manual: false });
+  return m;
+}
+const peopleOfVc = (v) => (window.__people && window.__people.get(v.id)) || [];
+
+// The partner worth writing to: one YOU added; else the one named on this firm's LOGISTICS signals; else the most
+// senior. `leads` says whether there is logistics evidence for them (so the card never implies it when there isn't).
+function bestContact(v, evidence) {
+  const logi = evidence.filter((e) => e.vc_id === v.id && e.relevance === "logistics" && e.person_name && e.source_tier !== "legacy_unverified");
+  const count = (name) => logi.filter((e) => e.person_name.toLowerCase() === name.toLowerCase()).length;
+  const ranked = [...peopleOfVc(v)].sort((a, b) => (b.manual - a.manual) || (count(b.name) - count(a.name)) || (roleRank(a.role) - roleRank(b.role)));
+  const top = ranked[0];
+  return top ? { ...top, leads: count(top.name) > 0 } : null;
 }
 
 function signalsOf(v, evidence) {
@@ -339,9 +386,31 @@ function quickActions(v, bucket) {
     };
     return b;
   };
+  // "Mark reached out" asks who, how, when and a note (all optional, sensible defaults), so the log is useful later.
+  const reachOut = (box) => {
+    const b = el("button", { class: "primary" }, "Mark reached out");
+    b.onclick = () => {
+      const people = peopleOfVc(v);
+      const who = el("select", {}, people.map((p) => el("option", { value: p.name }, p.name + (p.role ? ` \u00b7 ${p.role}` : ""))), el("option", { value: "" }, people.length ? "Someone else / not sure" : "Not recorded"));
+      const how = el("select", {}, CHANNELS.map(([k, t]) => el("option", { value: k }, t)));
+      const when = el("select", {}, [[0, "Today"], [1, "Yesterday"], [2, "2 days ago"], [3, "3 days ago"], [7, "A week ago"]].map(([n, t]) => el("option", { value: String(n) }, `${t} \u00b7 ${fmtDate(localIso(n))}`)));
+      const note = el("input", { placeholder: "Note (optional): what you said, what to remember", maxlength: "300" });
+      const save = el("button", { class: "primary" }, "Save"), cancel = el("button", {}, "Cancel");
+      const form = el("div", { class: "reachform" }, el("div", { class: "two" }, who, how), when, note, el("div", { class: "qa" }, save, cancel));
+      cancel.onclick = () => form.replaceWith(box);
+      save.onclick = async () => {
+        save.disabled = true; save.textContent = "Saving\u2026";
+        const res = await editCall({ action: "log", vc_id: v.id, kind: "reached_out", occurred_on: localIso(Number(when.value)), person: who.value, channel: how.value, note: note.value });
+        if (res) { savedToast(v, res, `${v.firm}: marked reached out`, reload); reload(); } else { save.disabled = false; save.textContent = "Save"; }
+      };
+      box.replaceWith(form);
+    };
+    return b;
+  };
   const log = (kind, extra = {}) => ({ action: "log", kind, ...extra });
   const sets = {
-    reach: [["Mark reached out", log("reached_out"), true]],
+    reach: ["REACH"],
+    dormant: ["REACH"],
     nudge: [["Followed up", log("follow_up"), true], ["They replied", log("replied")]],
     waiting: [["They replied", log("replied")]],
     talks: [["They approved", log("approved")], "NEXT"],
@@ -352,7 +421,7 @@ function quickActions(v, bucket) {
   };
   if (!sets[bucket]) return null;
   const box = el("div", { class: "qa" });
-  box.append(...sets[bucket].map((e) => (e === "NEXT" ? nextStep(box) : make(e[0], e[1], e[2]))));
+  box.append(...sets[bucket].map((e) => (e === "NEXT" ? nextStep(box) : e === "REACH" ? reachOut(box) : make(e[0], e[1], e[2]))));
   return box;
 }
 
@@ -367,6 +436,8 @@ function card(v, evidence, now, bucket) {
     declined: (d == null ? "Declined" : `Declined ${d}d ago`) + (v.revisit_on ? ` \u00b7 revisit ${fmtDate(v.revisit_on)}` : ""),
   }[bucket] || null;
   const showSignal = bucket === "reach" && best;
+  const contact = showSignal ? bestContact(v, evidence) : null;
+  const logi = all.filter((e) => e.relevance === "logistics"), cool = showSignal ? coolsIn(v, evidence, now) : null;
   return el("div", { class: "card compact" },
     el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm),
       bucket === "reach" ? el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Follow-up score: 70+ strong, 40-69 medium, under 40 weak" }, String(score))
@@ -375,9 +446,12 @@ function card(v, evidence, now, bucket) {
     v.next_step && ["nudge", "waiting", "talks", "approved"].includes(bucket) ? el("div", { class: "next" }, "Next: " + v.next_step) : null,
     showSignal || (v.check_ok === false && bucket === "reach") ? el("div", { class: "chips", style: "margin-top:6px" },
       showSignal ? [tag("type", best.type), relChip(best), el("span", { class: "chip" }, `${daysAgo(best.published_date, now)}d ago`),
-        el("span", { class: "chip" }, `${all.length} signal${all.length > 1 ? "s" : ""}`)] : null,
+        el("span", { class: "chip c-green", title: "Signals about logistics, in the last 30 days" }, plural(logi.length, "logistics signal")),
+        all.length > logi.length ? el("span", { class: "chip", title: "Other fund activity, not about logistics" }, `+${all.length - logi.length} other`) : null,
+        cool != null && cool <= 3 ? el("span", { class: "chip c-amber", title: "After this the signal is too old to justify a cold approach" }, cool <= 0 ? "Last day in window" : `Cools in ${plural(cool, "day")}`) : null] : null,
       v.check_ok === false && bucket === "reach" ? el("span", { class: "chip c-red", title: "The last check failed, so this is older data" }, "stale") : null) : null,
     showSignal ? el("p", { class: "why one" }, best.summary) : null,
+    showSignal && contact ? el("div", { class: "meta" }, (contact.leads ? "Leads logistics deals: " : "Contact: "), el("b", {}, contact.name), contact.role ? ` \u00b7 ${contact.role}` : "") : null,
     quickActions(v, bucket));
 }
 
@@ -391,6 +465,19 @@ function pickFocus(g) {
   const n = g.nudge.find(fresh); if (n) return { v: n, bucket: "nudge" };
   const r = g.reach.find(fresh); if (r) return { v: r, bucket: "reach" };
   return null;
+}
+
+// The honest answer to "did every investor actually get checked?": based on each investor's last REAL search
+// (a re-score from saved signals does not count). Funds that are declined or not a fit need no search.
+function coverageLine(vcs, now) {
+  const eligible = vcs.filter((v) => v.recommended_action !== "skip" && v.status !== "declined");
+  const searched = eligible.filter((v) => v.last_searched_at), fresh = searched.filter((v) => daysAgo(v.last_searched_at, now) <= 8);
+  const oldest = searched.length ? searched.reduce((a, v) => (v.last_searched_at < a ? v.last_searched_at : a), searched[0].last_searched_at) : null;
+  const never = eligible.length - searched.length, stale = searched.length - fresh.length;
+  const ok = never === 0 && stale === 0;
+  const text = ok ? `Coverage: all ${eligible.length} investors that need a search were searched in the last 8 days (oldest search ${fmtDate(oldest)}).`
+    : `Coverage: ${fresh.length} of ${eligible.length} searched in the last 8 days` + (never ? `, ${never} never searched` : "") + (stale ? `, ${stale} overdue` : "") + (oldest ? ` (oldest ${fmtDate(oldest)})` : "") + ".";
+  return el("div", { class: "coverage" + (ok ? "" : " warn"), title: `${vcs.length - eligible.length} declined / not-a-fit investors need no search.` }, text);
 }
 
 function hero(data, now, g, focus) {
@@ -434,7 +521,8 @@ function hero(data, now, g, focus) {
     el("div", { class: "tiles four" },
       tile("Reach out", g.reach.length, "prospects", "reach"), tile("Follow up due", g.nudge.length, "no reply", "nudge"),
       tile("In talks", g.talks.length, "live", "talks"), tile("Approved", g.approved.length, "committed", "approved")),
-    el("div", { class: "runline" }, run ? `Last run ${when}: ${run.vcs_checked}/${run.vcs_total} investors checked, ${run.signals_kept} signals kept.` : "No run yet."));
+    el("div", { class: "runline" }, run ? `Last search run ${when}: ${plural(run.signals_kept, "new signal")} found` + (run.vcs_total < vcs.length ? `, ${run.vcs_total} of ${vcs.length} investors due (the rest are on their schedule)` : "") + "." : "No run yet."),
+    coverageLine(vcs, now));
   return [failedNote, ...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
 }
 
@@ -477,11 +565,17 @@ function tabs(active) {
     el("a", { href: "#/status", class: active === "status" ? "on" : "" }, "My pipeline"));
 }
 
+// 59 = the 50 on your original list + 9 added from the LinkedIn post. Say so, so the number is never a surprise.
+function countNote(data) {
+  const added = data.vcs.filter((v) => (v.background || "").startsWith("Listed in LinkedIn post")).length;
+  return added ? ` (${data.vcs.length - added} from your list + ${added} added from a LinkedIn post)` : "";
+}
+
 function header(data, active) {
   return [el("div", { class: "brand" }, el("span", { class: "logo" }), "Investor Pipeline"),
     el("div", { class: "top" }, el("div", {},
       el("h1", {}, active === "action" ? "What to do today" : "My pipeline"),
-      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), active === "action"
+      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), countNote(data), active === "action"
         ? " tracked \u00b7 follow-ups and new prospects \u00b7 every claim links to its source"
         : " by stage: who to approach, who's contacted, who's talking, who said yes or no"))),
     tabs(active)];
@@ -519,20 +613,58 @@ function render(data) {
 }
 
 function renderStatus(data) {
-  const now = new Date(), g = groupVcs(data, now);
-  const contacted = [...g.nudge, ...g.waiting];     // follow-ups due first
-  const cols = [
-    ["Reach out", `Logistics signal in the last ${MAX_SIGNAL_AGE} days`, g.reach.map((v) => card(v, data.evidence, now, "reach")), { limit: 10 }, g.reach.length],
-    ["Contacted", "Overdue follow-ups first", contacted.map((v) => card(v, data.evidence, now, bucketOf(v, now, new Set()))), {}, contacted.length],
+  const now = new Date(), g = groupVcs(data, now), hot = hotSet(data.evidence, now);
+  const board = [
+    ["Follow up due", `Contacted ${NUDGE_DAYS}+ days ago, no reply`, g.nudge.map((v) => card(v, data.evidence, now, "nudge")), { always: true, empty: "Nothing due. Nobody is overdue a reply." }, g.nudge.length],
+    ["Contacted", "Waiting for a reply; follow-up date shown", g.waiting.map((v) => card(v, data.evidence, now, "waiting")), {}, g.waiting.length],
     ["In talks", "Replied, call or meeting", g.talks.map((v) => card(v, data.evidence, now, "talks")), {}, g.talks.length],
     ["Approved", "Committed to invest", g.approved.map((v) => card(v, data.evidence, now, "approved")), {}, g.approved.length],
     ["Declined", "Said no. Revisit or undo from here", g.declined.map((v) => card(v, data.evidence, now, "declined")), {}, g.declined.length],
   ];
-  const shown = cols.filter((c) => c[4]), none = cols.filter((c) => !c[4]).map((c) => c[0]);
+  const shown = board.filter((c) => c[4] || c[3].always);
   show(...header(data, "status"),
-    shown.length ? el("div", { class: "board auto" }, shown.map(([t, h, items, o, total]) => column(t, h, items, { ...o, total }))) : null,
-    none.length ? el("p", { class: "emptyline" }, `Nothing yet in: ${none.join(", ")}.`) : null,
-    el("p", { class: "emptyline" }, `${g.dormant.length} prospects have no recent logistics signal (see Dormant on By action) and ${g.skip.length} aren't a fit (see Not a fit).`));
+    el("div", { class: "board auto" }, shown.map(([t, h, items, o, total]) => column(t, h, items, { ...o, total }))),
+    directory(data, now, hot));
+}
+
+// All investors in one searchable, filterable, sortable table: find any fund (even a dormant one) to check or log something.
+function directory(data, now, hot) {
+  const rows = data.vcs.map((v) => {
+    const bucket = bucketOf(v, now, hot), people = peopleOfVc(v), { best } = signalsOf(v, data.evidence);
+    return { v, bucket, people, best, text: [v.firm, v.thesis, v.geo, v.stage_focus, ...people.map((p) => p.name)].join(" ").toLowerCase() };
+  });
+  const STAGES = [["", "All stages"], ["reach", "Reach out"], ["nudge", "Follow up due"], ["waiting", "Contacted"], ["talks", "In talks"], ["approved", "Approved"], ["declined", "Declined"], ["dormant", "Dormant"], ["skip", "Not a fit"]];
+  const SORTS = { name: (a, b) => a.v.firm.localeCompare(b.v.firm), score: (a, b) => (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0),
+    contact: (a, b) => (b.v.last_contacted_at || "") < (a.v.last_contacted_at || "") ? -1 : 1, searched: (a, b) => (a.v.last_searched_at || "") < (b.v.last_searched_at || "") ? -1 : 1 };
+  const search = el("input", { placeholder: "Search by fund, partner, thesis or region" });
+  const stage = el("select", {}, STAGES.map(([k, t]) => el("option", { value: k }, t)));
+  const sort = el("select", {}, [["name", "Sort: name"], ["score", "Sort: score"], ["contact", "Sort: last contact"], ["searched", "Sort: least recently searched"]].map(([k, t]) => el("option", { value: k }, t)));
+  const count = el("span", { class: "count" });
+  const cols = "1.5fr 1fr 1fr .9fr 1.4fr .5fr .8fr 190px";
+  const head = el("div", { class: "trow head", style: `--cols:${cols}` }, ["Investor", "Stage", "Region / focus", "Last contact", "Latest signal", "Score", "Last searched", "Action"].map((h) => el("div", {}, h)));
+  const body = el("div", {});
+  const draw = () => {
+    const q = search.value.trim().toLowerCase(), st = stage.value;
+    const list = rows.filter((r) => (!q || r.text.includes(q)) && (!st || r.bucket === st)).sort(SORTS[sort.value]);
+    count.textContent = `Showing ${list.length} of ${rows.length}`;
+    body.replaceChildren(...list.map((r) => {
+      const { v, bucket, people, best } = r, d = waitDays(v, now);
+      const lead = [...people].sort((a, b) => (b.manual - a.manual) || (roleRank(a.role) - roleRank(b.role)))[0];
+      return el("div", { class: "trow", style: `--cols:${cols}` },
+        el("div", { class: "vc" }, el("b", {}, el("a", { href: `#/vc/${v.id}` }, v.firm)), el("small", {}, lead ? lead.name : "No partner found yet")),
+        el("div", {}, btag(bucket)),
+        el("div", { class: "dim" }, [v.geo, v.stage_focus].filter(Boolean).join(" \u00b7 ")),
+        el("div", {}, d == null ? el("span", { class: "dim" }, "\u2014") : `${d}d ago`),
+        el("div", { class: "dim" }, best ? `${fmtDate(best.published_date)}: ${(LBL.type[best.type] || best.type)}${best.relevance === "logistics" ? " (logistics)" : ""}` : "\u2014"),
+        el("div", {}, v.follow_up_score ? el("b", { style: `color:${scoreColor(v.follow_up_score)}` }, String(v.follow_up_score)) : el("span", { class: "dim" }, "\u2014")),
+        el("div", { class: "dim" }, v.last_searched_at ? `${daysAgo(v.last_searched_at, now)}d ago` : "never"),
+        el("div", {}, quickActions(v, bucket) || el("a", { class: "chip", href: `#/vc/${v.id}` }, "Open profile")));
+    }));
+  };
+  [search, stage, sort].forEach((x) => { x.oninput = draw; x.onchange = draw; });
+  draw();
+  return el("section", { style: "margin-top:30px" }, el("h2", { style: "margin:0 0 12px" }, "All investors", el("small", {}, "Search, filter and log any fund, including dormant ones")),
+    el("div", { class: "toolbar" }, search, stage, sort, count), el("div", { class: "tbl" }, el("div", { class: "inner" }, head, body)));
 }
 
 // Logo: the firm's favicon, from its website when we know it. If there is none (or it fails to load) fall back to initials.
@@ -586,21 +718,25 @@ function peopleOf(d) {
   for (const p of d.people) add(p.name, { role: p.role, source_url: p.source_url, source_domain: p.source_domain, source_tier: p.source_tier, via: "found" });
   for (const e of d.evidence) if (e.person_name) add(e.person_name, { role: e.person_role, via: (m.get(e.person_name.toLowerCase()) || {}).via || "signal" });
   for (const c of d.contacts) add(c.name, { role: c.role, linkedin_url: c.linkedin_url, note: c.note, via: "manual" });
-  return [...m.values()].map((p) => ({ ...p, activity: d.evidence.filter((e) => (e.person_name || "").toLowerCase() === p.name.toLowerCase()) }))
-    .sort((a, b) => (b.via === "manual") - (a.via === "manual") || b.activity.length - a.activity.length);
+  return [...m.values()].map((p) => {
+    const mine = d.evidence.filter((e) => (e.person_name || "").toLowerCase() === p.name.toLowerCase() && e.source_tier !== "legacy_unverified");
+    return { ...p, logistics: mine.filter((e) => e.relevance === "logistics"), hidden: mine.filter((e) => e.relevance !== "logistics").length };
+  }).sort((a, b) => (b.via === "manual") - (a.via === "manual") || b.logistics.length - a.logistics.length || roleRank(a.role) - roleRank(b.role));
 }
 
-function personCard(p) {
+// Only logistics activity is shown against a partner: their AI-policy talks or politics are not an opener for your pitch.
+function personCard(p, first) {
   const src = safeUrl(p.source_url), li = safeUrl(p.linkedin_url);
   const badge = p.via === "manual" ? el("span", { class: "chip good" }, "Added by you")
     : p.source_tier ? el("span", { class: `chip tier-${p.source_tier}` }, `Named on ${p.source_domain}`) : el("span", { class: "chip" }, "Named in a signal");
   return el("div", { class: "person" }, el("b", {}, p.name), p.role ? ` \u00b7 ${p.role}` : "", " ", badge,
+    first ? el("div", { class: "suggested" }, p.logistics.length ? "\u2605 Suggested: has recent logistics activity" : "Suggested: most senior, but no logistics activity found yet") : null,
     el("div", { class: "meta" }, src ? el("a", { href: src, target: "_blank", rel: "noopener noreferrer" }, "Source") : null, src && li ? " \u00b7 " : "",
       li ? el("a", { href: li, target: "_blank", rel: "noopener noreferrer" }, "LinkedIn") : null),
     p.note ? el("div", { class: "meta" }, p.note) : null,
-    p.activity.length ? p.activity.slice(0, 3).map((e) => el("div", { class: "meta" }, `${fmtDate(e.published_date)} \u00b7 ${label(e.type)}: ${e.summary} `,
+    p.logistics.length ? p.logistics.slice(0, 3).map((e) => el("div", { class: "meta" }, `${fmtDate(e.published_date)} \u00b7 ${label(e.type)}: ${e.summary} `,
       safeUrl(e.url) ? el("a", { href: safeUrl(e.url), target: "_blank", rel: "noopener noreferrer" }, "source") : null))
-      : el("div", { class: "meta" }, "No public activity found in the last 30 days."));
+      : el("div", { class: "meta" }, "No logistics activity found in the last 30 days." + (p.hidden ? ` (${plural(p.hidden, "other item")} not about logistics, hidden)` : "")));
 }
 
 function contactForm(v) {
@@ -615,8 +751,8 @@ function contactForm(v) {
 function whoPanel(d) {
   const ppl = peopleOf(d);
   return el("div", { class: "panel" }, el("h3", {}, "Who to reach out to"),
-    ppl.length ? ppl.map(personCard) : el("div", { class: "empty" }, "No one found yet. The next run looks for the firm's founders and partners and checks what they've published or attended."),
-    el("p", { class: "note" }, "Names come from a trusted source page, never guessed. Their own recent posts and talks are checked every run."),
+    ppl.length ? ppl.map((p, i) => personCard(p, i === 0)) : el("div", { class: "empty" }, "No one found yet. The next run looks for the firm's founders and partners and checks what they've published or attended."),
+    el("p", { class: "note" }, "Names come from a trusted source page, never guessed. Only logistics activity is shown against a partner."),
     contactForm(d.vc));
 }
 
@@ -630,15 +766,19 @@ function logPanel(v) {
   when.onchange = () => { picker.style.display = when.value === "pick" ? "block" : "none"; };
   const status = el("select", {}, el("option", { value: "" }, "Keep automatic (recommended)"),
     ["to_contact", "waiting", "in_conversation", "approved", "closed", "declined"].map((x) => el("option", { value: x }, `Set to: ${LBL.status[x]}`)));
+  const people = peopleOfVc(v);
+  const who = el("select", {}, el("option", { value: "" }, "Who (optional)"), people.map((p) => el("option", { value: p.name }, p.name + (p.role ? ` \u00b7 ${p.role}` : ""))));
+  const how = el("select", {}, el("option", { value: "" }, "How (optional)"), CHANNELS.map(([k, t]) => el("option", { value: k }, t)));
   const note = el("textarea", { rows: "3", placeholder: "What happened? (private)" });
   kind.onchange = () => { note.placeholder = kind.value === "declined" ? "Why did they decline? (this is saved as the reason)" : "What happened? (private)"; };
   const save = el("button", { class: "primary", onclick: async () => {
     const day = when.value === "pick" ? picker.value : localIso(Number(when.value));
-    const res = await editCall({ action: "log", vc_id: v.id, kind: kind.value, occurred_on: day, note: note.value, status: status.value || undefined });
+    const res = await editCall({ action: "log", vc_id: v.id, kind: kind.value, occurred_on: day, person: who.value, channel: how.value, note: note.value, status: status.value || undefined });
     if (res) { savedToast(v, res, "Saved", () => loadProfile(v.id)); loadProfile(v.id); }
   } }, "Save");
   return el("div", { class: "panel" }, el("h3", {}, "Log activity"),
     el("div", { class: "form" }, el("div", { class: "two" }, el("label", {}, "What happened", kind), el("label", {}, "When", when, picker)),
+      el("div", { class: "two" }, who, how),
       el("label", {}, "Note", note),
       el("details", {}, el("summary", { class: "note" }, "Set the status manually (optional)"), el("div", { class: "form", style: "margin-top:8px" }, status)),
       save),
@@ -659,14 +799,14 @@ function privatePanel(d) {
     };
     return b;
   };
-  const timeline = (d.interactions || []).map((i) => el("div", { class: "tl" }, del(i), el("b", {}, (KINDS.find(([k]) => k === i.kind) || [0, label(i.kind)])[1]), " ", el("small", {}, fmtDate(i.occurred_on)), i.note ? el("div", {}, i.note) : null));
+  const timeline = (d.interactions || []).map((i) => el("div", { class: "tl" }, del(i), el("b", {}, (KINDS.find(([k]) => k === i.kind) || [0, label(i.kind)])[1]), " ", el("small", {}, [fmtDate(i.occurred_on), i.channel ? (CHANNELS.find(([k]) => k === i.channel) || [0, i.channel])[1] : null, i.person ? `with ${i.person}` : null].filter(Boolean).join(" \u00b7 ")), i.note ? el("div", {}, i.note) : null));
   return el("div", { class: "panel" }, el("h3", {}, "Your notes and history"),
     el("div", { class: "form" }, el("label", {}, "Notes", notes),
       el("button", { onclick: async () => { if (await editCall({ action: "notes", vc_id: d.vc.id, notes: notes.value })) alert("Saved."); } }, "Save notes")),
     el("div", { style: "margin-top:14px" }, timeline.length ? timeline : el("div", { class: "empty" }, "No activity logged yet.")));
 }
 
-function fitPanel(v) {
+function fitPanel(v, fit) {
   const site = safeUrl(v.website), seed = safeUrl(v.source_url);
   const kv = [
     ["Thesis", v.thesis], ["Stage focus", v.stage_focus], ["Region", v.geo],
@@ -675,6 +815,8 @@ function fitPanel(v) {
   ];
   return el("div", { class: "panel" }, el("h3", {}, "Fit and background"),
     el("dl", { class: "kv" }, kv.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
+    fit ? el("div", { style: "margin-top:12px" }, el("b", {}, `How fit changes the score: \u00d7${fit.multiplier}`),
+      fit.reasons.length ? el("ul", { class: "bullets", style: "margin-top:6px" }, fit.reasons.map((r) => el("li", {}, r))) : el("p", { class: "note", style: "margin:4px 0 0" }, "No fit penalty: a focused seed fund.")) : null,
     v.flag ? el("div", { class: "chips", style: "margin-top:10px" }, el("span", { class: "chip warn" }, v.flag)) : null,
     v.background ? el("p", { class: "note" }, `From your original list: ${v.background}. `, seed ? el("a", { href: seed, target: "_blank", rel: "noopener noreferrer" }, "list source") : null, " (not independently verified)") : null);
 }
@@ -704,7 +846,7 @@ const REASON = {
 
 function checkSummary(c) {
   const d = c.detail || {}, lines = [];
-  const outcome = !c.ok ? ["red", "Check failed"] : c.outcome === "signal" ? ["green", "Found activity"] : c.outcome === "skipped_fit" ? ["gray", "Skipped: not a fit"] : c.outcome === "rescored" ? ["gray", "Re-scored from saved signals"] : ["blue", "Nothing new in 30 days"];
+  const outcome = !c.ok ? ["red", "Check failed"] : c.outcome === "signal" ? ["green", "Found activity"] : c.outcome === "skipped_fit" ? ["gray", "Skipped: not a fit"] : c.outcome === "rescored" ? ["gray", "Re-scored from saved signals"] : ["blue", "Search found nothing new"];
   if (!c.ok) lines.push(`${friendlyError(c.error)} this run, so the previous results were kept.`);
   else if (c.outcome === "skipped_fit") lines.push((d.reason || "Not a fit for this round") + ", so no searches were run.");
   else if (c.outcome === "rescored") lines.push(`Re-scored from ${d.signals_on_file ?? 0} saved signal${d.signals_on_file === 1 ? "" : "s"}. No search was made, so it cost nothing.`);
@@ -715,6 +857,7 @@ function checkSummary(c) {
     if (sk.length) lines.push("Skipped untrusted sources: " + sk.map(([k, n]) => `${k} \u00d7${n}`).join(", ") + ".");
     if (d.undated) lines.push(`Ignored ${d.undated} page${d.undated > 1 ? "s" : ""} from trusted sources with no publish date (dates must come from the search API).`);
     if (c.n_signals) lines.push(`Kept ${c.n_signals} signal${c.n_signals > 1 ? "s" : ""}` + (d.signals_people ? ` (${d.signals_people} from partners)` : "") + ".");
+    if (c.outcome === "no_signal") lines.push(d.signals_on_file ? `${plural(d.signals_on_file, "earlier signal")} still on file and still counted.` : "Signals found earlier stay on file and still count until they are 30 days old.");
     if (d.people_checked && d.people_checked.length) lines.push("Partners checked: " + d.people_checked.join(", ") + ".");
     const rj = {};
     for (const x of (c.dropped || [])) rj[x.reason] = (rj[x.reason] || 0) + 1;
@@ -761,6 +904,8 @@ function renderProfile(d) {
   const v = d.vc, now = new Date(), score = v.follow_up_score ?? 0;
   const bucket = bucketOf(v, now, hotSet(d.evidence, now));
   const unverified = d.evidence.filter((e) => e.source_tier === "legacy_unverified").length;
+  const logi = d.evidence.filter((e) => e.relevance === "logistics"), other = d.evidence.filter((e) => e.relevance !== "logistics");
+  const fit = (d.checks.find((c) => c.detail && c.detail.fit) || {}).detail;
   show(
     el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
     el("div", { class: "ph" },
@@ -775,10 +920,11 @@ function renderProfile(d) {
     bucket === "declined" ? declinedPanel(d) : null,
     el("div", { class: "pgrid" },
       whoPanel(d), logPanel(v),
-      el("div", { class: "panel wide" }, el("h3", {}, `Signals (${d.evidence.length})`),
+      el("div", { class: "panel wide" }, el("h3", {}, `Logistics signals (${logi.length})`),
         unverified ? el("p", { class: "note", style: "margin:-6px 0 8px" }, `${unverified} signal${unverified > 1 ? "s" : ""} below ${unverified > 1 ? "come" : "comes"} from a source that was not verified, so ${unverified > 1 ? "they are" : "it is"} shown for reference only and not counted in the score.`) : null,
-        d.evidence.length ? d.evidence.map(signalRow) : el("div", { class: "empty" }, "No signal from a trusted source yet.")),
-      privatePanel(d), relPanel(v, now), fitPanel(v), el("div", {}), checksPanel(d.checks)));
+        logi.length ? logi.map(signalRow) : el("div", { class: "empty" }, "No logistics signal from a trusted source in the last 30 days."),
+        other.length ? el("details", { style: "margin-top:12px" }, el("summary", { class: "note" }, `Other fund activity (${other.length}): not about logistics, so it does not drive the score much`), other.map(signalRow)) : null),
+      privatePanel(d), relPanel(v, now), fitPanel(v, fit && fit.fit), el("div", {}), checksPanel(d.checks)));
   window.scrollTo(0, 0);
 }
 
@@ -787,6 +933,7 @@ async function loadProfile(id) {
   let data;
   try { data = await fetchJson(`/api/vc?id=${id}`); }
   catch (e) { show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"), failBox("Could not load this investor", () => loadProfile(id), e)); return; }
+  window.__people = buildPeopleIndex({ contacts: data.contacts.map((c) => ({ ...c, vc_id: data.vc.id })), people: data.people.map((p) => ({ ...p, vc_id: data.vc.id })) });
   try { renderProfile(data); }
   catch (e) { console.error(e); show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"), failBox("The page hit a display error", () => loadProfile(id), e)); }
 }
@@ -822,6 +969,7 @@ async function load(view, quiet) {
   let data;
   try { data = await fetchJson("/api/pipeline"); }
   catch (e) { show(failBox("Could not load the pipeline", () => load(view), e)); return; }
+  window.__people = buildPeopleIndex(data);
   try { view === "status" ? renderStatus(data) : render(data); }
   catch (e) { console.error(e); show(failBox("The page hit a display error", () => load(view), e)); }
 }

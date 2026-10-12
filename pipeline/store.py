@@ -102,9 +102,9 @@ class PgStore:
             out.setdefault(vc_id, []).append(Signal(typ, summary, quote, url, pub, dom, tier, pname, prole, rel))
         return out
 
-    def start_run(self, total: int) -> int:
+    def start_run(self, total: int, kind: str = "search") -> int:
         with self.conn.cursor() as cur:
-            cur.execute("INSERT INTO run_log (vcs_total) VALUES (%s) RETURNING id", (total,))
+            cur.execute("INSERT INTO run_log (vcs_total, kind) VALUES (%s, %s) RETURNING id", (total, kind))
             run_id = cur.fetchone()[0]
         self.conn.commit()
         return run_id
@@ -168,7 +168,7 @@ class CsvStore:
     def load_evidence(self, since: date) -> dict[int, list[Signal]]:
         return {}
 
-    def start_run(self, total: int) -> int:
+    def start_run(self, total: int, kind: str = "search") -> int:
         return 0
 
     def write_result(self, run_id: int, r: VCResult) -> None:

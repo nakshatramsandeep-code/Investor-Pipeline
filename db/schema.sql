@@ -89,6 +89,11 @@ ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEF
 ALTER TABLE vcs ADD COLUMN IF NOT EXISTS revisit_on date;                                      -- a declined investor to look at again from this date
 ALTER TABLE vcs ADD COLUMN IF NOT EXISTS next_step text NOT NULL DEFAULT '';
 
+ALTER TABLE vc_interactions ADD COLUMN IF NOT EXISTS person text NOT NULL DEFAULT '';    -- who you contacted
+ALTER TABLE vc_interactions ADD COLUMN IF NOT EXISTS channel text NOT NULL DEFAULT '';   -- email / linkedin / warm_intro / other
+
+ALTER TABLE run_log ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'search';   -- 'search' | 'rescore' (free re-score, not a real run)
+
 -- Source trust + people (added after v1; idempotent upgrades for existing databases)
 ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS source_domain text NOT NULL DEFAULT '';
 ALTER TABLE signal_evidence ADD COLUMN IF NOT EXISTS source_tier text NOT NULL DEFAULT '';

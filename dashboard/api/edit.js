@@ -8,6 +8,7 @@ const { neon } = require("@neondatabase/serverless");
 // day it is, because the server runs on UTC and that is the wrong calendar day for Vikram in the early hours.
 const STATUSES = ["to_contact", "waiting", "in_conversation", "approved", "closed", "declined"];
 const KINDS = ["reached_out", "follow_up", "replied", "call", "meeting", "approved", "closed", "declined", "note"];
+const CHANNELS = ["", "email", "linkedin", "warm_intro", "phone", "event", "other"];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const utcDay = () => new Date().toISOString().slice(0, 10);
 const okDay = (d) => DATE.test(d) && d <= new Date(Date.now() + 864e5 * 1.5).toISOString().slice(0, 10);   // allow any timezone's "today"
@@ -28,6 +29,9 @@ module.exports = async function handler(req, res) {
     if (b.action === "log") {
       const { kind } = b;
       const note = String(b.note || "").slice(0, 2000);
+      const person = String(b.person || "").trim().slice(0, 120);
+      const channel = b.channel || "";
+      if (!CHANNELS.includes(channel)) return res.status(400).json({ error: "unknown channel" });
       const day = b.occurred_on || today;
       if (!KINDS.includes(kind)) return res.status(400).json({ error: "unknown kind" });
       if (!okDay(day)) return res.status(400).json({ error: "bad date" });
@@ -37,7 +41,7 @@ module.exports = async function handler(req, res) {
       const cur = (await sql`SELECT status, last_contacted_at::text AS last_contacted_at, revisit_on::text AS revisit_on FROM vcs WHERE id = ${id}`)[0];
       if (!cur) return res.status(404).json({ error: "not found" });
 
-      const q = [sql`INSERT INTO vc_interactions (vc_id, kind, note, occurred_on) VALUES (${id}, ${kind}, ${note}, ${day}) RETURNING id`];
+      const q = [sql`INSERT INTO vc_interactions (vc_id, kind, note, occurred_on, person, channel) VALUES (${id}, ${kind}, ${note}, ${day}, ${person}, ${channel}) RETURNING id`];
       if (kind !== "note") q.push(sql`UPDATE vcs SET last_contacted_at = GREATEST(COALESCE(last_contacted_at, ${day}::date), ${day}::date) WHERE id = ${id}`);
       if (kind === "reached_out" || kind === "follow_up") q.push(sql`UPDATE vcs SET status = CASE WHEN status IN ('in_conversation', 'approved', 'closed') THEN status ELSE 'waiting' END WHERE id = ${id}`);
       if (kind === "replied" || kind === "call" || kind === "meeting") q.push(sql`UPDATE vcs SET status = CASE WHEN status IN ('approved', 'closed') THEN status ELSE 'in_conversation' END WHERE id = ${id}`);
