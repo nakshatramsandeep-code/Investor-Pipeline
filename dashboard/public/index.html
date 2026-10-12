@@ -517,6 +517,41 @@
   .ta-item.on, .ta-item:hover { background: #eef0f6; }
   .viewbar { display: flex; justify-content: flex-end; margin: -6px 0 14px; }
   .qchip { display: none; align-items: center; border-radius: 999px; padding: 6px 14px; font-size: 13px; border: 1.5px solid #0e1116; background: #fff; }
+
+  /* ---- uniform controls: dropdowns, link buttons, pills */
+  select { appearance: none; -webkit-appearance: none; font: 500 14px "Geist", system-ui, sans-serif; color: var(--text); border: 1.5px solid #cdd2dc; border-radius: 12px;
+    padding: 8px 36px 8px 14px; min-height: 40px; cursor: pointer; background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%230e1116' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important; background-position: right 14px center !important; background-size: 12px 8px !important; max-width: 100%; }
+  select:hover { border-color: #0e1116; }
+  select:focus-visible { outline: 3px solid #3d5afe; outline-offset: 2px; border-color: #0e1116; }
+  select:disabled { opacity: .55; cursor: default; }
+  input[type="date"] { font: 500 14px "Geist", system-ui, sans-serif; border: 1.5px solid #cdd2dc; border-radius: 12px; padding: 8px 12px; min-height: 40px; background: #fff; color: var(--text); }
+  .tb2 select { height: 44px; min-width: 150px; } .tb2 select:last-of-type { min-width: 210px; } .toolbar select { min-height: 44px; }
+  .form select, .reachform select, .evform select { width: 100%; }
+
+  button { border-radius: 999px; padding: 6px 16px; }
+  .qnav { border-radius: 50%; } .pill .px button { border-radius: 5px; padding: 0; } .cell .addb { border-radius: 8px; padding: 0; } .seg2 button { border-radius: 0; }
+
+  /* links that are really actions look like buttons */
+  .lbtn, a.back, .tlink, .qact a, .qmeta a, .qmore a, .qsub a, .note a, .kv a, details > summary.note {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1.5px solid #cdd2dc; border-radius: 999px; background: #fff;
+    color: var(--text); font: 600 13px "Geist", system-ui, sans-serif; text-decoration: none; cursor: pointer; width: fit-content; max-width: 100%; }
+  .lbtn:hover, a.back:hover, .tlink:hover, .qact a:hover, .qmeta a:hover, .qmore a:hover, .qsub a:hover, .note a:hover, .kv a:hover, details > summary.note:hover { background: #0e1116; color: #fff; border-color: #0e1116; }
+  .lbtn[target="_blank"]::after, .qmeta a[target="_blank"]::after, .qmore a[target="_blank"]::after, .note a[target="_blank"]::after, .kv a[target="_blank"]::after { content: "\2197"; font-size: 12px; opacity: .7; }
+  a.back::before { content: "\2190"; }
+  a.back { margin: 0; }
+  details > summary.note { list-style: none; margin-top: 4px; }
+  details > summary.note::-webkit-details-marker { display: none; }
+  details > summary.note::before { content: "+"; font-weight: 700; }
+  details[open] > summary.note::before { content: "\2212"; }
+  .qsub a { min-height: 28px; font-size: 12.5px; }
+  .evrow, .lrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+  .lrow { margin-top: 6px; }
+  .evrow button { padding: 4px 14px; font-size: 12.5px; min-height: 32px; }
+  .tlink { min-height: 34px; padding: 0 16px; }
+  .qmore .qsub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+  .qmeta { gap: 8px 10px; }
 </style>
 </head>
 <body>
@@ -1191,11 +1226,11 @@ function personCard(p, first) {
     : p.source_tier ? el("span", { class: `chip tier-${p.source_tier}` }, `Named on ${p.source_domain}`) : el("span", { class: "chip" }, "Named in a signal");
   return el("div", { class: "person" }, el("b", {}, p.name), p.role ? ` \u00b7 ${p.role}` : "", " ", badge,
     first ? el("div", { class: "suggested" }, p.logistics.length ? "\u2605 Suggested: has recent logistics activity" : "Suggested: most senior, but no logistics activity found yet") : null,
-    el("div", { class: "meta" }, src ? el("a", { href: src, target: "_blank", rel: "noopener noreferrer" }, "Source") : null, src && li ? " \u00b7 " : "",
-      li ? el("a", { href: li, target: "_blank", rel: "noopener noreferrer" }, "LinkedIn") : null),
+    el("div", { class: "meta lrow" }, src ? el("a", { class: "lbtn", href: src, target: "_blank", rel: "noopener noreferrer" }, "Source") : null, "",
+      li ? el("a", { class: "lbtn", href: li, target: "_blank", rel: "noopener noreferrer" }, "LinkedIn") : null),
     p.note ? el("div", { class: "meta" }, p.note) : null,
     p.logistics.length ? p.logistics.slice(0, 3).map((e) => el("div", { class: "meta" }, `${fmtDate(e.published_date)} \u00b7 ${label(e.type)}: ${e.summary} `,
-      safeUrl(e.url) ? el("a", { href: safeUrl(e.url), target: "_blank", rel: "noopener noreferrer" }, "source") : null))
+      safeUrl(e.url) ? el("a", { class: "lbtn", href: safeUrl(e.url), target: "_blank", rel: "noopener noreferrer" }, "source") : null))
       : el("div", { class: "meta" }, "No logistics activity found in the last 30 days." + (p.hidden ? ` (${plural(p.hidden, "other item")} not about logistics, hidden)` : "")));
 }
 
@@ -1260,7 +1295,7 @@ function fitPanel(v, fit) {
   const kv = [
     ["Thesis", v.thesis], ["Stage focus", v.stage_focus], ["Region", v.geo],
     ["Investing now", v.is_investing ? "Yes" : "No (paused)"],
-    ["Website", site ? el("a", { href: site, target: "_blank", rel: "noopener noreferrer" }, site) : "Not added yet"],
+    ["Website", site ? el("a", { class: "lbtn", href: site, target: "_blank", rel: "noopener noreferrer" }, site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")) : "Not added yet"],
   ];
   return el("div", { class: "panel" }, el("h3", {}, "Fit and background"),
     el("dl", { class: "kv" }, kv.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
@@ -1269,7 +1304,7 @@ function fitPanel(v, fit) {
         ? el("ul", { class: "bullets", style: "margin-top:6px" }, [...(v.fit_good || []).map((r) => el("li", {}, "\u2713 " + r)), ...(v.fit_concerns || []).map((r) => el("li", {}, "\u26a0 " + r))])
         : el("p", { class: "note", style: "margin:4px 0 0" }, "Fit has not been rated yet. It appears after the next run.")),
     (v.fit_badges || []).length ? el("div", { class: "chips", style: "margin-top:10px" }, (v.fit_badges || []).map((b) => el("span", { class: "chip warn", title: "Data quality: does not change the fit rating" }, b))) : null,
-    v.background ? el("p", { class: "note" }, `From your original list: ${v.background}. `, seed ? el("a", { href: seed, target: "_blank", rel: "noopener noreferrer" }, "list source") : null, " (not independently verified)") : null);
+    v.background ? el("p", { class: "note" }, `From your original list: ${v.background}. `, seed ? el("a", { class: "lbtn", href: seed, target: "_blank", rel: "noopener noreferrer" }, "list source") : null, " (not independently verified)") : null);
 }
 
 function signalRow(e) {
@@ -1282,7 +1317,7 @@ function signalRow(e) {
     el("div", { class: "chips" }, tag("type", e.type), relChip(e), el("span", { class: "chip" }, fmtDate(e.published_date)), trustChip(e),
       e.person_name ? el("span", { class: "chip" }, `by ${e.person_name}`) : null),
     el("p", { class: "why" }, e.summary), el("q", {}, e.quote),
-    href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
+    el("div", { class: "evrow" }, href ? el("a", { class: "lbtn", href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, up, down));
 }
 
 // ================================================================ One flow for logging activity: a modal with contact, channel, date and note
