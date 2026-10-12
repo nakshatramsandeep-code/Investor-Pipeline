@@ -4,7 +4,12 @@ on:
   schedule:
     - cron: "30 1 * * 1,4"      # Mon + Thu 01:30 UTC = 7:00 IST. GitHub may start this late;
                                 # the dashboard shows when the last run actually finished.
-  workflow_dispatch: {}          # manual re-run for off days
+  workflow_dispatch:             # manual re-run for off days
+    inputs:
+      all:
+        description: "Check every investor now, ignoring the check schedule (uses more search credits)"
+        type: boolean
+        default: false
 
 concurrency:
   group: signal-run
@@ -22,12 +27,12 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: python -m pytest -q          # a broken validator or routing table must not reach Vikram
-      - run: python -m pipeline.run
+      - run: python -m pipeline.run ${{ inputs.all && '--all' || '' }}
         env:
           SIGNAL_JOB_DATABASE_URL: ${{ secrets.SIGNAL_JOB_DATABASE_URL }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
           # SEARCH_PROVIDERS: tavily,exa      # order of providers; Tavily first, Exa only when Tavily is spent
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        # Exit code 2 means Exa credits ran out (top up at dashboard.exa.ai, then re-run). Results already
+        # Exit code 2 means every search provider is out of credits (top up Tavily / Exa, then re-run). Results already
         # written are kept; the dashboard shows the message.
