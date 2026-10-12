@@ -175,6 +175,13 @@ The top panel shows when the last search run happened and how many investors it 
 logistics signals only ("1 logistics signal, +4 other"); a signal that is about to leave the 14-day reach-out
 window shows "Cools in N days". A partner's activity is shown only if it is about logistics.
 
+**Reach out** needs a logistics signal from the last 14 days. **Warm** holds funds whose logistics signal is 15-30
+days old (not urgent, not nothing), best score first. **Dormant** means no logistics signal in the last 30 days.
+The My pipeline table has a **Next search** column: the next Monday or Thursday run on which that investor will be
+searched (contacted / in-talks / reach-out investors every 2 days, everyone else weekly; declined and not-a-fit
+investors need no search). Setting an investor back to Prospect clears "Last contacted", so a mis-click leaves no
+ghost date.
+
 **By action** is the to-do list for today: Do this first, Reach out, Follow up due, Contacted, Declined, plus the
 Dormant and Not-a-fit lists. **My pipeline** is every investor and where they stand: stage columns, and a table of
 all of them to search, filter and log.

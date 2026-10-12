@@ -49,6 +49,8 @@ module.exports = async function handler(req, res) {
       if (kind === "closed") q.push(sql`UPDATE vcs SET status = 'closed' WHERE id = ${id}`);
       if (kind === "declined") q.push(sql`UPDATE vcs SET status = 'declined' WHERE id = ${id}`);
       if (b.status) q.push(sql`UPDATE vcs SET status = ${b.status} WHERE id = ${id}`);   // explicit choice wins
+      // Setting a prospect back to 'Prospect' means "not contacted": drop the date, so a mis-click leaves no ghost.
+      if (b.status === "to_contact") q.push(sql`UPDATE vcs SET last_contacted_at = NULL WHERE id = ${id}`);
       const results = await sql.transaction(q);
       return res.status(201).json({ ok: true, id: results[0][0].id, prev: cur });
     }

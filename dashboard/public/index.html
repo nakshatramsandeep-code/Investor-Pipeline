@@ -172,7 +172,7 @@
   button.delbtn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; float: right; }
   button.delbtn:hover { color: var(--red); }
   .tbl { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
-  .tbl .inner { min-width: 980px; }
+  .tbl .inner { min-width: 1120px; }
   .trow { display: grid; grid-template-columns: var(--cols); gap: 12px; padding: 10px 14px; align-items: center; border-top: 1px solid var(--line); font-size: 13px; }
   .trow.head { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 12px; border-top: 0; border-radius: 12px 12px 0 0; }
   .trow .vc b { display: block; font-size: 14px; } .trow .vc a { color: var(--text); text-decoration: none; } .trow .vc a:hover { color: #b9a7ff; }
@@ -247,7 +247,7 @@ const COL = {
   type: { portfolio_investment: "green", fund_announcement: "purple", interview: "blue", blog_post: "teal", event_appearance: "amber", other: "gray" },
 };
 const BUCKET = {
-  reach: ["Reach out", "green"], nudge: ["Follow up due", "amber"], waiting: ["Contacted", "blue"], talks: ["In talks", "blue"],
+  reach: ["Reach out", "green"], warm: ["Warm", "purple"], nudge: ["Follow up due", "amber"], waiting: ["Contacted", "blue"], talks: ["In talks", "blue"],
   approved: ["Approved", "green"], declined: ["Declined", "red"], dormant: ["Dormant", "gray"], skip: ["Not a fit", "red"],
 };
 const btag = (b) => el("span", { class: `chip c-${BUCKET[b][1]}` }, BUCKET[b][0]);
@@ -282,7 +282,13 @@ function coolsIn(v, evidence, now) {
 }
 const waitDays = (v, now) => v.last_contacted_at ? daysAgo(v.last_contacted_at, now) : null;
 // Investors with a logistics signal fresh enough to justify a cold approach.
-const hotSet = (evidence, now) => new Set(evidence.filter((e) => e.relevance === "logistics" && e.source_tier !== "legacy_unverified" && daysAgo(e.published_date, now) <= MAX_SIGNAL_AGE).map((e) => e.vc_id));
+// hot = a logistics signal fresh enough to justify a cold approach; hot.logi = any logistics signal in the 30-day window.
+function hotSet(evidence, now) {
+  const logi = evidence.filter((e) => e.relevance === "logistics" && e.source_tier !== "legacy_unverified");
+  const hot = new Set(logi.filter((e) => daysAgo(e.published_date, now) <= MAX_SIGNAL_AGE).map((e) => e.vc_id));
+  hot.logi = new Set(logi.map((e) => e.vc_id));
+  return hot;
+}
 const friendlyError = (e) => /gemini|empty response|json/i.test(e || "") ? "The AI step failed" : /exa|search|http|network/i.test(e || "") ? "The search service was unavailable" : "The check did not finish";
 
 function bucketOf(v, now, hot) {
@@ -294,19 +300,22 @@ function bucketOf(v, now, hot) {
   if (status === "in_conversation") return "talks";
   if (status === "waiting") { const d = waitDays(v, now); return d == null || d >= NUDGE_DAYS ? "nudge" : "waiting"; }
   if (v.recommended_action === "skip" && !revisitDue) return "skip";
-  return v.recommended_action === "reach_out" && (v.follow_up_score ?? 0) >= MIN_REACH && hot.has(v.id) ? "reach" : "dormant";
+  if (v.recommended_action === "reach_out" && (v.follow_up_score ?? 0) >= MIN_REACH && hot.has(v.id)) return "reach";
+  // Warm: a logistics signal exists but is 15-30 days old. Not urgent, not nothing.
+  return hot.logi && hot.logi.has(v.id) ? "warm" : "dormant";
 }
 
 function groupVcs(data, now) {
   const hot = hotSet(data.evidence, now);
-  const g = { reach: [], nudge: [], waiting: [], talks: [], approved: [], declined: [], dormant: [], skip: [] };
+  const g = { reach: [], warm: [], nudge: [], waiting: [], talks: [], approved: [], declined: [], dormant: [], skip: [] };
   for (const v of data.vcs) g[bucketOf(v, now, hot)].push(v);
   const byFirm = (a, b) => a.firm.localeCompare(b.firm);
   g.reach.sort((a, b) => (a.check_ok === false) - (b.check_ok === false) || (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0));
   g.nudge.sort((a, b) => (waitDays(b, now) ?? 999) - (waitDays(a, now) ?? 999));          // longest silence first
   g.waiting.sort((a, b) => (waitDays(b, now) ?? 0) - (waitDays(a, now) ?? 0));
   g.talks.sort((a, b) => (b.last_contacted_at || "") < (a.last_contacted_at || "") ? -1 : 1);
-  for (const k of ["approved", "declined", "dormant", "skip"]) g[k].sort(byFirm);
+  for (const k of ["approved", "declined", "skip"]) g[k].sort(byFirm);
+  for (const k of ["warm", "dormant"]) g[k].sort((a, b) => (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0) || byFirm(a, b));   // best first
   return g;
 }
 
@@ -410,6 +419,7 @@ function quickActions(v, bucket) {
   const log = (kind, extra = {}) => ({ action: "log", kind, ...extra });
   const sets = {
     reach: ["REACH"],
+    warm: ["REACH"],
     dormant: ["REACH"],
     nudge: [["Followed up", log("follow_up"), true], ["They replied", log("replied")]],
     waiting: [["They replied", log("replied")]],
@@ -435,12 +445,12 @@ function card(v, evidence, now, bucket) {
     approved: (v.status === "closed" ? "Deal closed" : "Committed to invest") + (d == null ? "" : ` \u00b7 last contact ${d}d ago`),
     declined: (d == null ? "Declined" : `Declined ${d}d ago`) + (v.revisit_on ? ` \u00b7 revisit ${fmtDate(v.revisit_on)}` : ""),
   }[bucket] || null;
-  const showSignal = bucket === "reach" && best;
+  const showSignal = (bucket === "reach" || bucket === "warm") && best;
   const contact = showSignal ? bestContact(v, evidence) : null;
-  const logi = all.filter((e) => e.relevance === "logistics"), cool = showSignal ? coolsIn(v, evidence, now) : null;
+  const logi = all.filter((e) => e.relevance === "logistics"), cool = showSignal && bucket === "reach" ? coolsIn(v, evidence, now) : null;
   return el("div", { class: "card compact" },
     el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm),
-      bucket === "reach" ? el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Follow-up score: 70+ strong, 40-69 medium, under 40 weak" }, String(score))
+      bucket === "reach" || bucket === "warm" ? el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Follow-up score: 70+ strong, 40-69 medium, under 40 weak" }, String(score))
         : bucket === "nudge" ? el("span", { class: "chip c-amber" }, d == null ? "overdue" : `${d} days`) : null),
     meta ? el("div", { class: "meta" }, meta) : null,
     v.next_step && ["nudge", "waiting", "talks", "approved"].includes(bucket) ? el("div", { class: "next" }, "Next: " + v.next_step) : null,
@@ -572,6 +582,7 @@ function render(data) {
   const above = (k) => (focus && focus.bucket === k ? " \u00b7 top one is above" : "");
   const defs = [
     ["reach", "Reach out", `Logistics signal in the last ${MAX_SIGNAL_AGE} days${above("reach")}`, { limit: 10, id: "reach" }],
+    ["warm", "Warm", `Logistics signal ${MAX_SIGNAL_AGE + 1}-30 days old: worth a look, not urgent. Best first`, { limit: 10, id: "warm" }],
     ["nudge", "Follow up due", `Contacted ${NUDGE_DAYS}+ days ago, no reply${above("nudge")}`, { id: "nudge", always: true, empty: g.nudge.length ? "Just the one above." : "Nothing due. Nobody is overdue a reply." }],
     ["waiting", "Contacted", "Waiting for a reply; follow-up date shown", { id: "waiting" }],
     ["talks", "In talks", "Replied, call or meeting", { id: "talks" }],
@@ -588,7 +599,7 @@ function render(data) {
     el("div", { class: "board auto" }, shown.map(([k, title, hint, o]) =>
       column(title, hint, lists[k].map((v) => card(v, data.evidence, now, k)), { ...o, total: g[k].length }))),
     none.length ? el("p", { class: "emptyline" }, `Nothing in: ${none.join(", ")}.`) : null,
-    listSection("Dormant", "no recent logistics signal, nothing to do", g.dormant, (v) => v.check_ok === false ? "check failed" : v.stage_focus),
+    listSection("Dormant", "no logistics signal in the last 30 days. Best score first", g.dormant, (v) => v.check_ok === false ? "check failed" : [v.follow_up_score ? `score ${v.follow_up_score}` : null, v.stage_focus].filter(Boolean).join(" \u00b7 ")),
     listSection("Not a fit", "filtered out by the fit rules", g.skip, (v) => (v.signal_summary || "").replace("Skipped: ", "")),
     unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
 }
@@ -608,21 +619,37 @@ function renderStatus(data) {
     directory(data, now, hot));
 }
 
+// When this investor will next be searched. Mirrors the schedule in weights.yaml (pipeline 2d, reach-out 2d, dormant 7d)
+// and the cron (Mon + Thu 01:30 UTC = 7:00 IST), so the date shown is a real run day.
+const SCHEDULE_DAYS = { fast: 2, slow: 7 };
+function nextSearch(v, now) {
+  if (v.recommended_action === "skip" || v.status === "declined") return el("span", { class: "dim" }, "No search needed");
+  const fast = ["waiting", "in_conversation", "approved", "closed"].includes(v.status) || ["reach_out", "nudge"].includes(v.recommended_action);
+  const last = v.last_searched_at ? new Date(v.last_searched_at) : null;
+  const due = last ? new Date(last.getTime() + SCHEDULE_DAYS[fast ? "fast" : "slow"] * 864e5 - 12 * 36e5) : now;
+  const from = new Date(Math.max(due.getTime(), now.getTime()));
+  for (let i = 0; i < 9; i++) {
+    const run = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate() + i, 1, 30));
+    if ([1, 4].includes(run.getUTCDay()) && run >= from) return run.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+  }
+  return "\u2014";
+}
+
 // All investors in one searchable, filterable, sortable table: find any fund (even a dormant one) to check or log something.
 function directory(data, now, hot) {
   const rows = data.vcs.map((v) => {
     const bucket = bucketOf(v, now, hot), people = peopleOfVc(v), { best } = signalsOf(v, data.evidence);
     return { v, bucket, people, best, text: [v.firm, v.thesis, v.geo, v.stage_focus, ...people.map((p) => p.name)].join(" ").toLowerCase() };
   });
-  const STAGES = [["", "All stages"], ["reach", "Reach out"], ["nudge", "Follow up due"], ["waiting", "Contacted"], ["talks", "In talks"], ["approved", "Approved"], ["declined", "Declined"], ["dormant", "Dormant"], ["skip", "Not a fit"]];
+  const STAGES = [["", "All stages"], ["reach", "Reach out"], ["warm", "Warm"], ["nudge", "Follow up due"], ["waiting", "Contacted"], ["talks", "In talks"], ["approved", "Approved"], ["declined", "Declined"], ["dormant", "Dormant"], ["skip", "Not a fit"]];
   const SORTS = { name: (a, b) => a.v.firm.localeCompare(b.v.firm), score: (a, b) => (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0),
     contact: (a, b) => (b.v.last_contacted_at || "") < (a.v.last_contacted_at || "") ? -1 : 1, searched: (a, b) => (a.v.last_searched_at || "") < (b.v.last_searched_at || "") ? -1 : 1 };
   const search = el("input", { placeholder: "Search by fund, partner, thesis or region" });
   const stage = el("select", {}, STAGES.map(([k, t]) => el("option", { value: k }, t)));
   const sort = el("select", {}, [["name", "Sort: name"], ["score", "Sort: score"], ["contact", "Sort: last contact"], ["searched", "Sort: least recently searched"]].map(([k, t]) => el("option", { value: k }, t)));
   const count = el("span", { class: "count" });
-  const cols = "1.5fr 1fr 1fr .9fr 1.4fr .5fr .8fr 190px";
-  const head = el("div", { class: "trow head", style: `--cols:${cols}` }, ["Investor", "Stage", "Region / focus", "Last contact", "Latest signal", "Score", "Last searched", "Action"].map((h) => el("div", {}, h)));
+  const cols = "1.4fr .9fr 1fr .8fr 1.3fr .5fr .75fr .85fr 190px";
+  const head = el("div", { class: "trow head", style: `--cols:${cols}` }, ["Investor", "Stage", "Region / focus", "Last contact", "Latest signal", "Score", "Last searched", "Next search", "Action"].map((h) => el("div", {}, h)));
   const body = el("div", {});
   const draw = () => {
     const q = search.value.trim().toLowerCase(), st = stage.value;
@@ -638,7 +665,8 @@ function directory(data, now, hot) {
         el("div", {}, d == null ? el("span", { class: "dim" }, "\u2014") : `${d}d ago`),
         el("div", { class: "dim" }, best ? `${fmtDate(best.published_date)}: ${(LBL.type[best.type] || best.type)}${best.relevance === "logistics" ? " (logistics)" : ""}` : "\u2014"),
         el("div", {}, v.follow_up_score ? el("b", { style: `color:${scoreColor(v.follow_up_score)}` }, String(v.follow_up_score)) : el("span", { class: "dim" }, "\u2014")),
-        el("div", { class: "dim" }, v.last_searched_at ? `${daysAgo(v.last_searched_at, now)}d ago` : "never"),
+        el("div", { class: "dim", title: v.last_searched_at ? new Date(v.last_searched_at).toLocaleString("en-GB") : "" }, v.last_searched_at ? fmtDate(v.last_searched_at) : "never"),
+        el("div", { title: "Searches run Monday and Thursday at 7:00 IST. Contacted / in-talks / reach-out investors every 2 days, everyone else weekly." }, nextSearch(v, now)),
         el("div", {}, quickActions(v, bucket) || el("a", { class: "chip", href: `#/vc/${v.id}` }, "Open profile")));
     }));
   };
@@ -746,7 +774,7 @@ function logPanel(v) {
   const picker = el("input", { type: "date", value: localIso(0), style: "display:none" });
   when.onchange = () => { picker.style.display = when.value === "pick" ? "block" : "none"; };
   const status = el("select", {}, el("option", { value: "" }, "Keep automatic (recommended)"),
-    ["to_contact", "waiting", "in_conversation", "approved", "closed", "declined"].map((x) => el("option", { value: x }, `Set to: ${LBL.status[x]}`)));
+    ["to_contact", "waiting", "in_conversation", "approved", "closed", "declined"].map((x) => el("option", { value: x }, `Set to: ${LBL.status[x]}${x === "to_contact" ? " (clears last contacted)" : ""}`)));
   const people = peopleOfVc(v);
   const who = el("select", {}, el("option", { value: "" }, "Who (optional)"), people.map((p) => el("option", { value: p.name }, p.name + (p.role ? ` \u00b7 ${p.role}` : ""))));
   const how = el("select", {}, el("option", { value: "" }, "How (optional)"), CHANNELS.map(([k, t]) => el("option", { value: k }, t)));
@@ -848,7 +876,9 @@ function checkSummary(c) {
   return { outcome, lines };
 }
 
-function checksPanel(checks) {
+function checksPanel(allChecks) {
+  // Free re-scores are housekeeping, not checks: fold them into one collapsed line so real searches stand out.
+  const rescored = allChecks.filter((c) => c.outcome === "rescored"), checks = allChecks.filter((c) => c.outcome !== "rescored");
   // Identical back-to-back results are one entry with a count, not a wall of repeats.
   const groups = [];
   for (const c of checks) {
@@ -863,8 +893,11 @@ function checksPanel(checks) {
   const rest = el("div", { style: "display:none" }, rows.slice(2));
   const more = rows.length > 2 ? el("button", { class: "seemore" }, `See ${rows.length - 2} more`) : null;
   if (more) more.onclick = () => { const open = rest.style.display === "none"; rest.style.display = open ? "block" : "none"; more.textContent = open ? "Show less" : `See ${rows.length - 2} more`; };
+  const housekeeping = rescored.length ? el("details", { style: "margin-top:10px" }, el("summary", { class: "note" }, `${plural(rescored.length, "re-score")} from saved signals (free, no search)`),
+    rescored.slice(0, 10).map((c) => el("div", { class: "tl" }, el("b", {}, new Date(c.checked_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), " ", el("small", {}, "re-scored from saved signals")))) : null;
   return el("div", { class: "panel wide" }, el("h3", {}, "Check history"),
-    rows.length ? [rows.slice(0, 2), rest, more] : el("div", { class: "empty" }, "Not checked yet."),
+    rows.length ? [rows.slice(0, 2), rest, more] : el("div", { class: "empty" }, "No search yet."),
+    housekeeping,
     el("p", { class: "note" }, "Each entry is a run for this investor, newest first. Repeated identical results are combined."));
 }
 
