@@ -704,9 +704,10 @@ const REASON = {
 
 function checkSummary(c) {
   const d = c.detail || {}, lines = [];
-  const outcome = !c.ok ? ["red", "Check failed"] : c.outcome === "signal" ? ["green", "Found activity"] : c.outcome === "skipped_fit" ? ["gray", "Skipped: not a fit"] : ["blue", "Nothing new in 30 days"];
+  const outcome = !c.ok ? ["red", "Check failed"] : c.outcome === "signal" ? ["green", "Found activity"] : c.outcome === "skipped_fit" ? ["gray", "Skipped: not a fit"] : c.outcome === "rescored" ? ["gray", "Re-scored from saved signals"] : ["blue", "Nothing new in 30 days"];
   if (!c.ok) lines.push(`${friendlyError(c.error)} this run, so the previous results were kept.`);
   else if (c.outcome === "skipped_fit") lines.push((d.reason || "Not a fit for this round") + ", so no searches were run.");
+  else if (c.outcome === "rescored") lines.push(`Re-scored from ${d.signals_on_file ?? 0} saved signal${d.signals_on_file === 1 ? "" : "s"}. No search was made, so it cost nothing.`);
   else {
     const via = d.provider ? ` via ${d.provider}${d.searches != null ? ` (${d.searches} search${d.searches === 1 ? "" : "es"})` : ""}` : "";
     lines.push(d.pages_found != null ? `Searched ${d.pages_found} pages${via}, ${d.pages_usable} usable.` : `Searched ${c.n_pages} pages.`);

@@ -160,6 +160,17 @@ uses that topic. In testing it surfaced far fewer pages that name a specific fun
 signals; check "Skipped untrusted sources" in an investor's check history and add good outlets to
 `run_files/sources.yaml`.
 
+## Signals persist; re-scoring is free
+
+A signal stays valid for its 30-day window no matter what a later search returns. Each run merges the signals it
+finds with the ones already on file, removes duplicates, and scores the combined set, so a weak or empty search can
+never erase what an earlier one verified. (An earlier version treated each run as the whole truth and deactivated
+115 saved signals after a Tavily sweep found little; this fixed it.)
+
+`python -m pipeline.run --rescore` rebuilds every investor's score and recommendation from the saved signals with
+**no search and no model call**, so it costs nothing. Use it after changing `weights.yaml` or the rules. It is
+logged as "Re-scored from saved signals" and does not count as a check in the schedule.
+
 ## If a run stops with "out of credits"
 
 When every provider is out of credits (or a key is rejected) the run stops at once (exit code 2) instead of

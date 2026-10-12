@@ -7,7 +7,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from .models import VC, Person, VCResult
+from .models import VC, Person, Signal, VCResult
 
 # Explicit column list on purpose: never SELECT * (notes / contact_history are off limits).
 LOAD_SQL = """
@@ -53,6 +53,12 @@ UNION ALL
 SELECT vc_id, name, role, '', '', 'manual', '', NULL, true FROM vc_contacts
 """
 
+EVIDENCE_LOAD_SQL = """
+SELECT vc_id, type, summary, quote, url, published_date, source_domain, source_tier, person_name, person_role, relevance
+FROM signal_evidence
+WHERE published_date >= %s AND source_tier <> 'legacy_unverified'
+"""
+
 PERSON_UPSERT_SQL = """
 INSERT INTO vc_people (vc_id, name, role, source_url, source_domain, source_tier, quote)
 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -82,6 +88,18 @@ class PgStore:
         out: dict[int, list[Person]] = {}
         for vc_id, name, role, url, dom, tier, quote, at, manual in rows:
             out.setdefault(vc_id, []).append(Person(name, role, url, dom, tier, quote, at, manual))
+        return out
+
+    def load_evidence(self, since: date) -> dict[int, list[Signal]]:
+        """Every verified signal on file inside the window, active or not. A signal stays true until it ages out,
+        whatever a later (possibly weaker) search happens to return; dedupe then collapses repeats."""
+        with self.conn.cursor() as cur:
+            cur.execute(EVIDENCE_LOAD_SQL, (since,))
+            rows = cur.fetchall()
+        self.conn.rollback()
+        out: dict[int, list[Signal]] = {}
+        for vc_id, typ, summary, quote, url, pub, dom, tier, pname, prole, rel in rows:
+            out.setdefault(vc_id, []).append(Signal(typ, summary, quote, url, pub, dom, tier, pname, prole, rel))
         return out
 
     def start_run(self, total: int) -> int:
@@ -145,6 +163,9 @@ class CsvStore:
         return out
 
     def load_people(self) -> dict[int, list[Person]]:
+        return {}
+
+    def load_evidence(self, since: date) -> dict[int, list[Signal]]:
         return {}
 
     def start_run(self, total: int) -> int:

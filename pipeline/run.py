@@ -159,7 +159,8 @@ def attribute_people(signals: list[Signal], pages: list[Page], people: list[Pers
 
 
 def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
-               known_people: list[Person] | None = None, check_people: bool = True) -> VCResult:
+               known_people: list[Person] | None = None, check_people: bool = True,
+               existing: list[Signal] | None = None) -> VCResult:
     w = rf.weights
     fit_ok, _, _ = fit_gate(vc, rf.fit)
     if not fit_ok or effective_status(vc, today) == "declined":
@@ -208,11 +209,16 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
             signals = _merge(signals, [replace(s, person_name=person.name, person_role=person.role or None)
                                        for s in psigs])
 
+    n_new = len(signals)
+    # Signals already on file stay valid until they age out of the window: a search that finds little must
+    # never erase what an earlier, stronger search verified.
+    on_file = [e for e in (existing or []) if (today - e.published).days <= w.window_days]
+    signals = _merge(on_file, signals)
     signals = sorted(dedupe_events(signals, vc.firm), key=lambda s: s.published, reverse=True)[:MAX_SIGNALS]
     decision = decide(vc, signals, rf.fit, w, today)
     detail = {"pages_found": n_found, "pages_usable": n_usable,
               "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),
-              "undated": undated, "people_checked": checked, "signals_firm": n_firm,
+              "undated": undated, "people_checked": checked, "signals_firm": n_firm, "signals_new": n_new, "signals_on_file": len(on_file),
               "signals_people": sum(1 for s in signals if s.person_name),
               "provider": getattr(search, "last_provider", None), "searches": getattr(search, "call_count", 0) - calls0}
     learned = None if vc.website else guess_website(
@@ -220,6 +226,22 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
         + [(p.source_domain, p.source_tier) for p in found + list(known_people or []) if not p.manual])
     return VCResult(vc, True, "signal" if signals else "no_signal", decision, signals, dropped, n_found,
                     people_found=found, website=learned, detail=detail)
+
+
+def rescore_vc(vc: VC, existing: list[Signal], rf: RunFiles, today: date) -> VCResult:
+    """Re-decide from the signals already on file. No search, no model, no credits. Used to apply new weights or
+    rules, or to repair scores after a weak search. Logged as outcome 'rescored', which does NOT count as a check
+    in the schedule (so it never makes an investor look freshly searched)."""
+    w = rf.weights
+    fit_ok, _, _ = fit_gate(vc, rf.fit)
+    if not fit_ok or effective_status(vc, today) == "declined":
+        d = decide(vc, [], rf.fit, w, today)
+        return VCResult(vc, True, "skipped_fit", d, detail={"reason": d.summary, "rescored": True})
+    on_file = [e for e in existing if (today - e.published).days <= w.window_days]
+    signals = sorted(dedupe_events(on_file, vc.firm), key=lambda s: s.published, reverse=True)[:MAX_SIGNALS]
+    return VCResult(vc, True, "rescored", decide(vc, signals, rf.fit, w, today), signals,
+                    detail={"rescored": True, "signals_on_file": len(on_file), "signals_kept": len(signals),
+                            "score_note": "re-scored from saved signals; no search was made"})
 
 
 # ---------------------------------------------------------------- offline demo
@@ -283,6 +305,19 @@ def print_table(results: list[VCResult]) -> None:
             print(f"  FAILED {r.vc.firm}: {r.error}")
 
 
+def rescore_all(store, vcs: list[VC], rf: RunFiles, args, write: bool) -> int:
+    evidence = store.load_evidence(args.today - timedelta(days=rf.weights.window_days))
+    run_id = store.start_run(len(vcs)) if write else 0
+    results = [rescore_vc(v, evidence.get(v.id, []), rf, args.today) for v in vcs]
+    if write:
+        for r in results:
+            store.write_result(run_id, r)
+        store.finish_run(run_id, "ok", len(results), 0, sum(len(r.signals) for r in results), 0)
+    print_table(results)
+    print(f"\nre-scored {len(results)} investors from saved signals | 0 searches | {sum(len(r.signals) for r in results)} signals on file")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--source", choices=["db", "csv"], default="db")
@@ -291,6 +326,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fixtures", type=Path, help="offline demo: canned pages and model output")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--all", action="store_true", help="ignore the check schedule and check every investor")
+    ap.add_argument("--rescore", action="store_true", help="re-decide from saved signals: no search, no model, no credits")
     ap.add_argument("--no-people", action="store_true", help="skip partner discovery and per-person checks")
     ap.add_argument("--workers", type=int, default=5)
     ap.add_argument("--today", type=date.fromisoformat, default=today_local())
@@ -303,6 +339,9 @@ def main(argv: list[str] | None = None) -> int:
     vcs = store.load_vcs()
     if args.limit:
         vcs = vcs[: args.limit]
+
+    if args.rescore:
+        return rescore_all(store, vcs, rf, args, write)
 
     if args.fixtures:
         fx = FixtureClients(args.fixtures, args.today)
@@ -318,6 +357,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Due this run: {len(vcs)} of {total_vcs} investors; the rest are on their schedule "
           f"(pipeline {rf.weights.sched_pipeline_days}d, reach-out {rf.weights.sched_reach_days}d, dormant {rf.weights.sched_dormant_days}d).")
     people = store.load_people()
+    evidence = store.load_evidence(args.today - timedelta(days=rf.weights.window_days))
     run_id = store.start_run(len(vcs)) if write else 0
     results: list[VCResult] = []
     stop = threading.Event()
@@ -326,7 +366,7 @@ def main(argv: list[str] | None = None) -> int:
         if stop.is_set():                       # credits ran out: don't make 50 more doomed calls
             raise QuotaExhausted("Exa credits are used up. Top up at dashboard.exa.ai, then re-run.")
         try:
-            return process_vc(v, search, extractor, rf, args.today, people.get(v.id, []), not args.no_people)
+            return process_vc(v, search, extractor, rf, args.today, people.get(v.id, []), not args.no_people, evidence.get(v.id, []))
         except QuotaExhausted:
             stop.set()
             raise
