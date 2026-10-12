@@ -144,7 +144,7 @@ contact" (`PIPELINE_TZ` to change it).
 
 ## Search providers and cost
 
-Search is a chain: **Tavily first, Exa as the fallback** (`SEARCH_PROVIDERS`, default `tavily,exa`; a provider
+Search is a chain: **Exa first, Tavily as the fallback** (`SEARCH_PROVIDERS: exa,tavily` in the workflow; the code default is `tavily,exa`; a provider
 without its key is skipped, and a provider that runs out of credits is retired for the rest of the run). Both are
 kept in `pipeline/search.py`. Secrets: `TAVILY_API_KEY`, `EXA_API_KEY`.
 
