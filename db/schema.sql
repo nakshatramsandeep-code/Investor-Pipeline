@@ -218,3 +218,19 @@ GRANT SELECT (vc_id, checked_at, ok, outcome) ON vc_check_log TO signal_job;
 
 GRANT SELECT, INSERT, UPDATE ON vc_fit TO signal_job;
 GRANT SELECT ON vc_fit TO dashboard_ro;
+
+-- Calendar: Vikram's own scheduled calls, meetings and reminders (optionally tied to an investor).
+CREATE TABLE IF NOT EXISTS vc_events (
+    id         serial PRIMARY KEY,
+    vc_id      integer REFERENCES vcs(id) ON DELETE CASCADE,
+    on_date    date NOT NULL,
+    kind       text NOT NULL DEFAULT 'reminder' CHECK (kind IN ('call', 'meeting', 'reminder', 'deadline', 'other')),
+    title      text NOT NULL CHECK (length(title) BETWEEN 1 AND 120),
+    note       text NOT NULL DEFAULT '',
+    done       boolean NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS vc_events_date ON vc_events (on_date);
+GRANT SELECT ON vc_events TO dashboard_ro;
+GRANT SELECT, INSERT, DELETE, UPDATE (done) ON vc_events TO dashboard_ed;
+GRANT USAGE ON SEQUENCE vc_events_id_seq TO dashboard_ed;

@@ -184,6 +184,17 @@ Contacted funds show their relationship state and next step instead of a pitch s
 **Fill in `competitors:`** with companies that compete with yours: a fund whose recent signals mention one gets a
 "possible conflict" concern. It is empty because the pipeline can't know them.
 
+## Map and Calendar
+
+- **Map** (home): the 12 highest-priority investors as blocks. Block size is fit first (points for thesis, stage, region,
+  track record) with a bonus for a fresh signal. Green = reach out now (logistics signal within 14 days), yellow = warm
+  (15-30 days), grey = no recent signal (pitch on the thesis). The right side lists today's reach-outs and follow-ups
+  with the usual one-click actions. The rest of the investors are in a collapsed list below.
+- **Calendar**: two weeks or a month. Automatic items: the day each reach-out window closes (signal date + 14 days),
+  follow-ups due (contacted + 7 days, overdue ones sit on today), revisit dates for declined investors, and the
+  Monday/Thursday search runs. Your own calls, meetings, reminders and deadlines are added with "+ Add event" (or the +
+  on a day), can be tied to an investor, marked done or deleted, and are saved in the `vc_events` table.
+
 ## What the dashboard shows
 
 The top panel shows when the last search run happened and how many investors it covered. Signal counts on cards are

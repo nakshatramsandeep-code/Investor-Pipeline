@@ -5,7 +5,7 @@ const retry = require("./_retry");
 module.exports = async function handler(req, res) {
   try {
     const sql = neon(process.env.DASHBOARD_RO_URL);
-    const [vcs, evidence, runs, people, contacts] = await retry(() => Promise.all([
+    const [vcs, evidence, runs, people, contacts, events] = await retry(() => Promise.all([
       sql`SELECT v.id, v.name, v.firm, v.status, v.next_step, v.revisit_on::text AS revisit_on, v.last_contacted_at::text AS last_contacted_at,
                  v.last_signal_date::text AS last_signal_date, v.signal_summary, v.follow_up_score, v.recommended_action,
                  v.thesis, p.geo, p.stage_focus, p.flag, p.background,
@@ -33,9 +33,10 @@ module.exports = async function handler(req, res) {
           FROM run_log WHERE kind = 'search' ORDER BY started_at DESC LIMIT 1`,
       sql`SELECT vc_id, name, role FROM vc_people ORDER BY vc_id, id`,
       sql`SELECT vc_id, name, role FROM vc_contacts ORDER BY vc_id, id`,
+      sql`SELECT id, vc_id, on_date::text AS on_date, kind, title, note, done FROM vc_events WHERE on_date >= current_date - 45 ORDER BY on_date, id`,
     ]));
     res.setHeader("Cache-Control", "no-store");
-    res.status(200).json({ vcs, evidence, run: runs[0] || null, people, contacts, now: new Date().toISOString() });
+    res.status(200).json({ vcs, evidence, run: runs[0] || null, people, contacts, events, now: new Date().toISOString() });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "could not read pipeline" });

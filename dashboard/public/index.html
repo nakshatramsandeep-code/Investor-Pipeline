@@ -204,6 +204,66 @@
   a.more:hover { text-decoration: underline; }
   .qa { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
   .tier-own_site { color: var(--green); } .tier-news { color: var(--blue); } .tier-social { color: var(--amber); }
+
+  /* ---- Map (home) and Calendar views */
+  .tabs a.cal-tab { border-color: var(--purple2); color: #fff; }
+  .legend2 { display: flex; flex-wrap: wrap; gap: 6px 20px; color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .legend2 i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 8px; vertical-align: -2px; }
+  .twocol { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  .twocol > .main { flex: 3 1 640px; min-width: 0; }
+  .twocol > aside { flex: 1 1 340px; max-width: 440px; min-width: 0; }
+  aside h2 { font: 700 20px var(--mono); margin: 0 0 12px; }
+  .tm { display: flex; flex-direction: column; gap: 6px; height: 640px; }
+  .tm-row { display: flex; gap: 6px; min-height: 0; }
+  .tm-tile { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px 16px;
+    border-radius: 14px; min-width: 0; min-height: 84px; overflow: hidden; text-decoration: none; transition: transform .12s, filter .12s; }
+  .tm-tile:hover { filter: brightness(.93); transform: translateY(-2px); }
+  .tm-tile:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .tm-tile.reach { background: #6fe39f; color: #052612; }
+  .tm-tile.warm { background: #ffc94d; color: #3d2600; }
+  .tm-tile.dorm { background: #dfe3ea; color: #1f2733; }
+  .tm-tile .tn { font-weight: 800; letter-spacing: -.02em; line-height: 1.05; overflow-wrap: anywhere; }
+  .tm-tile .tb { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 10px; width: 100%; font-size: 13px; font-weight: 600; }
+  .tm-tile .tb span { white-space: nowrap; }
+  .tm-tile .tb b { font: 700 15px var(--mono); }
+  @media (max-width: 760px) { .tm { height: auto; } .tm-row { flex: none !important; flex-direction: column; } .tm-tile { flex: none !important; } .twocol > .main { flex-basis: 100%; } }
+  .calbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 12px; }
+  .calbar h2 { margin: 0; flex: 1 1 200px; }
+  .seg2 { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .seg2 button { background: transparent; border: 0; color: var(--muted); padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+  .seg2 button.on { background: var(--purple); color: #fff; }
+  .navb { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+  .navb:hover { border-color: var(--purple2); }
+  .calwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+  .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-width: 780px; }
+  .cal .dow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .cal .cell { min-height: 126px; padding: 8px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .cal > :nth-child(7n) { border-right: 0; }
+  .cell.today { background: rgba(123,92,255,.13); }
+  .cell.out { opacity: .42; }
+  .cell .top2 { display: flex; align-items: center; justify-content: space-between; }
+  .cell .dn { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 6px; border-radius: 14px; font: 700 13px var(--mono); }
+  .cell.today .dn { background: #f3f3f7; color: #0a0a0f; }
+  .cell .addb { opacity: 0; background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; width: 24px; height: 24px; cursor: pointer; line-height: 1; }
+  .cell:hover .addb, .cell .addb:focus-visible { opacity: 1; }
+  .pill { font-size: 12.5px; font-weight: 600; line-height: 1.3; padding: 5px 8px; border-radius: 8px; display: flex; gap: 6px; align-items: flex-start; justify-content: space-between; }
+  .pill .pt { color: inherit; text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
+  .pill a.pt:hover { text-decoration: underline; }
+  .pill.p-close { background: #fde1a8; color: #5e3400; }
+  .pill.p-follow { background: #dfe7ff; color: #1b2f8f; }
+  .pill.p-follow.overdue { background: #ffd0d0; color: #7a1010; }
+  .pill.p-revisit { background: #f3d9ff; color: #4b1a6b; }
+  .pill.p-mine { background: #bff2d2; color: #0b3a1f; }
+  .pill.p-run { background: transparent; color: var(--muted); border: 1px dashed var(--line); font-weight: 500; }
+  .pill .px { display: inline-flex; gap: 2px; flex: none; }
+  .pill .px button { border: 0; background: rgba(0,0,0,.12); color: inherit; border-radius: 5px; width: 20px; height: 20px; line-height: 1; cursor: pointer; font-size: 12px; }
+  .pill .px button:hover { background: rgba(0,0,0,.28); }
+  .morebtn { background: transparent; border: 0; color: var(--muted); font: inherit; font-size: 12px; text-align: left; padding: 0 2px; cursor: pointer; text-decoration: underline; }
+  .evform { background: var(--panel); border: 1px solid var(--purple); border-radius: 16px; padding: 16px; margin-bottom: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+  .evform label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  .evform input, .evform select { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 14px; min-height: 38px; }
+  .evform .wide { grid-column: 1 / -1; }
+  .todaylist { display: grid; gap: 6px; margin: 4px 0 14px; }
 </style>
 </head>
 <body>
@@ -578,17 +638,21 @@ async function editCall(body) {
 }
 
 function tabs(active) {
-  return el("div", { class: "tabs" }, el("a", { href: "#/", class: active === "action" ? "on" : "" }, "By action"),
-    el("a", { href: "#/status", class: active === "status" ? "on" : "" }, "My pipeline"));
+  const t = [["map", "#/", "Map"], ["action", "#/action", "By action"], ["status", "#/status", "My pipeline"], ["calendar", "#/calendar", "Calendar"]];
+  return el("div", { class: "tabs" }, t.map(([k, h, l]) => el("a", { href: h, class: (active === k ? "on" : "") + (k === "calendar" ? " cal-tab" : "") }, l)));
 }
 
+const VIEW_TITLES = {
+  map: ["Opportunity map", "the best-fit investors, biggest block first. Green has a fresh signal, yellow is warm, grey is waiting for news"],
+  action: ["What to do today", "your to-do list for today: who to reach out to and who to follow up"],
+  status: ["My pipeline", "every investor and where they stand: search, filter and log any fund"],
+  calendar: ["Calendar", "reach-out windows, follow-ups, revisits and the calls and meetings you schedule"],
+};
+
 function header(data, active) {
+  const [title, sub] = VIEW_TITLES[active];
   return [el("div", { class: "brand" }, el("span", { class: "logo" }), "Investor Pipeline"),
-    el("div", { class: "top" }, el("div", {},
-      el("h1", {}, active === "action" ? "What to do today" : "My pipeline"),
-      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), active === "action"
-        ? " \u00b7 your to-do list for today: who to reach out to and who to follow up"
-        : " \u00b7 every investor and where they stand: search, filter and log any fund"))),
+    el("div", { class: "top" }, el("div", {}, el("h1", {}, title), el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), " · " + sub))),
     tabs(active)];
 }
 
@@ -988,10 +1052,205 @@ async function loadProfile(id) {
   catch (e) { console.error(e); show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"), failBox("The page hit a display error", () => loadProfile(id), e)); }
 }
 
+const viewFromHash = () => ({ "#/status": "status", "#/action": "action", "#/calendar": "calendar" })[location.hash] || "map";
+
+// ================================================================ Map (the home page)
+// The highest-priority investors as blocks: the bigger the block, the better the fit (with a bonus for a fresh signal).
+// Green = reach out now (logistics signal within 14 days), yellow = warm (15-30 days), grey = no recent signal.
+function mapWeight(v, bucket) {
+  const fit = (v.fit_points ?? 0) * 10, timing = (v.follow_up_score ?? 0) / 5;
+  return Math.max(12, Math.round(fit + timing + (bucket === "reach" ? 25 : bucket === "warm" ? 10 : 0)));
+}
+
+function alerts(data, now) {
+  const { run, vcs } = data;
+  const failed = vcs.filter((v) => v.check_ok === false && v.status === "to_contact");
+  const out = [];
+  if (failed.length) out.push(el("div", { class: "notice", style: "font-weight:600" },
+    `⚠ ${failed.length} of ${vcs.filter((v) => v.status === "to_contact").length} prospects couldn't be checked last run`,
+    el("div", { style: "font-weight:400;margin-top:4px" }, `${failed.map((v) => v.firm).join(", ")}. Their earlier results are shown and marked stale until the next run.`)));
+  if (run && run.error) out.push(el("div", { class: "notice" }, /credit|402/i.test(run.error) ? "Search credits ran out during the last run. Previous results were kept." : "The last run hit an error. Previous results were kept."));
+  const age = run && run.finished_at ? daysAgo(new Date(run.finished_at), now) : null;
+  if (age != null && age > 4) out.push(el("div", { class: "notice" }, `The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`));
+  return out;
+}
+
+function renderMap(data) {
+  const now = new Date(), g = groupVcs(data, now);
+  const pool = [...g.reach.map((v) => [v, "reach"]), ...g.warm.map((v) => [v, "warm"]), ...g.pitch.map((v) => [v, "pitch"]),
+    ...g.park.map((v) => [v, "park"]), ...g.dormant.map((v) => [v, "dormant"])]
+    .map(([v, b]) => ({ v, b, w: mapWeight(v, b) })).sort((a, b) => b.w - a.w || a.v.firm.localeCompare(b.v.firm));
+  const top = pool.slice(0, 12), rest = pool.slice(12);
+  const newestLogi = (v) => Math.min(...data.evidence.filter((e) => e.vc_id === v.id && e.relevance === "logistics" && e.source_tier !== "legacy_unverified").map((e) => daysAgo(e.published_date, now)));
+  const tile = ({ v, b, w }) => {
+    const cls = b === "reach" ? "reach" : b === "warm" ? "warm" : "dorm";
+    const meta = b === "reach" || b === "warm" ? `${newestLogi(v)}d ago` : b === "pitch" ? "Pitch" : b === "park" ? "Parked" : "Dormant";
+    const fs = Math.max(17, Math.min(44, Math.round(w / 3.4)));
+    const fit = v.fit_level && FIT[v.fit_level] ? FIT[v.fit_level][0] : "Not rated";
+    return el("a", { class: `tm-tile ${cls}`, href: `#/vc/${v.id}`, style: `flex:${w} 1 0px`,
+        title: [fit, v.follow_up_score ? `Timing ${v.follow_up_score}` : "No signal", ...(v.fit_good || []), ...(v.fit_concerns || []).map((c) => "⚠ " + c)].join(" · ") },
+      el("span", { class: "tn", style: `font-size:${fs}px` }, v.firm),
+      el("span", { class: "tb" }, el("span", {}, el("b", {}, fit), v.follow_up_score ? ` · ${v.follow_up_score}` : ""), el("span", {}, meta)));
+  };
+  const sizes = [3, 4, 5]; let at = 0;
+  const rows = sizes.map((n) => top.slice(at, (at += n))).filter((r) => r.length);
+  const treemap = el("div", { class: "tm", role: "list", "aria-label": "Investors by fit" }, rows.map((r) =>
+    el("div", { class: "tm-row", style: `flex:${r.reduce((s, t) => s + t.w, 0)} 1 0px` }, r.map(tile))));
+
+  const reachCards = g.reach.slice(0, 3).map((v) => card(v, data.evidence, now, "reach"));
+  const nudgeCards = g.nudge.slice(0, 2).map((v) => card(v, data.evidence, now, "nudge"));
+  const waiting = g.waiting.map((v) => v.firm);
+  const run = data.run, when = run && run.finished_at ? daysAgo(new Date(run.finished_at), now) : null;
+  const unscored = data.vcs.filter((v) => !v.recommended_action).length;
+
+  show(...header(data, "map"), ...alerts(data, now),
+    el("div", { class: "legend2" },
+      el("span", {}, el("i", { style: "background:#6fe39f" }), `Reach out · signal within ${MAX_SIGNAL_AGE} days (${g.reach.length})`),
+      el("span", {}, el("i", { style: "background:#ffc94d" }), `Warm · ${MAX_SIGNAL_AGE + 1}–30 days (${g.warm.length})`),
+      el("span", {}, el("i", { style: "background:#dfe3ea" }), `No recent signal · pitch on thesis (${g.pitch.length + g.park.length + g.dormant.length})`),
+      el("span", {}, run ? `Last search ${when === 0 ? "today" : when + "d ago"}` : "No search yet")),
+    el("div", { class: "twocol" },
+      el("section", { class: "main", "aria-label": "Opportunity map" }, top.length ? treemap : el("div", { class: "empty" }, "No investors to show yet.")),
+      el("aside", { "aria-label": "Today" },
+        el("h2", {}, "Reach out today"),
+        reachCards.length ? reachCards : el("div", { class: "empty" }, "No prospect has a fresh logistics signal. Don't force it."),
+        nudgeCards.length ? [el("h2", { style: "margin-top:18px" }, "Follow up due"), nudgeCards] : null,
+        waiting.length ? el("p", { class: "sub", style: "margin-top:14px" }, `Waiting on replies: ${waiting.join(", ")}.`) : null,
+        el("p", { class: "sub", style: "margin-top:10px" }, el("a", { href: "#/calendar", style: "color:var(--purple2)" }, "Open the calendar →")))),
+    rest.length ? el("div", { style: "margin-top:22px" }, listSection("More investors", "ranked by fit, then timing", rest.map((r) => r.v),
+      (v) => [FIT[v.fit_level] && FIT[v.fit_level][0], BUCKET[bucketOf(v, now, hotSet(data.evidence, now))][0]].filter(Boolean).join(" · "))) : null,
+    unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
+}
+
+// ================================================================ Calendar
+// Your schedule in one place: reach-out windows closing, follow-ups due, revisit dates, search runs, and the calls,
+// meetings and reminders you add yourself. Automatic items come from the data; yours are saved in the database.
+const KIND_LBL = { call: "Call", meeting: "Meeting", reminder: "Reminder", deadline: "Deadline", other: "Other" };
+const calState = { mode: "2w", off: 0, formDate: null };
+const isoLocal = (d) => d.toLocaleDateString("en-CA");
+const addIso = (s, n) => { const [y, m, d] = s.split("-").map(Number); return isoLocal(new Date(y, m - 1, d + n)); };
+const mondayOf = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+
+function calendarEvents(data, now) {
+  const by = new Map(), put = (d, e) => { if (!by.has(d)) by.set(d, []); by.get(d).push(e); };
+  const today = isoLocal(now), hot = hotSet(data.evidence, now), firmOf = new Map(data.vcs.map((v) => [v.id, v.firm]));
+  for (const v of data.vcs) {
+    const b = bucketOf(v, now, hot);
+    if (b === "reach") {
+      const dates = data.evidence.filter((e) => e.vc_id === v.id && e.relevance === "logistics" && e.source_tier !== "legacy_unverified").map((e) => e.published_date);
+      if (dates.length) { const closes = addIso(dates.sort().pop(), MAX_SIGNAL_AGE); if (closes >= today) put(closes, { kind: "close", text: `Window closes: ${v.firm}`, vc: v.id }); }
+    } else if (b === "nudge") put(today, { kind: "follow", text: `Follow up overdue: ${v.firm}`, vc: v.id, overdue: true });
+    else if (b === "waiting" && v.last_contacted_at) put(addIso(v.last_contacted_at, NUDGE_DAYS), { kind: "follow", text: `Follow up: ${v.firm}`, vc: v.id });
+    if (v.status === "declined" && v.revisit_on) put(v.revisit_on, { kind: "revisit", text: `Revisit: ${v.firm}`, vc: v.id });
+  }
+  for (const e of data.events || []) put(e.on_date, { kind: "mine", sub: e.kind, manual: true, id: e.id, done: e.done, vc: e.vc_id,
+    text: e.title + (e.vc_id && firmOf.has(e.vc_id) ? ` · ${firmOf.get(e.vc_id)}` : ""), note: e.note });
+  return by;
+}
+
+function pill(e, reload) {
+  const label = e.manual ? `${KIND_LBL[e.sub] || "Event"}: ${e.text}` : e.text;
+  const main = e.vc ? el("a", { class: "pt", href: `#/vc/${e.vc}`, title: e.note || label }, label) : el("span", { class: "pt", title: e.note || label }, label);
+  if (e.done) main.style.textDecoration = "line-through";
+  const kids = [main];
+  if (e.manual) {
+    const ok = el("button", { title: e.done ? "Mark not done" : "Mark done", "aria-label": "Toggle done" }, "✓");
+    ok.onclick = async () => { if (await editCall({ action: "toggle_event", event_id: e.id, done: !e.done })) reload(); };
+    const del = el("button", { title: "Delete this event", "aria-label": "Delete event" }, "×");
+    del.onclick = async () => { if (confirm("Delete this event?") && await editCall({ action: "delete_event", event_id: e.id })) { toast("Event deleted"); reload(); } };
+    kids.push(el("span", { class: "px" }, ok, del));
+  }
+  return el("div", { class: `pill p-${e.kind}${e.overdue ? " overdue" : ""}` }, kids);
+}
+
+function renderCalendar(data) {
+  const now = new Date(), todayIso = isoLocal(now), by = calendarEvents(data, now), g = groupVcs(data, now);
+  const reload = () => load(undefined, true);
+  const draw = () => renderCalendar(data);
+
+  // The visible range: two weeks from this week, or the whole month.
+  let start, days, label, monthOf = null;
+  if (calState.mode === "2w") {
+    start = mondayOf(now); start.setDate(start.getDate() + calState.off * 14); days = 14;
+    const end = new Date(start); end.setDate(end.getDate() + 13);
+    label = `${start.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+  } else {
+    const first = new Date(now.getFullYear(), now.getMonth() + calState.off, 1);
+    monthOf = first.getMonth(); start = mondayOf(first);
+    const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+    days = Math.ceil((((last - start) / 864e5) + 1) / 7) * 7;
+    label = first.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  }
+
+  const cells = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const iso = isoLocal(d), evs = [...(by.get(iso) || [])];
+    if ([1, 4].includes(d.getDay())) evs.push({ kind: "run", text: "Search run · 7:00" });
+    const isToday = iso === todayIso, out = monthOf != null && d.getMonth() !== monthOf;
+    const add = el("button", { class: "addb", title: `Add an event on ${fmtDate(iso)}`, "aria-label": `Add an event on ${iso}` }, "+");
+    add.onclick = () => { calState.formDate = iso; draw(); };
+    const shown = evs.slice(0, 3), hidden = evs.slice(3);
+    const more = hidden.length ? el("button", { class: "morebtn" }, `+${hidden.length} more`) : null;
+    const extra = el("div", { style: "display:none;flex-direction:column;gap:5px" }, hidden.map((e) => pill(e, reload)));
+    if (more) more.onclick = () => { const open = extra.style.display === "none"; extra.style.display = open ? "flex" : "none"; more.textContent = open ? "Show less" : `+${hidden.length} more`; };
+    cells.push(el("div", { class: `cell${isToday ? " today" : ""}${out ? " out" : ""}` },
+      el("div", { class: "top2" }, el("span", { class: "dn" }, d.getDate() === 1 || i === 0 ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : String(d.getDate())), add),
+      shown.map((e) => pill(e, reload)), extra, more));
+  }
+
+  const step = (n) => { calState.off += n; draw(); };
+  const mk = (t, f, c) => { const b = el("button", { class: c || "navb" }, t); b.onclick = f; return b; };
+  const seg = el("div", { class: "seg2" }, ["2w", "month"].map((m) => { const b = el("button", { class: calState.mode === m ? "on" : "" }, m === "2w" ? "2 weeks" : "Month"); b.onclick = () => { calState.mode = m; calState.off = 0; draw(); }; return b; }));
+  const bar = el("div", { class: "calbar" }, el("h2", {}, label), seg,
+    mk("←", () => step(-1)), mk("Today", () => { calState.off = 0; draw(); }), mk("→", () => step(1)),
+    mk("+ Add event", () => { calState.formDate = todayIso; draw(); }, "navb"));
+
+  // Add-event form
+  let form = null;
+  if (calState.formDate) {
+    const title = el("input", { placeholder: "e.g. Intro call with Dynamo", maxlength: "120", required: "required" });
+    const date = el("input", { type: "date" }); date.value = calState.formDate;
+    const kind = el("select", {}, Object.entries(KIND_LBL).map(([k, t]) => el("option", { value: k }, t)));
+    const inv = el("select", {}, [el("option", { value: "" }, "No investor")].concat([...data.vcs].sort((a, b) => a.firm.localeCompare(b.firm)).map((v) => el("option", { value: String(v.id) }, v.firm))));
+    const note = el("input", { placeholder: "Optional note", maxlength: "500" });
+    const save = el("button", { class: "primary" }, "Save event"), cancel = el("button", {}, "Cancel");
+    cancel.onclick = () => { calState.formDate = null; draw(); };
+    save.onclick = async () => {
+      if (!title.value.trim() || !date.value) { title.focus(); return; }
+      save.disabled = true; save.textContent = "Saving…";
+      const res = await editCall({ action: "add_event", title: title.value, on_date: date.value, kind: kind.value, vc_id: inv.value ? Number(inv.value) : null, note: note.value });
+      if (res) { calState.formDate = null; toast(`Added: ${title.value.trim()}`); reload(); } else { save.disabled = false; save.textContent = "Save event"; }
+    };
+    form = el("div", { class: "evform" },
+      el("label", {}, "What", title), el("label", {}, "Date", date), el("label", {}, "Type", kind), el("label", {}, "Investor", inv),
+      el("label", { class: "wide" }, "Note", note), el("div", { class: "wide chips" }, save, cancel));
+  }
+
+  // Today panel
+  const todays = (by.get(todayIso) || []);
+  const reachCards = g.reach.slice(0, 3).map((v) => card(v, data.evidence, now, "reach"));
+  const warn = g.warm.length;
+  const side = el("aside", { "aria-label": "Today" },
+    el("h2", {}, `Today · ${now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`),
+    todays.length ? el("div", { class: "todaylist" }, todays.map((e) => pill(e, reload))) : el("p", { class: "sub", style: "margin:0 0 12px" }, "Nothing scheduled today."),
+    reachCards.length ? [el("h2", { style: "font-size:16px" }, "Reach out"), reachCards] : null,
+    warn ? el("p", { class: "sub" }, `${warn} warm investor${warn > 1 ? "s have" : " has"} no deadline. `, el("a", { href: "#/action", style: "color:var(--purple2)" }, "See warm →")) : null);
+
+  show(...header(data, "calendar"), ...alerts(data, now),
+    el("div", { class: "twocol" }, side,
+      el("section", { class: "main", style: "flex:3 1 680px", "aria-label": "Calendar" }, bar, form,
+        el("div", { class: "legend2" },
+          el("span", {}, el("i", { style: "background:#fde1a8" }), "Window closes"), el("span", {}, el("i", { style: "background:#dfe7ff" }), "Follow up due"),
+          el("span", {}, el("i", { style: "background:#ffd0d0" }), "Overdue"), el("span", {}, el("i", { style: "background:#f3d9ff" }), "Revisit"),
+          el("span", {}, el("i", { style: "background:#bff2d2" }), "Your events"), el("span", {}, "Dashed = search run")),
+        el("div", { class: "calwrap" }, el("div", { class: "cal" }, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => el("div", { class: "dow" }, d)), cells)))));
+}
+
 function route() {
   const m = location.hash.match(/^#\/vc\/(\d+)$/);
   if (m) return loadProfile(Number(m[1]));
-  return load(location.hash === "#/status" ? "status" : "action");
+  return load(viewFromHash());
 }
 
 // The database sleeps when idle and takes a few seconds to wake, so the first request after a quiet spell can
@@ -1017,13 +1276,13 @@ const failBox = (title, retry, e) => el("div", { class: "insight bad" }, el("h3"
   el("button", { class: "primary", onclick: retry }, "Retry"));
 
 async function load(view, quiet) {
-  view = view || (location.hash === "#/status" ? "status" : "action");
+  view = view || viewFromHash();
   if (!quiet) show(...skeleton());
   let data;
   try { data = await fetchJson("/api/pipeline"); }
   catch (e) { show(failBox("Could not load the pipeline", () => load(view), e)); return; }
   window.__people = buildPeopleIndex(data);
-  try { view === "status" ? renderStatus(data) : render(data); }
+  try { ({ status: renderStatus, action: render, calendar: renderCalendar, map: renderMap }[view] || renderMap)(data); }
   catch (e) { console.error(e); show(failBox("The page hit a display error", () => load(view), e)); }
 }
 window.addEventListener("hashchange", route);

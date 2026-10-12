@@ -9,6 +9,7 @@ const { neon } = require("@neondatabase/serverless");
 const STATUSES = ["to_contact", "waiting", "in_conversation", "approved", "closed", "declined"];
 const KINDS = ["reached_out", "follow_up", "replied", "call", "meeting", "approved", "closed", "declined", "note"];
 const CHANNELS = ["", "email", "linkedin", "warm_intro", "phone", "event", "other"];
+const EVENT_KINDS = ["call", "meeting", "reminder", "deadline", "other"];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const utcDay = () => new Date().toISOString().slice(0, 10);
 const okDay = (d) => DATE.test(d) && d <= new Date(Date.now() + 864e5 * 1.5).toISOString().slice(0, 10);   // allow any timezone's "today"
@@ -19,9 +20,33 @@ module.exports = async function handler(req, res) {
   if (!process.env.DASHBOARD_ED_URL) return res.status(403).json({ error: "editing is not enabled" });
 
   const b = req.body || {};
+  const sql = neon(process.env.DASHBOARD_ED_URL);
+
+  // Calendar events: a call, meeting or reminder, optionally tied to an investor.
+  if (["add_event", "delete_event", "toggle_event"].includes(b.action)) {
+    try {
+      if (b.action === "add_event") {
+        const title = String(b.title || "").trim().slice(0, 120);
+        const vc = b.vc_id == null || b.vc_id === "" ? null : b.vc_id;
+        if (!title) return res.status(400).json({ error: "title required" });
+        if (!DATE.test(b.on_date || "")) return res.status(400).json({ error: "bad date" });
+        if (!EVENT_KINDS.includes(b.kind)) return res.status(400).json({ error: "unknown kind" });
+        if (vc !== null && (!Number.isInteger(vc) || vc <= 0)) return res.status(400).json({ error: "bad investor" });
+        const r = await sql`INSERT INTO vc_events (vc_id, on_date, kind, title, note) VALUES (${vc}, ${b.on_date}::date, ${b.kind}, ${title}, ${String(b.note || "").slice(0, 500)}) RETURNING id`;
+        return res.status(201).json({ ok: true, id: r[0].id });
+      }
+      if (!Number.isInteger(b.event_id)) return res.status(400).json({ error: "event_id required" });
+      if (b.action === "delete_event") await sql`DELETE FROM vc_events WHERE id = ${b.event_id}`;
+      else await sql`UPDATE vc_events SET done = ${b.done === true} WHERE id = ${b.event_id}`;
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ error: "could not save" });
+    }
+  }
+
   const id = b.vc_id;
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "vc_id required" });
-  const sql = neon(process.env.DASHBOARD_ED_URL);
   const today = b.today || b.occurred_on || utcDay();
   if (!okDay(today)) return res.status(400).json({ error: "bad date" });
 
