@@ -447,6 +447,26 @@
   .qpill.on:hover { background: #262c38; color: #fff; }
   .qact { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
   button.big { padding: 12px 24px; font-size: 15px; border-radius: 999px; font-family: "Geist", system-ui, sans-serif; }
+
+  /* investor profile, queue-and-detail style */
+  .prof { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+  @media (max-width: 980px) { .prof { grid-template-columns: 1fr; } }
+  .prof-main, .prof-side { display: grid; gap: 16px; min-width: 0; }
+  .pcard { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px 28px; }
+  .phrow { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .qhead2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+  .prof .panel { border-radius: 18px; padding: 20px 22px; }
+  .prof .panel h3 { font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+  .prof .ph, .prof .pgrid { display: block; }
+  .qlink { color: inherit; text-decoration: none; }
+  .qlink:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .qrow { cursor: pointer; }
+  .qkv { display: grid; grid-template-columns: 120px 1fr; gap: 8px 14px; margin: 0; font-size: 14px; }
+  .qkv dt { color: var(--muted); } .qkv dd { margin: 0; }
+  .qfit { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13.5px; }
+  .qfit .ok { color: #0b5d33; } .qfit .bad { color: #8a5a00; }
+  .qmore { padding: 10px 0; border-top: 1px solid #eceef2; font-size: 14px; }
+  .qmore:first-of-type { border-top: 0; padding-top: 0; }
 </style>
 </head>
 <body>
@@ -890,10 +910,11 @@ function render(data) {
     const days = isSig && best ? daysAgo(best.published_date, now) : null, cool = key === "reach" ? coolsIn(v, ev, now) : null;
     const right = isSig ? (days == null ? "" : `${days}d`) : key === "pitch" ? (contact ? contact.name : "") : key === "nudge" ? `${waitDays(v, now) ?? "?"}d` : "";
     const sub = isSig && best ? best.summary : key === "pitch" || key === "find" ? v.thesis : key === "nudge" ? "No reply yet" : "";
-    const b = el("button", { class: "qrow" + (sel && sel.v.id === v.id ? " sel" : ""), "aria-current": sel && sel.v.id === v.id ? "true" : "false" },
-      el("div", { class: "qr1" }, el("b", {}, v.firm), key === "pitch" || key === "find" ? null : fitChip(v), el("span", { class: "qage" + (cool != null && cool <= 3 ? " hot" : "") }, right)),
+    const b = el("div", { class: "qrow" + (sel && sel.v.id === v.id ? " sel" : ""), role: "button", tabindex: "0", "aria-current": sel && sel.v.id === v.id ? "true" : "false" },
+      el("div", { class: "qr1" }, el("b", {}, el("a", { class: "qlink", href: `#/vc/${v.id}`, title: "Open the full profile" }, v.firm)), key === "pitch" || key === "find" ? null : fitChip(v), el("span", { class: "qage" + (cool != null && cool <= 3 ? " hot" : "") }, right)),
       sub ? el("div", { class: "qsub" }, sub) : null);
-    b.onclick = () => pick(x);
+    b.onclick = (e) => { if (!e.target.closest("a")) pick(x); };
+    b.onkeydown = (e) => { if ((e.key === "Enter" || e.key === " ") && !e.target.closest("a")) { e.preventDefault(); pick(x); } };
     return b;
   };
   const group = (sec) => el("div", { class: "qgroup" },
@@ -932,6 +953,10 @@ function render(data) {
       : key === "waiting" ? `Contacted ${d}d ago. Follow up on ${due}.`
       : key === "talks" ? `In talks${d == null ? "" : `. Last contact ${d} days ago`}.` : "Committed to invest.";
 
+    const glance = [["Thesis", v.thesis || "\u2014"], ["Stage focus", v.stage_focus || "\u2014"], ["Region", v.geo || "\u2014"],
+      ["Last contacted", v.last_contacted_at ? `${fmtDate(v.last_contacted_at)} (${daysAgo(v.last_contacted_at, now)}d ago)` : "Not yet"],
+      ["Last searched", v.last_searched_at ? fmtDate(v.last_searched_at) : "Never"]];
+    const more = signalsOf(v, ev).all.filter((e) => e.relevance === "logistics" && !(isSig && best && e.id === best.id)).slice(0, isSig ? 2 : 3);
     const evid = [];
     if (isSig && best) {
       const up = el("button", {}, "Useful"), down = el("button", {}, "Not useful"), bs = [[up, true], [down, false]];
@@ -966,13 +991,21 @@ function render(data) {
 
     right = el("div", { class: "qd-right" },
       el("div", { class: "qtop" }, el("div", { class: "qeye" }, `${QD_LABEL[key]} · ${i + 1} of ${n}`), n > 1 ? el("div", { class: "qnavs" }, mkNav("‹", -1, "Previous"), mkNav("›", 1, "Next")) : null),
-      el("div", { class: "qhead" }, el("h2", { class: "qname" }, v.firm), fitChip(v),
+      el("div", { class: "qhead" }, el("h2", { class: "qname" }, el("a", { class: "qlink", href: `#/vc/${v.id}`, title: "Open the full profile" }, v.firm)), fitChip(v),
         cool != null && cool <= 3 ? el("span", { class: "chip c-amber" }, cool <= 0 ? "Closes today" : `Cools in ${plural(cool, "day")}`) : null,
         el("span", { class: "qsub" }, [v.geo, v.stage_focus].filter(Boolean).join(" · "))),
       el("div", { class: "qsec" }, el("div", { class: "qeye" }, isSig || isProspect ? "Why now" : "Where it stands"), el("p", { class: "qwhy" }, whyText),
         fitReason(v) ? el("p", { class: "qsub", style: "margin:6px 0 0" }, `Fit: ${fitReason(v)}`) : null,
         v.next_step ? el("p", { class: "qsub", style: "margin:6px 0 0" }, `Next step: ${v.next_step}`) : null, evid),
       el("div", { class: "qsec" }, el("div", { class: "qeye" }, "Who to contact"), who),
+      el("div", { class: "qsec" }, el("div", { class: "qeye" }, "At a glance"),
+        el("dl", { class: "qkv" }, glance.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
+        (v.fit_good || []).length || (v.fit_concerns || []).length
+          ? el("ul", { class: "qfit" }, [...(v.fit_good || []).map((t) => el("li", { class: "ok" }, "\u2713 " + t)), ...(v.fit_concerns || []).map((t) => el("li", { class: "bad" }, "\u26a0 " + t))]) : null),
+      more.length ? el("div", { class: "qsec" }, el("div", { class: "qeye" }, "More signals"), more.map((e) => {
+        const href = safeUrl(e.url);
+        return el("div", { class: "qmore" }, el("div", {}, e.summary), el("div", { class: "qsub", style: "-webkit-line-clamp:unset" }, `${daysAgo(e.published_date, now)} days ago \u00b7 `, href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, e.source_domain || "source") : (e.source_domain || "")));
+      })) : null,
       el("div", { class: "qsec" }, actions));
   }
 
@@ -1088,7 +1121,6 @@ function statusBlock(v, now, bucket, score) {
   if (text) return el("div", { class: "statusblock" }, el("div", { class: "big" }, text[0]), el("div", { class: "sub2" }, text[1]));
   if (bucket === "skip") return el("div", { class: "statusblock" }, el("div", { class: "big" }, "Not a fit"), el("div", { class: "sub2" }, (v.signal_summary || "").replace("Skipped: ", "")));
   return el("div", { class: "statusblock", style: "min-width:200px" },
-    el("div", { class: "chips", style: "margin-bottom:8px" }, fitChip(v) || el("span", { class: "chip" }, "Fit not rated yet")),
     !score ? el("div", { class: "big", style: "font-size:24px" }, "No signal yet") : el("div", { class: "big", style: `font-size:44px;color:${scoreColor(score)}` }, String(score)),
     el("div", { class: "pl" }, el("span", {}, "Timing score"), el("span", {}, score ? `${score} / 100` : "none in the last 30 days")),
     el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })),
@@ -1300,32 +1332,42 @@ function signalRow(e) {
     href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
 }
 
+const BUCKET_EYE = { reach: "Reach out now", warm: "Warm", pitch: "Pitch on thesis", park: "Parked", dormant: "Dormant", nudge: "Follow up due",
+  waiting: "Waiting on a reply", talks: "In talks", approved: "Approved", declined: "Declined", skip: "Not a fit" };
+
 function renderProfile(d) {
   const v = d.vc, now = new Date(), score = v.follow_up_score ?? 0;
   const bucket = bucketOf(v, now, hotSet(d.evidence, now));
   const unverified = d.evidence.filter((e) => e.source_tier === "legacy_unverified").length;
-  const logi = d.evidence.filter((e) => e.relevance === "logistics"), other = d.evidence.filter((e) => e.relevance !== "logistics");
+  const logi = d.evidence.filter((e) => e.relevance === "logistics");
+  const cool = bucket === "reach" ? coolsIn(v, d.evidence, now) : null;
+  const lines = (v.signal_summary || "").split(" | ").filter(Boolean);
+  const lastCheck = (d.checks || []).find((c) => c.ok && ["signal", "no_signal", "rescored"].includes(c.outcome));
+  const meta = [v.geo, v.stage_focus, lastCheck ? `Last searched ${fmtDate(lastCheck.checked_at)}` : null].filter(Boolean).join(" \u00b7 ");
+
+  const head = el("div", { class: "pcard" },
+    el("div", { class: "qtop" }, el("div", { class: "qeye" }, BUCKET_EYE[bucket] || "Investor"), el("a", { class: "back", style: "margin:0", href: "#/action" }, "\u2190 Back to today\u2019s queue")),
+    el("div", { class: "phrow" },
+      el("div", { class: "namerow", style: "margin:0" }, logoFor(v), el("div", {},
+        el("h1", { class: "qname" }, v.firm),
+        el("div", { class: "qhead2" }, fitChip(v), cool != null && cool <= 3 ? el("span", { class: "chip c-amber" }, cool <= 0 ? "Closes today" : `Cools in ${plural(cool, "day")}`) : null,
+          el("span", { class: "qsub", style: "margin:0" }, meta)))),
+      statusBlock(v, now, bucket, score)),
+    el("div", { class: "qsec", style: "margin-top:20px;border-bottom:0;padding-bottom:0" }, el("div", { class: "qeye" }, "Why now"),
+      lines.length > 1 ? el("ul", { class: "bullets", style: "margin:0;color:var(--text);font-size:16px;max-width:none" }, lines.map((t) => el("li", {}, t)))
+        : el("p", { class: "qwhy", style: "font-size:19px" }, lines[0] || "Not scored yet."),
+      fitReason(v) ? el("p", { class: "qsub", style: "margin:8px 0 0" }, `Fit: ${fitReason(v)}`) : null));
+
+  const signals = el("div", { class: "pcard" }, el("div", { class: "qeye", style: "margin-bottom:12px" }, `Logistics signals (${logi.length}) \u00b7 newest first`),
+    unverified ? el("p", { class: "note", style: "margin:-4px 0 8px" }, `${unverified} signal${unverified > 1 ? "s" : ""} below ${unverified > 1 ? "come" : "comes"} from a source that was not verified, so ${unverified > 1 ? "they are" : "it is"} shown for reference only and not counted in the score.`) : null,
+    logi.length ? logi.map(signalRow) : el("div", { class: "empty" }, "No logistics signal from a trusted source in the last 30 days."));
+
   show(
     topbar("", null),
-    el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
-    el("div", { class: "ph" },
-      el("div", {}, el("div", { class: "namerow" }, logoFor(v), el("h1", {}, v.firm)),
-        el("div", { class: "chips" }, btag(bucket),
-          el("span", { class: "chip" }, v.geo), el("span", { class: "chip" }, v.stage_focus)),
-        (v.signal_summary || "Not scored yet.").split(" | ").length > 1
-          ? el("ul", { class: "bullets" }, v.signal_summary.split(" | ").map((t) => el("li", {}, t)))
-          : el("p", { class: "sub", style: "margin-top:10px;max-width:640px" }, v.signal_summary || "Not scored yet.")),
-      statusBlock(v, now, bucket, score)),
-    fitNote(v, bucket),
-    bucket === "declined" ? declinedPanel(d) : null,
-    el("div", { class: "pgrid" },
-      whoPanel(d), logPanel(v),
-      el("div", { class: "panel wide" }, el("h3", {}, `Logistics signals (${logi.length})`),
-        unverified ? el("p", { class: "note", style: "margin:-6px 0 8px" }, `${unverified} signal${unverified > 1 ? "s" : ""} below ${unverified > 1 ? "come" : "comes"} from a source that was not verified, so ${unverified > 1 ? "they are" : "it is"} shown for reference only and not counted in the score.`) : null,
-        logi.length ? logi.map(signalRow) : el("div", { class: "empty" }, "No logistics signal from a trusted source in the last 30 days."),
-        null),
-      privatePanel(d), nextStepPanel(v), fitPanel(v),
-      el("details", { class: "wide", style: "grid-column:1/-1" }, el("summary", { style: "cursor:pointer;font-weight:600;color:var(--muted);padding:6px 0" }, "Details \u00b7 search history and rejected sources"), checksPanel(d.checks))));
+    el("div", { class: "prof" },
+      el("div", { class: "prof-main" }, head, fitNote(v, bucket), bucket === "declined" ? declinedPanel(d) : null, signals, logPanel(v)),
+      el("div", { class: "prof-side" }, whoPanel(d), fitPanel(v), nextStepPanel(v), privatePanel(d))),
+    el("details", { style: "margin-top:18px" }, el("summary", { style: "cursor:pointer;font-weight:600;color:var(--muted);padding:6px 0" }, "Details \u00b7 search history and rejected sources"), checksPanel(d.checks)));
   window.scrollTo(0, 0);
 }
 
