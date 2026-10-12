@@ -141,3 +141,11 @@ Each entry in an investor's history has a delete button (last contacted is recal
 Dates are your local calendar days. The browser sends its own "today" with every save, so a save at 1 a.m. IST is
 dated today (the server runs on UTC and would say yesterday). The scheduled run also uses IST for "days since
 contact" (`PIPELINE_TZ` to change it).
+
+## If a run fails with "Exa credits are used up"
+
+Exa answers HTTP 402 when the account is out of credits. The run stops at once (exit code 2) instead of failing
+every investor one by one, writes the reason to the run log (the dashboard shows it), and keeps every investor's
+previous results. Top up at dashboard.exa.ai, then re-run the workflow from the Actions tab. To keep a run
+affordable, partner activity is checked for up to 3 people at firms with a logistics signal or already in your
+pipeline, and for just the most senior person at everyone else.

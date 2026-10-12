@@ -402,7 +402,7 @@ function hero(data, now, g, focus) {
   const notices = [];
   const failedNote = failed.length ? el("details", { class: "notice" }, el("summary", {}, `${failed.length} prospect${failed.length > 1 ? "s" : ""} couldn't be checked last run`),
     el("p", {}, `${failed.map((v) => v.firm).join(", ")}. Their earlier results are shown and marked stale until the next run.`)) : null;
-  if (run && run.error) notices.push("The last run hit an error. Previous results were kept.");
+  if (run && run.error) notices.push(/credit/i.test(run.error) ? "Search credits ran out during the last run. Top up Exa, then re-run it from GitHub Actions. Previous results were kept." : "The last run hit an error. Previous results were kept.");
   if (age != null && age > 4) notices.push(`The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`);
 
   let insight;

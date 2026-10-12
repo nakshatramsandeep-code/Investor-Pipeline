@@ -16,6 +16,18 @@ class SearchError(RuntimeError):
     pass
 
 
+class QuotaExhausted(Exception):
+    """Exa has no credits left (HTTP 402). Deliberately NOT a SearchError: retrying other investors would just
+    fail the same way, so this stops the whole run with one clear message."""
+
+
+def _translate(e: "net.HttpError") -> Exception:
+    text = str(e)
+    if "402" in text or "NO_MORE_CREDITS" in text or "credits limit" in text:
+        return QuotaExhausted("Exa credits are used up. Top up at dashboard.exa.ai, then re-run.")
+    return SearchError(text)
+
+
 def build_query(vc: VC, keywords: list[str]) -> str:
     firm = firm_aliases(vc.firm)[0]
     parts = [f'"{firm}"']
@@ -78,7 +90,7 @@ class ExaSearch:
             try:
                 data = net.post_json(EXA_URL, {"x-api-key": self.api_key}, body)
             except net.HttpError as e:
-                raise SearchError(str(e)) from e
+                raise _translate(e) from e
             for r in data.get("results", []):
                 url = r.get("url")
                 if not url or url in seen:
@@ -102,6 +114,6 @@ class ExaSearch:
         try:
             data = net.post_json(EXA_URL, {"x-api-key": self.api_key}, body)
         except net.HttpError as e:
-            raise SearchError(str(e)) from e
+            raise _translate(e) from e
         return [Page(url=r["url"], title=r.get("title") or "", published=_parse_date(r.get("publishedDate")),
                      text=r.get("text") or "") for r in data.get("results", []) if r.get("url")]

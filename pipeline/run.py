@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import threading
 import json
 import os
 import re
@@ -21,7 +22,7 @@ from .config import RunFiles, load_run_files
 from .extract import ExtractError, GeminiExtract
 from .models import VC, Page, Person, Signal, VCResult, effective_status
 from .score import ACTION_ORDER, decide, fit_gate
-from .search import ExaSearch, SearchError
+from .search import ExaSearch, QuotaExhausted, SearchError
 from .store import CsvStore, PgStore
 from .sources import classify, guess_website
 from .validate import norm_url, validate_people, validate_signals
@@ -30,7 +31,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 PEOPLE_REFRESH_DAYS = 45     # re-discover a firm's partners this often
-PEOPLE_CHECKED = 3           # check this many people per firm each run (Vikram's own contacts first)
+PEOPLE_CHECKED = 3           # people checked per run for firms that matter: a logistics signal, or already in your pipeline
+PEOPLE_CHECKED_QUIET = 1     # ...and for everyone else, just the most senior person (keeps a run affordable)
 
 
 def _needs_discovery(known: list[Person], today: date) -> bool:
@@ -144,6 +146,8 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
 
     if check_people:
         known = list(known_people or [])
+        matters = any(s.relevance == "logistics" for s in signals) or vc.status != "to_contact" or any(p.manual for p in known)
+        people_limit = PEOPLE_CHECKED if matters else PEOPLE_CHECKED_QUIET
         if _needs_discovery(known, today):
             try:
                 found = _discover_people(vc, search, extractor, rf)
@@ -153,7 +157,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
         everyone = sorted([p for p in known if p.manual], key=lambda p: p.name) +             [p for p in (found + [k for k in known if not k.manual]) if p.name.lower() not in manual]
         seen: set[str] = set()
         for person in everyone:
-            if person.name.lower() in seen or len(seen) >= PEOPLE_CHECKED:
+            if person.name.lower() in seen or len(seen) >= people_limit:
                 continue
             seen.add(person.name.lower())
             pvc = replace(vc, name=person.name)
@@ -278,12 +282,29 @@ def main(argv: list[str] | None = None) -> int:
     people = store.load_people()
     run_id = store.start_run(len(vcs)) if write else 0
     results: list[VCResult] = []
+    stop = threading.Event()
+
+    def work(v):
+        if stop.is_set():                       # credits ran out: don't make 50 more doomed calls
+            raise QuotaExhausted("Exa credits are used up. Top up at dashboard.exa.ai, then re-run.")
+        try:
+            return process_vc(v, search, extractor, rf, args.today, people.get(v.id, []), not args.no_people)
+        except QuotaExhausted:
+            stop.set()
+            raise
+
     try:
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            for r in pool.map(lambda v: process_vc(v, search, extractor, rf, args.today, people.get(v.id, []), not args.no_people), vcs):
+            for r in pool.map(work, vcs):
                 results.append(r)
                 if write:
                     store.write_result(run_id, r)
+    except QuotaExhausted as e:
+        msg = str(e)
+        print(f"\nSTOPPED: {msg}\n{len(results)} of {len(vcs)} investors were updated before it ran out; the rest keep their previous results.")
+        if write:
+            store.finish_run(run_id, "failed", len(results), len(vcs) - len(results), sum(len(r.signals) for r in results), 0, msg)
+        return 2
     except Exception as e:  # unexpected: record it, then fail the run loudly
         if write:
             store.finish_run(run_id, "failed", len(results), len(vcs) - len(results),

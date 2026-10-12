@@ -311,3 +311,69 @@ def test_generic_summaries_about_different_things_are_not_merged():
 def test_store_marks_only_the_latest_runs_evidence_active():
     from pipeline import store
     assert "ANY" in store.ACTIVE_SQL and "legacy_unverified" in store.ACTIVE_SQL
+
+
+# ---------------------------------------------------------------- out-of-credits handling
+
+def test_exa_402_becomes_quota_exhausted_not_a_per_investor_failure(monkeypatch):
+    from pipeline import search as s
+    def boom(*a, **k):
+        raise s.net.HttpError('HTTP 402: {"error":"You have exceeded your credits limit","tag":"NO_MORE_CREDITS"}')
+    monkeypatch.setattr(s.net, "post_json", boom)
+    with pytest.raises(s.QuotaExhausted, match="dashboard.exa.ai"):
+        s.ExaSearch(api_key="k").search(make_vc(), ["logistics"], TODAY, 30)
+    assert not issubclass(s.QuotaExhausted, s.SearchError)      # so process_vc does not swallow it
+
+
+def test_other_search_errors_stay_per_investor(monkeypatch):
+    from pipeline import search as s
+    monkeypatch.setattr(s.net, "post_json", lambda *a, **k: (_ for _ in ()).throw(s.net.HttpError("HTTP 503: down")))
+    with pytest.raises(s.SearchError):
+        s.ExaSearch(api_key="k").search(make_vc(), ["logistics"], TODAY, 30)
+
+
+def test_quota_exhausted_propagates_out_of_process_vc(rf):
+    from pipeline.search import QuotaExhausted
+
+    class NoCredits:
+        def search(self, *a, **k):
+            raise QuotaExhausted("out")
+    with pytest.raises(QuotaExhausted):
+        process_vc(make_vc(), NoCredits(), None, rf, TODAY)
+
+
+def test_a_run_stops_with_exit_code_2_when_credits_run_out(monkeypatch, capsys):
+    from pipeline import run as runmod
+    from pipeline.search import QuotaExhausted
+
+    class NoCredits:
+        def search(self, *a, **k):
+            raise QuotaExhausted("Exa credits are used up. Top up at dashboard.exa.ai, then re-run.")
+
+        def search_people(self, *a, **k):
+            raise QuotaExhausted("x")
+
+    monkeypatch.setattr(runmod, "ExaSearch", NoCredits)
+    monkeypatch.setattr(runmod, "GeminiExtract", lambda: object())
+    code = runmod.main(["--source", "csv", "--no-write", "--limit", "6", "--workers", "2"])
+    assert code == 2 and "STOPPED" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- partner checks cost control
+
+def test_quiet_investors_get_one_partner_check_and_pipeline_investors_get_three(rf):
+    from pipeline.models import Person
+
+    class Many(PeopleClients):
+        def search_people(self, vc, exclude=None):
+            return [self.page]
+
+        def extract_people(self, vc, pages):
+            return []
+    people = [Person(f"Person {i} Name", "Partner", discovered_at=__import__("datetime").datetime(2026, 10, 1)) for i in range(5)]
+    c = Many()
+    process_vc(make_vc(status="to_contact"), c, c, rf, TODAY, people)
+    assert len(c.person_searches) == 1                       # nothing logistics, not in the pipeline: just the top person
+    c2 = Many()
+    process_vc(make_vc(status="waiting", last_contacted_at=TODAY), c2, c2, rf, TODAY, people)
+    assert len(c2.person_searches) == 3                      # already in your pipeline: full check
