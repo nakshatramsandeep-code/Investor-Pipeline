@@ -441,7 +441,7 @@
   .qwho { display: flex; align-items: center; gap: 12px; }
   .avatar { width: 40px; height: 40px; border-radius: 50%; background: #e6e9ff; color: #2a3bb5; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex: none; }
   .qpills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-  .qpill { border-radius: 999px; padding: 8px 16px; font-size: 14px; border: 1.5px solid #cdd2dc; }
+  .qpill { font-family: "Geist", system-ui, sans-serif; border-radius: 999px; padding: 8px 16px; font-size: 14px; border: 1.5px solid #cdd2dc; }
   .qpill:hover { background: #f4f5f8; color: var(--text); border-color: #0e1116; }
   .qpill.on { background: #0e1116; color: #fff; border-color: #0e1116; }
   .qpill.on:hover { background: #262c38; color: #fff; }
@@ -500,6 +500,23 @@
   .tmore { display: flex; justify-content: center; padding: 14px; border-top: 1px solid #eceef2; }
   .tmore:empty { display: none; }
   .showmore { border-radius: 999px; padding: 8px 22px; font-size: 14px; border: 1.5px solid #cdd2dc; }
+
+  /* modal, typeahead, view toggle */
+  .modal-bg { position: fixed; inset: 0; background: rgba(14,17,22,.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
+  .modal { background: #fff; border-radius: 20px; padding: 26px 28px; width: min(520px, 100%); max-height: 92vh; overflow: auto; box-shadow: 0 24px 60px rgba(14,17,22,.35); display: grid; gap: 14px; }
+  .mtitle { font: 800 28px/1.1 var(--display); letter-spacing: -.02em; margin: -6px 0 0; display: block; }
+  .mlab { display: grid; gap: 6px; font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .mlab select, .mlab input, .mlab textarea { font: 400 14px "Geist", system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: var(--text); background: #fff; border: 1.5px solid #cdd2dc; border-radius: 10px; padding: 9px 11px; width: 100%; }
+  .mlab .qpills { margin: 0; text-transform: none; letter-spacing: 0; }
+  .tlink-btn { border: 0; background: transparent; text-decoration: underline; text-underline-offset: 3px; padding: 0 6px; }
+  .tlink-btn:hover { background: transparent; color: var(--muted); }
+  .gsearch.ta { position: relative; }
+  .ta-list { position: absolute; top: calc(100% + 6px); left: -1.5px; right: -1.5px; background: #fff; border: 1.5px solid #cdd2dc; border-radius: 12px; box-shadow: 0 14px 34px rgba(14,17,22,.16); padding: 6px; z-index: 15; }
+  .ta-item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .ta-item span { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+  .ta-item.on, .ta-item:hover { background: #eef0f6; }
+  .viewbar { display: flex; justify-content: flex-end; margin: -6px 0 14px; }
+  .qchip { display: none; align-items: center; border-radius: 999px; padding: 6px 14px; font-size: 13px; border: 1.5px solid #0e1116; background: #fff; }
 </style>
 </head>
 <body>
@@ -542,10 +559,11 @@ const COL = {
   action: { reach_out: "green", nudge: "amber", hold: "blue", quiet_list: "gray", skip: "red" },
   type: { portfolio_investment: "green", fund_announcement: "purple", interview: "blue", blog_post: "teal", event_appearance: "amber", other: "gray" },
 };
-const BUCKET = {
-  reach: ["Reach out", "green"], warm: ["Warm", "purple"], pitch: ["Pitch with thesis hook", "teal"], park: ["Park", "gray"], nudge: ["Follow up due", "amber"], waiting: ["Contacted", "blue"], talks: ["In talks", "blue"],
-  approved: ["Approved", "green"], declined: ["Declined", "red"], dormant: ["Dormant", "gray"], skip: ["Not a fit", "red"],
-};
+// One name for each stage, used by the queue, the table, the filters, the map and the profile.
+const LABELS = { reach: "Reach out", pitch: "Pitch on thesis", warm: "Warm", nudge: "Follow up due", waiting: "Contacted", talks: "In talks", approved: "Approved",
+  closed: "Closed", declined: "Declined", park: "Parked", dormant: "Dormant", skip: "Not a fit", find: "More to pitch" };
+const BUCKET = Object.fromEntries(Object.entries({ reach: "green", warm: "purple", pitch: "teal", park: "gray", nudge: "amber", waiting: "blue", talks: "blue",
+  approved: "green", closed: "green", declined: "red", dormant: "gray", skip: "red" }).map(([k, c]) => [k, [LABELS[k], c]]));
 const btag = (b) => el("span", { class: `chip c-${BUCKET[b][1]}` }, BUCKET[b][0]);
 const relChip = (e) => e.relevance === "logistics" ? el("span", { class: "chip c-green" }, "Logistics") : e.relevance ? el("span", { class: "chip c-gray" }, "General activity") : null;
 const tag = (kind, v) => v ? el("span", { class: `chip c-${COL[kind][v] || "gray"}` }, LBL[kind][v] || label(v)) : null;
@@ -599,7 +617,8 @@ function bucketOf(v, now, hot) {
   const revisitDue = status === "declined" && v.revisit_on && v.revisit_on <= localIso(0);
   if (revisitDue) status = "to_contact";
   if (status === "declined") return "declined";
-  if (status === "approved" || status === "closed") return "approved";
+  if (status === "closed") return "closed";
+  if (status === "approved") return "approved";
   if (status === "in_conversation") return "talks";
   if (status === "waiting") { const d = waitDays(v, now); return d == null || d >= NUDGE_DAYS ? "nudge" : "waiting"; }
   if (v.recommended_action === "skip" && !revisitDue) return "skip";
@@ -614,7 +633,7 @@ function bucketOf(v, now, hot) {
 
 function groupVcs(data, now) {
   const hot = hotSet(data.evidence, now);
-  const g = { reach: [], warm: [], pitch: [], park: [], nudge: [], waiting: [], talks: [], approved: [], declined: [], dormant: [], skip: [] };
+  const g = { reach: [], warm: [], pitch: [], park: [], nudge: [], waiting: [], talks: [], approved: [], closed: [], declined: [], dormant: [], skip: [] };
   for (const v of data.vcs) g[bucketOf(v, now, hot)].push(v);
   const byFirm = (a, b) => a.firm.localeCompare(b.firm);
   const byFit = (a, b) => fitRank(a) - fitRank(b) || (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0) || byFirm(a, b);   // best fit first, then best timing
@@ -622,7 +641,7 @@ function groupVcs(data, now) {
   g.nudge.sort((a, b) => (waitDays(b, now) ?? 999) - (waitDays(a, now) ?? 999));          // longest silence first
   g.waiting.sort((a, b) => (waitDays(b, now) ?? 0) - (waitDays(a, now) ?? 0));
   g.talks.sort((a, b) => (b.last_contacted_at || "") < (a.last_contacted_at || "") ? -1 : 1);
-  for (const k of ["approved", "declined", "skip"]) g[k].sort(byFirm);
+  for (const k of ["approved", "closed", "declined", "skip"]) g[k].sort(byFirm);
   g.warm.sort(byFit);
   // With no fresh signal to rank on, rank by how well the fund fits: level, then points, then any timing.
   for (const k of ["pitch", "park", "dormant"]) g[k].sort((a, b) => fitRank(a) - fitRank(b) || (b.fit_points ?? 0) - (a.fit_points ?? 0) || (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0) || byFirm(a, b));
@@ -692,40 +711,7 @@ function quickActions(v, bucket) {
     };
     return b;
   };
-  // "Next step" opens a small inline field on the card.
-  const nextStep = (box) => {
-    const b = el("button", {}, "Next step");
-    b.onclick = () => {
-      const input = el("input", { placeholder: "e.g. send the deck by Friday", maxlength: "200", style: "flex:1;min-width:150px" }); input.value = v.next_step || "";
-      const save = el("button", { class: "primary" }, "Save"), cancel = el("button", {}, "Cancel");
-      const row = el("div", { class: "qa", style: "width:100%" }, input, save, cancel);
-      save.onclick = async () => { if (await editCall({ action: "next_step", vc_id: v.id, next_step: input.value })) { toast("Next step saved"); reload(); } };
-      cancel.onclick = () => row.replaceWith(box);
-      box.replaceWith(row); input.focus();
-    };
-    return b;
-  };
-  // "Mark reached out" asks who, how, when and a note (all optional, sensible defaults), so the log is useful later.
-  const reachOut = (box) => {
-    const b = el("button", { class: "primary" }, "Mark reached out");
-    b.onclick = () => {
-      const people = peopleOfVc(v);
-      const who = el("select", {}, people.map((p) => el("option", { value: p.name }, p.name + (p.role ? ` \u00b7 ${p.role}` : ""))), el("option", { value: "" }, people.length ? "Someone else / not sure" : "Not recorded"));
-      const how = el("select", {}, CHANNELS.map(([k, t]) => el("option", { value: k }, t)));
-      const when = el("select", {}, [[0, "Today"], [1, "Yesterday"], [2, "2 days ago"], [3, "3 days ago"], [7, "A week ago"]].map(([n, t]) => el("option", { value: String(n) }, `${t} \u00b7 ${fmtDate(localIso(n))}`)));
-      const note = el("input", { placeholder: "Note (optional): what you said, what to remember", maxlength: "300" });
-      const save = el("button", { class: "primary" }, "Save"), cancel = el("button", {}, "Cancel");
-      const form = el("div", { class: "reachform" }, el("div", { class: "two" }, who, how), when, note, el("div", { class: "qa" }, save, cancel));
-      cancel.onclick = () => form.replaceWith(box);
-      save.onclick = async () => {
-        save.disabled = true; save.textContent = "Saving\u2026";
-        const res = await editCall({ action: "log", vc_id: v.id, kind: "reached_out", occurred_on: localIso(Number(when.value)), person: who.value, channel: how.value, note: note.value });
-        if (res) { savedToast(v, res, `${v.firm}: marked reached out`, reload); reload(); } else { save.disabled = false; save.textContent = "Save"; }
-      };
-      box.replaceWith(form);
-    };
-    return b;
-  };
+  const reachOut = () => { const b = el("button", { class: "primary" }, "Mark reached out"); b.onclick = () => openLogModal(v, "reached_out"); return b; };
   const log = (kind, extra = {}) => ({ action: "log", kind, ...extra });
   const sets = {
     reach: ["REACH"],
@@ -735,15 +721,14 @@ function quickActions(v, bucket) {
     dormant: ["REACH"],
     nudge: [["Followed up", log("follow_up"), true], ["They replied", log("replied")]],
     waiting: [["They replied", log("replied")]],
-    talks: [["They approved", log("approved")], "NEXT"],
-    approved: v.status === "closed"
-      ? ["NEXT", ["Undo: back to approved", log("note", { status: "approved", note: "Closed undone: back to approved" })]]
-      : [["Mark closed", log("closed"), true], "NEXT", ["Undo approval", log("note", { status: "in_conversation", note: "Approval undone: back to in talks" })]],
+    talks: [["They approved", log("approved")]],
+    approved: [["Mark closed", log("closed"), true], ["Undo approval", log("note", { status: "in_conversation", note: "Approval undone: back to in talks" })]],
+    closed: [["Undo: back to approved", log("note", { status: "approved", note: "Closed undone: back to approved" })]],
     declined: [["Revisit in 6 months", { action: "revisit" }], ["Undo decline", { action: "undo_decline" }]],
   };
   if (!sets[bucket]) return null;
   const box = el("div", { class: "qa" });
-  box.append(...sets[bucket].map((e) => (e === "NEXT" ? nextStep(box) : e === "REACH" ? reachOut(box) : make(e[0], e[1], e[2]))));
+  box.append(...sets[bucket].map((e) => (e === "REACH" ? reachOut() : make(e[0], e[1], e[2]))));
   return box;
 }
 
@@ -791,7 +776,6 @@ function card(v, evidence, now, bucket) {
     meta ? el("div", { class: "meta" }, meta) : null,
     thesisLine ? el("div", { class: "meta" }, thesisLine) : null,
     bucket === "pitch" ? el("div", { class: "meta" }, `No logistics news in 30 days, so lead with their thesis. ${(v.fit_good || []).join(" \u00b7 ")}`) : null,
-    v.next_step && ["nudge", "waiting", "talks", "approved"].includes(bucket) ? el("div", { class: "next" }, "Next: " + v.next_step) : null,
     showSignal || (v.check_ok === false && bucket === "reach") ? el("div", { class: "chips", style: "margin-top:6px" },
       showSignal ? [el("span", { class: "chip", title: "Timing score out of 100: how fresh and deal-like the signals are. Fit is not included.", style: `color:${scoreColor(score)}` }, `Timing ${score}`), tag("type", best.type), relChip(best), el("span", { class: "chip" }, `${daysAgo(best.published_date, now)}d ago`),
         el("span", { class: "chip c-green", title: "Signals about logistics, in the last 30 days" }, plural(logi.length, "logistics signal")),
@@ -887,8 +871,8 @@ async function editCall(body) {
 }
 
 function tabs(active) {
-  const t = [["map", "#/", "Map"], ["action", "#/action", "By action"], ["status", "#/status", "My pipeline"], ["calendar", "#/calendar", "Calendar"]];
-  return el("div", { class: "tabs" }, t.map(([k, h, l]) => el("a", { href: h, class: (active === k ? "on" : "") + (k === "calendar" ? " cal-tab" : "") }, l)));
+  const t = [["action", "#/", "By action"], ["status", "#/status", "My pipeline"], ["calendar", "#/calendar", "Calendar"]];
+  return el("div", { class: "tabs" }, t.map(([k, h, l]) => el("a", { href: h, class: active === k ? "on" : "" }, l)));
 }
 
 const VIEW_TITLES = {
@@ -899,10 +883,7 @@ const VIEW_TITLES = {
 };
 
 function topbar(active, count) {
-  const q = el("input", { placeholder: count ? `Search ${count} investors` : "Search investors", "aria-label": "Search investors" });
-  q.onkeydown = (e) => { if (e.key === "Enter" && q.value.trim()) { window.__q = q.value.trim(); if (location.hash === "#/status") route(); else location.hash = "#/status"; } };
-  return el("div", { class: "topbar" }, el("div", { class: "brand2" }, el("span", { class: "logo" }), el("b", {}, "Investor Pipeline")), tabs(active),
-    el("label", { class: "gsearch" }, el("span", { "aria-hidden": "true", style: "color:var(--muted)" }, "⌕"), q));
+  return el("div", { class: "topbar" }, el("div", { class: "brand2" }, el("span", { class: "logo" }), el("b", {}, "Investor Pipeline")), tabs(active), typeahead(count));
 }
 
 function header(data, active) {
@@ -916,17 +897,17 @@ const skeleton = () => [el("div", { class: "sk", style: "height:26px;width:240px
   el("div", { class: "board auto" }, [0, 1, 2].map(() => el("div", {}, [0, 1, 2].map(() => el("div", { class: "sk", style: "height:104px;margin-bottom:8px" })))))];
 
 // ================================================================ By action: a queue on the left, the selected investor on the right
-const qdState = { id: null, open: {}, chan: "email" };
-const QD_LABEL = { nudge: "Follow up due", reach: "Reach out now", pitch: "Pitch on thesis", warm: "Warm", waiting: "Waiting on replies", talks: "In talks", approved: "Approved", find: "Find a contact" };
+const qdState = { id: null, open: {}, mode: "queue" };
+const QD_LABEL = LABELS;
 
 function render(data) {
   const now = new Date(), g = groupVcs(data, now), ev = data.evidence;
   const reload = () => load(undefined, true);
   const withContact = g.pitch.filter((v) => bestContact(v, ev));
   const pitchTop = withContact.slice(0, 5), findContact = g.pitch.filter((v) => !pitchTop.includes(v));
-  const lead = [{ key: "nudge", items: g.nudge }, { key: "reach", items: g.reach }, { key: "pitch", items: pitchTop }].filter((s) => s.items.length);
+  const lead = [{ key: "nudge", items: g.nudge }, { key: "reach", items: g.reach }, { key: "pitch", items: pitchTop, total: g.pitch.length }].filter((s) => s.items.length);
   const folds = [{ key: "warm", items: g.warm }, { key: "waiting", items: g.waiting }, { key: "talks", items: g.talks },
-    { key: "approved", items: g.approved }, { key: "find", items: findContact }].filter((s) => s.items.length);
+    { key: "approved", items: g.approved }, { key: "closed", items: g.closed }, { key: "find", items: findContact }].filter((s) => s.items.length);
   const elseN = g.park.length + g.dormant.length + g.skip.length;
   const flat = [...lead, ...folds].flatMap((sec) => sec.items.map((v) => ({ v, sec })));
   const sel = flat.find((x) => x.v.id === qdState.id) || flat[0] || null;
@@ -951,7 +932,7 @@ function render(data) {
     return b;
   };
   const group = (sec) => el("div", { class: "qgroup" },
-    el("div", { class: "qlabel" }, el("span", {}, QD_LABEL[sec.key]), el("span", {}, String(sec.items.length))),
+    el("div", { class: "qlabel" }, el("span", {}, QD_LABEL[sec.key]), el("span", {}, String(sec.total ?? sec.items.length))),
     sec.items.map((v) => row({ v, sec })));
   const fold = (sec) => {
     const open = qdState.open[sec.key] || (sel && sel.sec.key === sec.key);
@@ -965,7 +946,7 @@ function render(data) {
     el("p", { class: "qsum" }, `${today} · ${g.reach.length} to reach out · ${g.nudge.length} follow-up${g.nudge.length === 1 ? "" : "s"} due`),
     lead.length ? lead.map(group) : el("div", { class: "empty" }, "Nothing to act on. Don't force it."),
     el("div", { class: "qfolds" }, folds.map(fold),
-      el("a", { class: "qfold", href: "#/status" }, el("span", {}, "Everything else ", el("small", {}, String(elseN))), el("span", {}, "›"))));
+      el("a", { class: "qfold", href: "#/status", title: `Parked ${g.park.length} \u00b7 Dormant ${g.dormant.length} \u00b7 Not a fit ${g.skip.length}` }, el("span", {}, "Everything else ", el("small", {}, String(elseN))), el("span", {}, "\u203a"))));
 
   // ---- right: the selected investor
   let right;
@@ -1006,18 +987,9 @@ function render(data) {
 
     let actions;
     if (isProspect) {
-      const pills = el("div", { class: "qpills", role: "group", "aria-label": "How did you reach out" }, CHANNELS.map(([k, t]) => {
-        const b = el("button", { class: "qpill" + (qdState.chan === k ? " on" : ""), "aria-pressed": String(qdState.chan === k) }, t === "In person / event" ? "In person" : t);
-        b.onclick = () => { qdState.chan = k; paint(); };
-        return b;
-      }));
       const mark = el("button", { class: "primary big" }, "Mark reached out");
-      mark.onclick = async () => {
-        mark.disabled = true; mark.textContent = "Saving…";
-        const res = await editCall({ action: "log", vc_id: v.id, kind: "reached_out", occurred_on: localIso(0), person: contact ? contact.name : "", channel: qdState.chan });
-        if (res) { savedToast(v, res, `${v.firm}: marked reached out`, reload); reload(); } else { mark.disabled = false; mark.textContent = "Mark reached out"; }
-      };
-      actions = [el("div", { class: "qeye" }, "How did you reach out"), pills, el("div", { class: "qact" }, mark, el("a", { href: `#/vc/${v.id}` }, "Open full profile"))];
+      mark.onclick = () => openLogModal(v, "reached_out");
+      actions = [el("div", { class: "qact" }, mark, el("a", { href: `#/vc/${v.id}` }, "Open full profile"))];
     } else {
       actions = [el("div", { class: "qeye" }, "Next"), quickActions(v, key), el("p", { style: "margin:14px 0 0" }, el("a", { href: `#/vc/${v.id}` }, "Open full profile"))];
     }
@@ -1028,8 +1000,7 @@ function render(data) {
         cool != null && cool <= 3 ? el("span", { class: "chip c-amber" }, cool <= 0 ? "Closes today" : `Cools in ${plural(cool, "day")}`) : null,
         el("span", { class: "qsub" }, [v.geo, v.stage_focus].filter(Boolean).join(" · "))),
       el("div", { class: "qsec" }, el("div", { class: "qeye" }, isSig || isProspect ? "Why now" : "Where it stands"), el("p", { class: "qwhy" }, whyText),
-        fitReason(v) ? el("p", { class: "qsub", style: "margin:6px 0 0" }, `Fit: ${fitReason(v)}`) : null,
-        v.next_step ? el("p", { class: "qsub", style: "margin:6px 0 0" }, `Next step: ${v.next_step}`) : null, evid),
+        evid),
       el("div", { class: "qsec" }, el("div", { class: "qeye" }, "Who to contact"), who),
       el("div", { class: "qsec" }, el("div", { class: "qeye" }, "At a glance"),
         el("dl", { class: "qkv" }, glance.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
@@ -1043,14 +1014,20 @@ function render(data) {
   }
 
   const unscored = data.vcs.filter((v) => !v.recommended_action).length;
-  show(topbar("action", data.vcs.length), ...alerts(data, now), el("div", { class: "qd" }, left, right),
+  const tog = el("div", { class: "viewbar" }, el("div", { class: "seg2", role: "group", "aria-label": "View" }, [["queue", "Queue"], ["map", "Map"]].map(([m, t]) => {
+    const b = el("button", { class: qdState.mode === m ? "on" : "", "aria-pressed": String(qdState.mode === m) }, t);
+    b.onclick = () => { qdState.mode = m; paint(); };
+    return b;
+  })));
+  show(topbar("action", data.vcs.length), ...alerts(data, now), tog,
+    qdState.mode === "map" ? mapView(data, g, now) : el("div", { class: "qd" }, left, right),
     unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
 }
 
 // ================================================================ My pipeline: one clean table of every investor
-const TBL_ORDER = { nudge: 0, reach: 1, pitch: 2, warm: 3, waiting: 4, talks: 5, approved: 6, declined: 7, park: 8, dormant: 9, skip: 10 };
-const TBL_STATUS = { reach: ["Reach out", "green"], pitch: ["Pitch on thesis", "teal"], warm: ["Warm", "amber"], nudge: ["Contacted", "blue"], waiting: ["Contacted", "blue"],
-  talks: ["In talks", "blue"], approved: ["Approved", "green"], declined: ["Declined", "gray"], park: ["Park", "gray"], dormant: ["Dormant", "gray"], skip: ["Not a fit", "gray"] };
+const TBL_ORDER = { nudge: 0, reach: 1, pitch: 2, warm: 3, waiting: 4, talks: 5, approved: 6, closed: 7, declined: 8, park: 9, dormant: 10, skip: 11 };
+const TBL_STATUS = Object.fromEntries(Object.entries({ reach: "green", pitch: "teal", warm: "amber", nudge: "blue", waiting: "blue", talks: "blue", approved: "green", closed: "green",
+  declined: "gray", park: "gray", dormant: "gray", skip: "gray" }).map(([k, c]) => [k, [k === "nudge" ? LABELS.waiting : LABELS[k], c]]));
 const FIT_DOT = { high: ["High", "#0f8a4b"], medium: ["Medium", "#b4690e"], low: ["Low", "#9aa1ad"], excluded: ["None", "#9aa1ad"] };
 const tblState = { filter: "all", q: "", fit: "", sort: "next", all: false };
 
@@ -1063,14 +1040,13 @@ function renderStatus(data) {
     return { v, bucket, key: bucket === "nudge" ? "waiting" : bucket, lead, best, text: [v.firm, v.thesis, v.geo, v.stage_focus, ...people.map((p) => p.name)].join(" ").toLowerCase() };
   });
   const count = (k) => rows.filter((r) => k === "all" || r.key === k).length;
-  const FILTERS = [["all", "All"], ["reach", "Reach out"], ["pitch", "Pitch on thesis"], ["warm", "Warm"], ["waiting", "Contacted"], ["talks", "In talks"], ["approved", "Approved"],
-    ["declined", "Declined"], ["park", "Park"], ["dormant", "Dormant"], ["skip", "Not a fit"]].filter(([k]) => k === "all" || count(k));
+  const FILTERS = [["all", "All"], ...["reach", "pitch", "warm", "waiting", "talks", "approved", "closed", "declined", "park", "dormant", "skip"].map((k) => [k, LABELS[k]])].filter(([k]) => k === "all" || count(k));
 
-  const contacted = g.waiting.length + g.nudge.length + g.talks.length + g.approved.length;
-  const search = el("input", { placeholder: "Filter by fund, partner, thesis or region", "aria-label": "Filter investors" });
-  search.value = window.__q || tblState.q; window.__q = "";
+  const contacted = g.waiting.length + g.nudge.length, further = g.talks.length + g.approved.length + g.closed.length;
+  if (window.__q != null) { tblState.q = window.__q; window.__q = null; tblState.all = false; }
+  const clearQ = el("button", { class: "qchip", title: "Clear the search" });
   const fitSel = el("select", { "aria-label": "Fit" }, [["", "Fit: any"], ["high", "High fit"], ["medium", "Medium fit"], ["low", "Low fit"]].map(([k, t]) => el("option", { value: k }, t)));
-  const sortSel = el("select", { "aria-label": "Sort" }, [["next", "Sort: next move"], ["name", "Sort: name"], ["fit", "Sort: fit"], ["signal", "Sort: latest signal"], ["searched", "Sort: least recently searched"]].map(([k, t]) => el("option", { value: k }, t)));
+  const sortSel = el("select", { "aria-label": "Sort" }, [["next", "Sort: next move"], ["name", "Sort: name"], ["fit", "Sort: fit"], ["signal", "Sort: latest signal"]].map(([k, t]) => el("option", { value: k }, t)));
   fitSel.value = tblState.fit; sortSel.value = tblState.sort;
   const pillBar = el("div", { class: "fpills", role: "group", "aria-label": "Filter by stage" });
   const body = el("div", {}), more = el("div", { class: "tmore" });
@@ -1080,7 +1056,6 @@ function renderStatus(data) {
     name: (a, b) => a.v.firm.localeCompare(b.v.firm),
     fit: (a, b) => fitRank(a.v) - fitRank(b.v) || (b.v.fit_points ?? 0) - (a.v.fit_points ?? 0) || a.v.firm.localeCompare(b.v.firm),
     signal: (a, b) => ((b.best && b.best.published_date) || "") < ((a.best && a.best.published_date) || "") ? -1 : 1,
-    searched: (a, b) => (a.v.last_searched_at || "") < (b.v.last_searched_at || "") ? -1 : 1,
   };
 
   // the one action that makes sense for this row
@@ -1097,13 +1072,14 @@ function renderStatus(data) {
     };
     if (["reach", "warm", "pitch"].includes(bucket)) {
       const b = el("button", { class: "tact" }, "Reach out");
-      b.onclick = () => { const x = r.formRow; x.style.display = x.style.display === "none" ? "block" : "none"; const inner = x.querySelector("button.primary"); if (x.style.display === "block" && inner) inner.click(); };
+      b.onclick = () => openLogModal(v, "reached_out");
       return b;
     }
     if (bucket === "nudge") return log("Followed up", "follow_up");
     if (bucket === "waiting") return log("They replied", "replied");
     if (bucket === "talks") return log("They approved", "approved");
     if (bucket === "approved") return log("Mark closed", "closed");
+    if (bucket === "closed") return el("a", { class: "tlink", href: `#/vc/${v.id}` }, "Open profile");
     if (bucket === "declined") {
       const b = el("button", { class: "tact" }, "Undo");
       b.onclick = async () => { if (await editCall({ action: "undo_decline", vc_id: v.id })) { toast(`${v.firm}: decline undone`); reload(); } };
@@ -1123,55 +1099,37 @@ function renderStatus(data) {
 
   const rowEl = (r) => {
     const { v, lead, best } = r, fit = FIT_DOT[v.fit_level] || ["—", "#9aa1ad"];
-    const searched = el("div", { class: "tsub" }, v.last_searched_at ? `Searched ${fmtDate(v.last_searched_at)}` : "Never searched",
-      v.recommended_action === "skip" || v.status === "declined" ? null : [" · next ", nextSearch(v, now)]);
-    r.formRow = el("div", { class: "trow-x", style: "display:none" }, quickActions(v, r.bucket));
     return el("div", { class: "trw" },
       el("div", { class: "tgrid" },
         el("div", { class: "tinv" }, el("a", { class: "qlink", href: `#/vc/${v.id}` }, v.firm), el("div", { class: "tsub" }, lead ? lead.name : "No partner found yet")),
         statusCell(r),
         el("div", { class: "tfit" }, el("i", { style: `background:${fit[1]}` }), fit[0]),
         el("div", { class: "tdim" }, [v.geo, v.stage_focus].filter(Boolean).join(" · ")),
-        el("div", {}, best ? `${fmtDate(best.published_date)} · ${LBL.type[best.type] || best.type}` : el("span", { class: "tdim" }, "No signal"), searched),
-        el("div", { class: "tact-cell" }, act(r))),
-      r.formRow);
+        el("div", {}, best ? `${fmtDate(best.published_date)} \u00b7 ${LBL.type[best.type] || best.type}` : el("span", { class: "tdim" }, "No signal")),
+        el("div", { class: "tact-cell" }, act(r))));
   };
 
   const draw = () => {
-    const q = search.value.trim().toLowerCase();
-    tblState.q = search.value; tblState.fit = fitSel.value; tblState.sort = sortSel.value;
+    const q = (tblState.q || "").trim().toLowerCase();
+    tblState.fit = fitSel.value; tblState.sort = sortSel.value;
+    clearQ.textContent = `Search: ${tblState.q} \u00d7`; clearQ.style.display = q ? "inline-flex" : "none";
     const list = rows.filter((r) => (tblState.filter === "all" || r.key === tblState.filter) && (!q || r.text.includes(q)) && (!tblState.fit || r.v.fit_level === tblState.fit)).sort(SORTS[tblState.sort]);
     const LIMIT = 13, shown = tblState.all || q || list.length <= LIMIT + 3 ? list : list.slice(0, LIMIT);
     body.replaceChildren(...(shown.length ? shown.map(rowEl) : [el("div", { class: "empty", style: "margin:14px" }, "No investors match.")]));
     more.replaceChildren(...(shown.length < list.length ? [(() => { const b = el("button", { class: "showmore" }, `Show ${list.length - shown.length} more`); b.onclick = () => { tblState.all = true; draw(); }; return b; })()] : []));
     pillBar.replaceChildren(...FILTERS.map(([k, t]) => { const b = el("button", { class: "fpill" + (tblState.filter === k ? " on" : ""), "aria-pressed": String(tblState.filter === k) }, t, " ", el("small", {}, String(count(k)))); b.onclick = () => { tblState.filter = k; tblState.all = false; draw(); }; return b; }));
   };
-  [search, fitSel, sortSel].forEach((x) => { x.oninput = () => { tblState.all = false; draw(); }; x.onchange = x.oninput; });
+  clearQ.onclick = () => { tblState.q = ""; draw(); };
+  [fitSel, sortSel].forEach((x) => { x.oninput = () => { tblState.all = false; draw(); }; x.onchange = x.oninput; });
   draw();
 
   const head = ["Investor", "Status", "Fit", "Region and stage", "Latest signal", ""];
   show(topbar("status", data.vcs.length), ...alerts(data, now),
     el("div", { class: "top" }, el("div", {}, el("h1", {}, "My pipeline"),
-      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), ` · ${contacted} contacted · ${g.nudge.length} follow-up${g.nudge.length === 1 ? "" : "s"} due`))),
+      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), ` \u00b7 ${contacted} contacted${further ? ` \u00b7 ${further} further along` : ""} \u00b7 ${g.nudge.length} follow-up${g.nudge.length === 1 ? "" : "s"} due`))),
     pillBar,
-    el("div", { class: "toolbar tb2" }, el("label", { class: "tsearch" }, el("span", { "aria-hidden": "true", style: "color:var(--muted)" }, "⌕"), search), fitSel, sortSel),
+    el("div", { class: "toolbar tb2" }, fitSel, sortSel, clearQ),
     el("div", { class: "ttable" }, el("div", { class: "tgrid thead" }, head.map((h) => el("div", {}, h))), body, more));
-}
-
-// When this investor will next be searched. Mirrors the schedule in weights.yaml (pipeline 2d, reach-out 2d, dormant 7d)
-// and the cron (Mon + Thu 01:30 UTC = 7:00 IST), so the date shown is a real run day.
-const SCHEDULE_DAYS = { fast: 2, slow: 7 };
-function nextSearch(v, now) {
-  if (v.recommended_action === "skip" || v.status === "declined") return el("span", { class: "dim" }, "No search needed");
-  const fast = ["waiting", "in_conversation", "approved", "closed"].includes(v.status) || ["reach_out", "nudge"].includes(v.recommended_action);
-  const last = v.last_searched_at ? new Date(v.last_searched_at) : null;
-  const due = last ? new Date(last.getTime() + SCHEDULE_DAYS[fast ? "fast" : "slow"] * 864e5 - 12 * 36e5) : now;
-  const from = new Date(Math.max(due.getTime(), now.getTime()));
-  for (let i = 0; i < 9; i++) {
-    const run = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate() + i, 1, 30));
-    if ([1, 4].includes(run.getUTCDay()) && run >= from) return run.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
-  }
-  return "\u2014";
 }
 
 // Logo: the firm's favicon, from its website when we know it. If there is none (or it fails to load) fall back to initials.
@@ -1187,13 +1145,6 @@ function logoFor(v) {
   return img;
 }
 
-// Before you approach: a warning. Once you're talking: a quiet note. Once they've said no: nothing.
-function fitNote(v, bucket) {
-  if (!v.flag || bucket === "declined") return null;
-  if (["reach", "pitch", "park", "dormant", "skip"].includes(bucket)) return el("div", { class: "warnbox" }, el("b", {}, "Check before you reach out. "), `${v.flag}. Their focus: ${v.thesis}.`);
-  return el("div", { class: "fitnote" }, `Fit note: ${v.flag}. Their focus: ${v.thesis}.`);
-}
-
 function statusBlock(v, now, bucket, score) {
   const d = waitDays(v, now);
   const due = v.last_contacted_at ? new Date(new Date(v.last_contacted_at).getTime() + NUDGE_DAYS * 864e5) : null;
@@ -1201,7 +1152,8 @@ function statusBlock(v, now, bucket, score) {
     nudge: ["Follow up due", d == null ? "Contacted, no date recorded" : `Contacted ${d} days ago, no reply`],
     waiting: [`Follow up on ${due ? fmtDate(due.toISOString()) : "?"}`, `Contacted ${d} days ago`],
     talks: ["In talks", d == null ? "" : `Last contact ${d} days ago`],
-    approved: [v.status === "closed" ? "Closed" : "Approved", v.status === "closed" ? "Deal closed" : "Committed to invest"],
+    approved: ["Approved", "Committed to invest"],
+    closed: ["Closed", "Deal closed"],
     declined: ["Declined", v.revisit_on ? `Revisit on ${fmtDate(v.revisit_on)}` : "No revisit date set"],
   }[bucket];
   if (text) return el("div", { class: "statusblock" }, el("div", { class: "big" }, text[0]), el("div", { class: "sub2" }, text[1]));
@@ -1210,7 +1162,7 @@ function statusBlock(v, now, bucket, score) {
     !score ? el("div", { class: "big", style: "font-size:24px" }, "No signal yet") : el("div", { class: "big", style: `font-size:44px;color:${scoreColor(score)}` }, String(score)),
     el("div", { class: "pl" }, el("span", {}, "Timing score"), el("span", {}, score ? `${score} / 100` : "none in the last 30 days")),
     el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })),
-    el("div", { class: "sub2" }, "How fresh and deal-like the signals are. Fit is rated separately."));
+    el("div", { class: "sub2" }, "Timing: fresh, deal-like signals"));
 }
 
 function declinedPanel(d) {
@@ -1267,30 +1219,19 @@ function whoPanel(d) {
 const KINDS = [["reached_out", "I reached out"], ["follow_up", "I followed up"], ["replied", "They replied"], ["call", "We had a call"], ["meeting", "We met"], ["approved", "They approved (committed to invest)"], ["closed", "Deal closed"], ["declined", "They declined"], ["note", "Just a note"]];
 
 function logPanel(v) {
-  const kind = el("select", {}, KINDS.map(([k, t]) => el("option", { value: k }, t)));
-  const opts = [[0, "Today"], [1, "Yesterday"], [2, "2 days ago"], [3, "3 days ago"], [7, "A week ago"]];
-  const when = el("select", {}, opts.map(([n, t]) => el("option", { value: String(n) }, `${t} \u00b7 ${fmtDate(localIso(n))}`)), el("option", { value: "pick" }, "Pick a date\u2026"));
-  const picker = el("input", { type: "date", value: localIso(0), style: "display:none" });
-  when.onchange = () => { picker.style.display = when.value === "pick" ? "block" : "none"; };
-  const status = el("select", {}, el("option", { value: "" }, "Keep automatic (recommended)"),
-    ["to_contact", "waiting", "in_conversation", "approved", "closed", "declined"].map((x) => el("option", { value: x }, `Set to: ${LBL.status[x]}${x === "to_contact" ? " (clears last contacted)" : ""}`)));
-  const people = peopleOfVc(v);
-  const who = el("select", {}, el("option", { value: "" }, "Who (optional)"), people.map((p) => el("option", { value: p.name }, p.name + (p.role ? ` \u00b7 ${p.role}` : ""))));
-  const how = el("select", {}, el("option", { value: "" }, "How (optional)"), CHANNELS.map(([k, t]) => el("option", { value: k }, t)));
-  const note = el("textarea", { rows: "3", placeholder: "What happened? (private)" });
-  kind.onchange = () => { note.placeholder = kind.value === "declined" ? "Why did they decline? (this is saved as the reason)" : "What happened? (private)"; };
-  const save = el("button", { class: "primary", onclick: async () => {
-    const day = when.value === "pick" ? picker.value : localIso(Number(when.value));
-    const res = await editCall({ action: "log", vc_id: v.id, kind: kind.value, occurred_on: day, person: who.value, channel: how.value, note: note.value, status: status.value || undefined });
-    if (res) { savedToast(v, res, "Saved", () => loadProfile(v.id)); loadProfile(v.id); }
-  } }, "Save");
-  return el("div", { class: "panel" }, el("h3", {}, "Log activity"),
-    el("div", { class: "form" }, el("div", { class: "two" }, el("label", {}, "What happened", kind), el("label", {}, "When", when, picker)),
-      el("div", { class: "two" }, who, how),
-      el("label", {}, "Note", note),
-      el("details", {}, el("summary", { class: "note" }, "Set the status manually (optional)"), el("div", { class: "form", style: "margin-top:8px" }, status)),
-      save),
-    el("p", { class: "note" }, `Currently: ${LBL.status[v.status]}. Saving updates your status and last-contacted date straight away and moves this investor to the right place on the dashboard.`));
+  const mark = el("button", { class: "primary big" }, "Mark reached out");
+  mark.onclick = () => openLogModal(v, "reached_out");
+  const other = el("select", { "aria-label": "Log something else" }, el("option", { value: "" }, "Log something else\u2026"),
+    KINDS.filter(([k]) => k !== "reached_out").map(([k, t]) => el("option", { value: k }, t)));
+  other.onchange = () => { if (other.value) { openLogModal(v, other.value); other.value = ""; } };
+  const status = el("select", { "aria-label": "Status" }, ["to_contact", "waiting", "in_conversation", "approved", "closed", "declined"].map((x) => el("option", { value: x }, `${LBL.status[x]}${x === "to_contact" ? " (clears last contacted)" : ""}`)));
+  status.value = v.status;
+  const apply = el("button", {}, "Apply");
+  apply.onclick = async () => { const res = await editCall({ action: "log", vc_id: v.id, kind: "note", note: "Status set manually", status: status.value }); if (res) { toast("Status updated"); refresh(); } };
+  return el("div", { class: "panel" }, el("h3", {}, "Activity"),
+    el("div", { class: "qact" }, mark, other),
+    el("p", { class: "note" }, `Currently: ${LBL.status[v.status]}${v.last_contacted_at ? `, last contacted ${fmtDate(v.last_contacted_at)}` : ""}. Saving moves this investor to the right place automatically.`),
+    el("details", {}, el("summary", { class: "note" }, "Set the status manually"), el("div", { class: "qact", style: "margin-top:8px" }, status, apply)));
 }
 
 function privatePanel(d) {
@@ -1308,8 +1249,8 @@ function privatePanel(d) {
     return b;
   };
   const timeline = (d.interactions || []).map((i) => el("div", { class: "tl" }, del(i), el("b", {}, (KINDS.find(([k]) => k === i.kind) || [0, label(i.kind)])[1]), " ", el("small", {}, [fmtDate(i.occurred_on), i.channel ? (CHANNELS.find(([k]) => k === i.channel) || [0, i.channel])[1] : null, i.person ? `with ${i.person}` : null].filter(Boolean).join(" \u00b7 ")), i.note ? el("div", {}, i.note) : null));
-  return el("div", { class: "panel" }, el("h3", {}, "Your notes and history"),
-    el("div", { class: "form" }, el("label", {}, "Notes", notes),
+  return el("div", { class: "panel" }, el("h3", {}, "Notes and history"),
+    el("div", { class: "form" }, el("label", {}, "Notes (private)", notes),
       el("button", { onclick: async () => { if (await editCall({ action: "notes", vc_id: d.vc.id, notes: notes.value })) alert("Saved."); } }, "Save notes")),
     el("div", { style: "margin-top:14px" }, timeline.length ? timeline : el("div", { class: "empty" }, "No activity logged yet.")));
 }
@@ -1323,86 +1264,12 @@ function fitPanel(v, fit) {
   ];
   return el("div", { class: "panel" }, el("h3", {}, "Fit and background"),
     el("dl", { class: "kv" }, kv.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
-    el("div", { style: "margin-top:12px" }, el("div", { class: "chips" }, fitChip(v) || el("span", { class: "chip" }, "Not rated yet"), el("b", {}, " Fit is separate from the timing score")),
+    el("div", { style: "margin-top:12px" }, el("div", { class: "chips" }, fitChip(v) || el("span", { class: "chip" }, "Not rated yet"), null),
       (v.fit_good || []).length || (v.fit_concerns || []).length
         ? el("ul", { class: "bullets", style: "margin-top:6px" }, [...(v.fit_good || []).map((r) => el("li", {}, "\u2713 " + r)), ...(v.fit_concerns || []).map((r) => el("li", {}, "\u26a0 " + r))])
         : el("p", { class: "note", style: "margin:4px 0 0" }, "Fit has not been rated yet. It appears after the next run.")),
     (v.fit_badges || []).length ? el("div", { class: "chips", style: "margin-top:10px" }, (v.fit_badges || []).map((b) => el("span", { class: "chip warn", title: "Data quality: does not change the fit rating" }, b))) : null,
     v.background ? el("p", { class: "note" }, `From your original list: ${v.background}. `, seed ? el("a", { href: seed, target: "_blank", rel: "noopener noreferrer" }, "list source") : null, " (not independently verified)") : null);
-}
-
-// Status and last-contacted live in the log form; this keeps only the one thing the form does not have.
-function nextStepPanel(v) {
-  const next = el("input", { placeholder: "e.g. send the deck by Friday", maxlength: "200" }); next.value = v.next_step || "";
-  const save = el("button", { onclick: async () => { if (await editCall({ action: "next_step", vc_id: v.id, next_step: next.value })) toast("Next step saved"); } }, "Save");
-  return el("div", { class: "panel" }, el("h3", {}, "Next step"),
-    el("div", { class: "form" }, el("div", { style: "display:flex;gap:6px" }, next, save)));
-}
-
-const REASON = {
-  blocked_source: "low-quality source", social_source_disabled: "social post (not trusted)", untrusted_source: "source not on the trusted list",
-  quote_not_on_page: "quote not found on the page", url_not_in_results: "link was not in the search results", wrong_firm: "page was about a different firm",
-  wrong_person: "page didn't name the person", outside_window: "older than 30 days", no_api_date: "no publish date",
-  duplicate_url: "duplicate", unknown_type: "unrecognised type", malformed: "malformed", person_check_failed: "a partner check failed",
-  people_discovery_failed: "partner search failed",
-};
-
-function checkSummary(c) {
-  const d = c.detail || {}, lines = [];
-  const scoreLine = () => {
-    if (d.score == null) return;
-    const p = c._prev && c._prev.detail, base = `Timing score ${d.score}`;
-    if (p && p.score != null && p.score !== d.score) {
-      lines.push(`${base} (was ${p.score}): ` + (p.score_version !== d.score_version ? `scoring formula changed (v${p.score_version ?? 1} \u2192 v${d.score_version})` : "its signals aged or changed"));
-    } else lines.push(base);
-  };
-  const outcome = !c.ok ? ["red", "Check failed"] : c.outcome === "signal" ? ["green", "Found activity"] : c.outcome === "skipped_fit" ? ["gray", "Skipped: not a fit"] : c.outcome === "rescored" ? ["gray", "Re-scored from saved signals"] : ["blue", "Search found nothing new"];
-  if (!c.ok) lines.push(`${friendlyError(c.error)} this run, so the previous results were kept.`);
-  else if (c.outcome === "skipped_fit") lines.push((d.reason || "Not a fit for this round") + ", so no searches were run.");
-  else if (c.outcome === "rescored") lines.push(`Re-scored from ${d.signals_on_file ?? 0} saved signal${d.signals_on_file === 1 ? "" : "s"}. No search was made, so it cost nothing.`);
-  else {
-    const via = d.provider ? ` via ${d.provider}${d.searches != null ? ` (${d.searches} search${d.searches === 1 ? "" : "es"})` : ""}` : "";
-    lines.push(d.pages_found != null ? `Searched ${d.pages_found} pages${via}, ${d.pages_usable} usable.` : `Searched ${c.n_pages} pages.`);
-    const sk = Object.entries(d.skipped || {});
-    if (sk.length) lines.push("Skipped untrusted sources: " + sk.map(([k, n]) => `${k} \u00d7${n}`).join(", ") + ".");
-    if (d.undated) lines.push(`Ignored ${d.undated} page${d.undated > 1 ? "s" : ""} from trusted sources with no publish date (dates must come from the search API).`);
-    if (c.n_signals) lines.push(`Kept ${c.n_signals} signal${c.n_signals > 1 ? "s" : ""}` + (d.signals_people ? ` (${d.signals_people} from partners)` : "") + ".");
-    if (c.outcome === "no_signal") lines.push(d.signals_on_file ? `${plural(d.signals_on_file, "earlier signal")} still on file and still counted.` : "Signals found earlier stay on file and still count until they are 30 days old.");
-    if (d.people_checked && d.people_checked.length) lines.push("Partners checked: " + d.people_checked.join(", ") + ".");
-    const rj = {};
-    for (const x of (c.dropped || [])) rj[x.reason] = (rj[x.reason] || 0) + 1;
-    const rl = Object.entries(rj);
-    if (rl.length) lines.push("Rejected by validation: " + rl.map(([r, n]) => `${REASON[r] || label(r)} \u00d7${n}`).join(", ") + ".");
-  }
-  scoreLine();
-  return { outcome, lines };
-}
-
-function checksPanel(allChecks) {
-  // Each entry can say how the score moved: compare with the next older entry that recorded a score.
-  allChecks.forEach((c, i) => { c._prev = allChecks.slice(i + 1).find((o) => o.detail && o.detail.score != null) || null; });
-  // Free re-scores are housekeeping, not checks: fold them into one collapsed line so real searches stand out.
-  const rescored = allChecks.filter((c) => c.outcome === "rescored"), checks = allChecks.filter((c) => c.outcome !== "rescored");
-  // Identical back-to-back results are one entry with a count, not a wall of repeats.
-  const groups = [];
-  for (const c of checks) {
-    const sum = checkSummary(c), key = sum.outcome[1] + "|" + sum.lines.join("|");
-    const last = groups[groups.length - 1];
-    if (last && last.key === key) last.count++; else groups.push({ key, sum, c, count: 1 });
-  }
-  const rows = groups.slice(0, 12).map(({ sum, c, count }) => el("div", { class: "tl" },
-    el("div", {}, el("b", {}, new Date(c.checked_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), " ",
-      el("span", { class: `chip c-${sum.outcome[0]}` }, sum.outcome[1]), count > 1 ? el("small", {}, ` \u00b7 same result in ${count} checks`) : null),
-    sum.lines.map((t) => el("div", { class: "meta" }, t))));
-  const rest = el("div", { style: "display:none" }, rows.slice(2));
-  const more = rows.length > 2 ? el("button", { class: "seemore" }, `See ${rows.length - 2} more`) : null;
-  if (more) more.onclick = () => { const open = rest.style.display === "none"; rest.style.display = open ? "block" : "none"; more.textContent = open ? "Show less" : `See ${rows.length - 2} more`; };
-  const housekeeping = rescored.length ? el("details", { style: "margin-top:10px" }, el("summary", { class: "note" }, `${plural(rescored.length, "re-score")} from saved signals (free, no search)`),
-    rescored.slice(0, 10).map((c) => el("div", { class: "tl" }, el("b", {}, new Date(c.checked_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), " ", el("small", {}, c.detail && c.detail.score != null ? `re-scored: timing ${c.detail.score}` : "re-scored from saved signals")))) : null;
-  return el("div", { class: "panel wide" }, el("h3", {}, "Check history"),
-    rows.length ? [rows.slice(0, 2), rest, more] : el("div", { class: "empty" }, "No search yet."),
-    housekeeping,
-    el("p", { class: "note" }, "Each entry is a run for this investor, newest first. Repeated identical results are combined."));
 }
 
 function signalRow(e) {
@@ -1418,8 +1285,104 @@ function signalRow(e) {
     href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, "Check the source") : null, " ", up, " ", down);
 }
 
-const BUCKET_EYE = { reach: "Reach out now", warm: "Warm", pitch: "Pitch on thesis", park: "Parked", dormant: "Dormant", nudge: "Follow up due",
-  waiting: "Waiting on a reply", talks: "In talks", approved: "Approved", declined: "Declined", skip: "Not a fit" };
+// ================================================================ One flow for logging activity: a modal with contact, channel, date and note
+let lastChan = "email";
+const WITH_CHANNEL = ["reached_out", "follow_up", "replied", "call", "meeting"];
+const MODAL_TITLE = { reached_out: "Mark reached out", follow_up: "Log a follow-up", replied: "They replied", call: "Log a call", meeting: "Log a meeting",
+  approved: "They approved", closed: "Deal closed", declined: "They declined", note: "Add a note" };
+
+// Reload whichever page you are on after something was saved.
+function refresh() {
+  const m = location.hash.match(/^#\/vc\/(\d+)$/);
+  return m ? loadProfile(Number(m[1])) : load(undefined, true);
+}
+
+function openLogModal(v, kind = "reached_out") {
+  const people = peopleOfVc(v);
+  const close = () => { bg.remove(); document.removeEventListener("keydown", onKey); if (opener) opener.focus(); };
+  const opener = document.activeElement;
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  const who = el("select", { "aria-label": "Contact" }, el("option", { value: "" }, people.length ? "Someone else / not sure" : "Not sure"),
+    people.map((p) => el("option", { value: p.name }, p.name + (p.role ? ` · ${p.role}` : ""))));
+  const lead = bestContact(v, window.__evidence || []);
+  if (lead) who.value = lead.name;
+  let chan = lastChan;
+  const pills = el("div", { class: "qpills", role: "group", "aria-label": "Channel" });
+  const drawPills = () => pills.replaceChildren(...CHANNELS.map(([k, t]) => {
+    const b = el("button", { type: "button", class: "qpill" + (chan === k ? " on" : ""), "aria-pressed": String(chan === k) }, t === "In person / event" ? "In person" : t);
+    b.onclick = () => { chan = k; drawPills(); };
+    return b;
+  }));
+  drawPills();
+  const when = el("select", { "aria-label": "When" }, [[0, "Today"], [1, "Yesterday"], [2, "2 days ago"], [3, "3 days ago"], [7, "A week ago"]].map(([n, t]) => el("option", { value: String(n) }, `${t} · ${fmtDate(localIso(n))}`)), el("option", { value: "pick" }, "Pick a date…"));
+  const picker = el("input", { type: "date", value: localIso(0), style: "display:none", "aria-label": "Date" });
+  when.onchange = () => { picker.style.display = when.value === "pick" ? "block" : "none"; };
+  const note = el("textarea", { rows: "3", placeholder: kind === "declined" ? "Why did they decline? (saved as the reason)" : "Note (optional): what you said, what to remember", "aria-label": "Note" });
+  const save = el("button", { class: "primary big" }, "Save"), cancel = el("button", { class: "tlink-btn" }, "Cancel");
+  cancel.onclick = close;
+  save.onclick = async () => {
+    save.disabled = true; save.textContent = "Saving…";
+    if (WITH_CHANNEL.includes(kind)) lastChan = chan;
+    const day = when.value === "pick" ? picker.value : localIso(Number(when.value));
+    const res = await editCall({ action: "log", vc_id: v.id, kind, occurred_on: day, person: who.value, channel: WITH_CHANNEL.includes(kind) ? chan : "", note: note.value });
+    if (res) { close(); savedToast(v, res, `${v.firm}: ${MODAL_TITLE[kind].toLowerCase()}`, refresh); refresh(); }
+    else { save.disabled = false; save.textContent = "Save"; }
+  };
+  const dialog = el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": `${MODAL_TITLE[kind]} for ${v.firm}` },
+    el("div", { class: "qeye" }, v.firm), el("h2", { class: "mtitle" }, MODAL_TITLE[kind]),
+    el("label", { class: "mlab" }, "Who", who),
+    WITH_CHANNEL.includes(kind) ? el("div", { class: "mlab" }, "How", pills) : null,
+    el("label", { class: "mlab" }, "When", when, picker),
+    el("label", { class: "mlab" }, "Note", note),
+    el("div", { class: "qact" }, save, cancel));
+  const bg = el("div", { class: "modal-bg" }, dialog);
+  bg.onclick = (e) => { if (e.target === bg) close(); };
+  document.addEventListener("keydown", onKey);
+  document.body.append(bg);
+  (WITH_CHANNEL.includes(kind) ? pills.querySelector("button.on") : note).focus();
+}
+
+// ================================================================ Header search: a typeahead over funds and partners
+function typeahead(count) {
+  const input = el("input", { placeholder: count ? `Search ${count} investors` : "Search investors", "aria-label": "Search investors", role: "combobox", "aria-expanded": "false", "aria-autocomplete": "list", autocomplete: "off" });
+  const list = el("div", { class: "ta-list", role: "listbox", style: "display:none" });
+  let hits = [], at = -1;
+  const ensure = () => { if (!window.__vcs && !window.__vcsLoading) { window.__vcsLoading = true; fetchJson("/api/pipeline").then((d) => { window.__vcs = d.vcs; window.__evidence = d.evidence; window.__peopleAll = [...(d.people || []), ...(d.contacts || [])]; }).catch(() => {}).finally(() => { window.__vcsLoading = false; }); } };
+  const go = (h) => { input.value = ""; hide(); location.hash = `#/vc/${h.id}`; };
+  const hide = () => { list.style.display = "none"; input.setAttribute("aria-expanded", "false"); at = -1; };
+  const draw = () => {
+    list.replaceChildren(...hits.map((h, i) => {
+      const r = el("div", { class: "ta-item" + (i === at ? " on" : ""), role: "option", "aria-selected": String(i === at) }, el("b", {}, h.firm), h.sub ? el("span", {}, h.sub) : null);
+      r.onmousedown = (e) => { e.preventDefault(); go(h); };
+      return r;
+    }));
+    list.style.display = hits.length ? "block" : "none"; input.setAttribute("aria-expanded", String(!!hits.length));
+  };
+  input.oninput = () => {
+    ensure();
+    const q = input.value.trim().toLowerCase();
+    if (!q) { hits = []; return draw(); }
+    const firms = (window.__vcs || []).filter((v) => v.firm.toLowerCase().includes(q)).sort((a, b) => (b.firm.toLowerCase().startsWith(q)) - (a.firm.toLowerCase().startsWith(q)) || a.firm.localeCompare(b.firm))
+      .map((v) => ({ id: v.id, firm: v.firm, sub: FIT[v.fit_level] ? FIT[v.fit_level][0] : "" }));
+    const byId = new Map((window.__vcs || []).map((v) => [v.id, v.firm]));
+    const people = (window.__peopleAll || []).filter((p) => p.name && p.name.toLowerCase().includes(q) && byId.has(p.vc_id)).map((p) => ({ id: p.vc_id, firm: p.name, sub: `Partner at ${byId.get(p.vc_id)}` }));
+    hits = [...firms, ...people].slice(0, 8); at = hits.length ? 0 : -1; draw();
+  };
+  input.onfocus = ensure;
+  input.onblur = () => setTimeout(hide, 120);
+  input.onkeydown = (e) => {
+    if (e.key === "ArrowDown" && hits.length) { e.preventDefault(); at = (at + 1) % hits.length; draw(); }
+    else if (e.key === "ArrowUp" && hits.length) { e.preventDefault(); at = (at - 1 + hits.length) % hits.length; draw(); }
+    else if (e.key === "Escape") { hide(); input.blur(); }
+    else if (e.key === "Enter") {
+      if (at >= 0 && hits[at]) { e.preventDefault(); go(hits[at]); }
+      else if (input.value.trim()) { window.__q = input.value.trim(); input.value = ""; hide(); if (location.hash === "#/status") route(); else location.hash = "#/status"; }
+    }
+  };
+  return el("div", { class: "gsearch ta" }, el("span", { "aria-hidden": "true", style: "color:var(--muted)" }, "⌕"), input, list);
+}
+
+const BUCKET_EYE = LABELS;
 
 function renderProfile(d) {
   const v = d.vc, now = new Date(), score = v.follow_up_score ?? 0;
@@ -1430,6 +1393,7 @@ function renderProfile(d) {
   const lines = (v.signal_summary || "").split(" | ").filter(Boolean);
   const lastCheck = (d.checks || []).find((c) => c.ok && ["signal", "no_signal", "rescored"].includes(c.outcome));
   const meta = [v.geo, v.stage_focus, lastCheck ? `Last searched ${fmtDate(lastCheck.checked_at)}` : null].filter(Boolean).join(" \u00b7 ");
+  const failedLast = d.checks && d.checks[0] && !d.checks[0].ok;
 
   const head = el("div", { class: "pcard" },
     el("div", { class: "qtop" }, el("div", { class: "qeye" }, BUCKET_EYE[bucket] || "Investor"), el("a", { class: "back", style: "margin:0", href: "#/action" }, "\u2190 Back to today\u2019s queue")),
@@ -1437,12 +1401,13 @@ function renderProfile(d) {
       el("div", { class: "namerow", style: "margin:0" }, logoFor(v), el("div", {},
         el("h1", { class: "qname" }, v.firm),
         el("div", { class: "qhead2" }, fitChip(v), cool != null && cool <= 3 ? el("span", { class: "chip c-amber" }, cool <= 0 ? "Closes today" : `Cools in ${plural(cool, "day")}`) : null,
+          failedLast ? el("span", { class: "chip c-red", title: "The last search for this investor failed, so the signals may be out of date" }, "Last search failed") : null,
           el("span", { class: "qsub", style: "margin:0" }, meta)))),
       statusBlock(v, now, bucket, score)),
     el("div", { class: "qsec", style: "margin-top:20px;border-bottom:0;padding-bottom:0" }, el("div", { class: "qeye" }, "Why now"),
       lines.length > 1 ? el("ul", { class: "bullets", style: "margin:0;color:var(--text);font-size:16px;max-width:none" }, lines.map((t) => el("li", {}, t)))
         : el("p", { class: "qwhy", style: "font-size:19px" }, lines[0] || "Not scored yet."),
-      fitReason(v) ? el("p", { class: "qsub", style: "margin:8px 0 0" }, `Fit: ${fitReason(v)}`) : null));
+      null));
 
   const signals = el("div", { class: "pcard" }, el("div", { class: "qeye", style: "margin-bottom:12px" }, `Logistics signals (${logi.length}) \u00b7 newest first`),
     unverified ? el("p", { class: "note", style: "margin:-4px 0 8px" }, `${unverified} signal${unverified > 1 ? "s" : ""} below ${unverified > 1 ? "come" : "comes"} from a source that was not verified, so ${unverified > 1 ? "they are" : "it is"} shown for reference only and not counted in the score.`) : null,
@@ -1451,9 +1416,8 @@ function renderProfile(d) {
   show(
     topbar("", null),
     el("div", { class: "prof" },
-      el("div", { class: "prof-main" }, head, fitNote(v, bucket), bucket === "declined" ? declinedPanel(d) : null, signals, logPanel(v)),
-      el("div", { class: "prof-side" }, whoPanel(d), fitPanel(v), nextStepPanel(v), privatePanel(d))),
-    el("details", { style: "margin-top:18px" }, el("summary", { style: "cursor:pointer;font-weight:600;color:var(--muted);padding:6px 0" }, "Details \u00b7 search history and rejected sources"), checksPanel(d.checks)));
+      el("div", { class: "prof-main" }, head, bucket === "declined" ? declinedPanel(d) : null, signals, logPanel(v)),
+      el("div", { class: "prof-side" }, whoPanel(d), fitPanel(v), privatePanel(d))));
   window.scrollTo(0, 0);
 }
 
@@ -1463,11 +1427,12 @@ async function loadProfile(id) {
   try { data = await fetchJson(`/api/vc?id=${id}`); }
   catch (e) { show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"), failBox("Could not load this investor", () => loadProfile(id), e)); return; }
   window.__people = buildPeopleIndex({ contacts: data.contacts.map((c) => ({ ...c, vc_id: data.vc.id })), people: data.people.map((p) => ({ ...p, vc_id: data.vc.id })) });
+  window.__evidence = data.evidence;
   try { renderProfile(data); }
   catch (e) { console.error(e); show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"), failBox("The page hit a display error", () => loadProfile(id), e)); }
 }
 
-const viewFromHash = () => ({ "#/status": "status", "#/action": "action", "#/calendar": "calendar" })[location.hash] || "map";
+const viewFromHash = () => ({ "#/status": "status", "#/calendar": "calendar" })[location.hash] || "action";
 
 // ================================================================ Map (the home page)
 // The highest-priority investors as blocks: the bigger the block, the better the fit (with a bonus for a fresh signal).
@@ -1490,51 +1455,31 @@ function alerts(data, now) {
   return out;
 }
 
-function renderMap(data) {
-  const now = new Date(), g = groupVcs(data, now);
+function mapView(data, g, now) {
   const pool = [...g.reach.map((v) => [v, "reach"]), ...g.warm.map((v) => [v, "warm"]), ...g.pitch.map((v) => [v, "pitch"]),
     ...g.park.map((v) => [v, "park"]), ...g.dormant.map((v) => [v, "dormant"])]
     .map(([v, b]) => ({ v, b, w: mapWeight(v, b) })).sort((a, b) => b.w - a.w || a.v.firm.localeCompare(b.v.firm));
-  const top = pool.slice(0, 12), rest = pool.slice(12);
+  const top = pool.slice(0, 12);
   const newestLogi = (v) => Math.min(...data.evidence.filter((e) => e.vc_id === v.id && e.relevance === "logistics" && e.source_tier !== "legacy_unverified").map((e) => daysAgo(e.published_date, now)));
   const tile = ({ v, b, w }) => {
     const cls = b === "reach" ? "reach" : b === "warm" ? "warm" : "dorm";
-    const meta = b === "reach" || b === "warm" ? `${newestLogi(v)}d ago` : b === "pitch" ? "Pitch" : b === "park" ? "Parked" : "Dormant";
+    const meta = b === "reach" || b === "warm" ? `${newestLogi(v)}d ago` : LABELS[b];
     const fs = Math.max(17, Math.min(44, Math.round(w / 3.4)));
     const fit = v.fit_level && FIT[v.fit_level] ? FIT[v.fit_level][0] : "Not rated";
     return el("a", { class: `tm-tile ${cls}`, href: `#/vc/${v.id}`, style: `flex:${w} 1 0px`,
-        title: [fit, v.follow_up_score ? `Timing ${v.follow_up_score}` : "No signal", ...(v.fit_good || []), ...(v.fit_concerns || []).map((c) => "⚠ " + c)].join(" · ") },
+        title: [fit, ...(v.fit_good || []), ...(v.fit_concerns || []).map((c) => "\u26a0 " + c)].join(" \u00b7 ") },
       el("span", { class: "tn", style: `font-size:${fs}px` }, v.firm),
-      el("span", { class: "tb" }, el("span", {}, el("b", {}, fit), v.follow_up_score ? ` · ${v.follow_up_score}` : ""), el("span", {}, meta)));
+      el("span", { class: "tb" }, el("b", {}, fit), el("span", {}, meta)));
   };
-  const sizes = [3, 4, 5]; let at = 0;
-  const rows = sizes.map((n) => top.slice(at, (at += n))).filter((r) => r.length);
-  const treemap = el("div", { class: "tm", role: "list", "aria-label": "Investors by fit" }, rows.map((r) =>
-    el("div", { class: "tm-row", style: `flex:${r.reduce((s, t) => s + t.w, 0)} 1 0px` }, r.map(tile))));
-
-  const reachCards = g.reach.slice(0, 3).map((v) => card(v, data.evidence, now, "reach"));
-  const nudgeCards = g.nudge.slice(0, 2).map((v) => card(v, data.evidence, now, "nudge"));
-  const waiting = g.waiting.map((v) => v.firm);
-  const run = data.run, when = run && run.finished_at ? daysAgo(new Date(run.finished_at), now) : null;
-  const unscored = data.vcs.filter((v) => !v.recommended_action).length;
-
-  show(...header(data, "map"), ...alerts(data, now),
-    el("div", { class: "legend2" },
-      el("span", {}, el("i", { style: "background:#6fe39f" }), `Reach out · signal within ${MAX_SIGNAL_AGE} days (${g.reach.length})`),
-      el("span", {}, el("i", { style: "background:#ffc94d" }), `Warm · ${MAX_SIGNAL_AGE + 1}–30 days (${g.warm.length})`),
-      el("span", {}, el("i", { style: "background:#dfe3ea" }), `No recent signal · pitch on thesis (${g.pitch.length + g.park.length + g.dormant.length})`),
-      el("span", {}, run ? `Last search ${when === 0 ? "today" : when + "d ago"}` : "No search yet")),
-    el("div", { class: "twocol" },
-      el("section", { class: "main", "aria-label": "Opportunity map" }, top.length ? treemap : el("div", { class: "empty" }, "No investors to show yet.")),
-      el("aside", { "aria-label": "Today" },
-        el("h2", {}, "Reach out today"),
-        reachCards.length ? reachCards : el("div", { class: "empty" }, "No prospect has a fresh logistics signal. Don't force it."),
-        nudgeCards.length ? [el("h2", { style: "margin-top:18px" }, "Follow up due"), nudgeCards] : null,
-        waiting.length ? el("p", { class: "sub", style: "margin-top:14px" }, `Waiting on replies: ${waiting.join(", ")}.`) : null,
-        el("p", { class: "sub", style: "margin-top:10px" }, el("a", { href: "#/calendar", style: "color:var(--purple2)" }, "Open the calendar →")))),
-    rest.length ? el("div", { style: "margin-top:22px" }, listSection("More investors", "ranked by fit, then timing", rest.map((r) => r.v),
-      (v) => [FIT[v.fit_level] && FIT[v.fit_level][0], BUCKET[bucketOf(v, now, hotSet(data.evidence, now))][0]].filter(Boolean).join(" · "))) : null,
-    unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
+  let at = 0;
+  const rows = [3, 4, 5].map((n) => top.slice(at, (at += n))).filter((r) => r.length);
+  const noSignal = g.pitch.length + g.park.length + g.dormant.length;
+  return [el("div", { class: "legend2" },
+      el("span", {}, el("i", { style: "background:#6fe39f" }), `${LABELS.reach} \u00b7 signal within ${MAX_SIGNAL_AGE} days (${g.reach.length})`),
+      el("span", {}, el("i", { style: "background:#ffc94d" }), `${LABELS.warm} \u00b7 ${MAX_SIGNAL_AGE + 1}\u201330 days (${g.warm.length})`),
+      el("span", {}, el("i", { style: "background:#dfe3ea" }), `No recent signal (${noSignal}): ${g.pitch.length} pitch on thesis, ${g.park.length} parked, ${g.dormant.length} dormant`),
+      el("span", {}, "Bigger block = better fit. Showing the top 12")),
+    el("div", { class: "tm", role: "list", "aria-label": "Investors by fit" }, rows.map((r) => el("div", { class: "tm-row", style: `flex:${r.reduce((s, t) => s + t.w, 0)} 1 0px` }, r.map(tile))))];
 }
 
 // ================================================================ Calendar
@@ -1601,7 +1546,6 @@ function renderCalendar(data) {
   for (let i = 0; i < days; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     const iso = isoLocal(d), evs = [...(by.get(iso) || [])];
-    if ([1, 4].includes(d.getDay())) evs.push({ kind: "run", text: "Search run · 7:00" });
     const isToday = iso === todayIso, out = monthOf != null && d.getMonth() !== monthOf;
     const add = el("button", { class: "addb", title: `Add an event on ${fmtDate(iso)}`, "aria-label": `Add an event on ${iso}` }, "+");
     add.onclick = () => { calState.formDate = iso; draw(); };
@@ -1644,13 +1588,14 @@ function renderCalendar(data) {
 
   // Today panel
   const todays = (by.get(todayIso) || []);
-  const reachCards = g.reach.slice(0, 3).map((v) => card(v, data.evidence, now, "reach"));
-  const warn = g.warm.length;
+  const upcoming = [];
+  for (let i = 1; i <= 7; i++) { const iso = addIso(todayIso, i); for (const e of by.get(iso) || []) upcoming.push({ iso, e }); }
   const side = el("aside", { "aria-label": "Today" },
-    el("h2", {}, `Today · ${now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`),
+    el("h2", {}, `Today \u00b7 ${now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`),
     todays.length ? el("div", { class: "todaylist" }, todays.map((e) => pill(e, reload))) : el("p", { class: "sub", style: "margin:0 0 12px" }, "Nothing scheduled today."),
-    reachCards.length ? [el("h2", { style: "font-size:16px" }, "Reach out"), reachCards] : null,
-    warn ? el("p", { class: "sub" }, `${warn} warm investor${warn > 1 ? "s have" : " has"} no deadline. `, el("a", { href: "#/action", style: "color:var(--purple2)" }, "See warm →")) : null);
+    el("h2", { style: "font-size:16px;margin-top:18px" }, "Next 7 days"),
+    upcoming.length ? el("div", { class: "todaylist" }, upcoming.map(({ iso, e }) => el("div", {}, el("div", { class: "qsub", style: "margin:0 0 3px" }, new Date(iso + "T00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })), pill(e, reload))))
+      : el("p", { class: "sub", style: "margin:0" }, "Nothing in the next 7 days."));
 
   show(...header(data, "calendar"), ...alerts(data, now),
     el("div", { class: "twocol" }, side,
@@ -1658,7 +1603,7 @@ function renderCalendar(data) {
         el("div", { class: "legend2" },
           el("span", {}, el("i", { style: "background:#fde1a8" }), "Window closes"), el("span", {}, el("i", { style: "background:#dfe7ff" }), "Follow up due"),
           el("span", {}, el("i", { style: "background:#ffd0d0" }), "Overdue"), el("span", {}, el("i", { style: "background:#f3d9ff" }), "Revisit"),
-          el("span", {}, el("i", { style: "background:#bff2d2" }), "Your events"), el("span", {}, "Dashed = search run")),
+          el("span", {}, el("i", { style: "background:#bff2d2" }), "Your events")),
         el("div", { class: "calwrap" }, el("div", { class: "cal" }, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => el("div", { class: "dow" }, d)), cells)))));
 }
 
@@ -1697,7 +1642,8 @@ async function load(view, quiet) {
   try { data = await fetchJson("/api/pipeline"); }
   catch (e) { show(failBox("Could not load the pipeline", () => load(view), e)); return; }
   window.__people = buildPeopleIndex(data);
-  try { ({ status: renderStatus, action: render, calendar: renderCalendar, map: renderMap }[view] || renderMap)(data); }
+  window.__vcs = data.vcs; window.__evidence = data.evidence; window.__peopleAll = [...(data.people || []), ...(data.contacts || [])];
+  try { ({ status: renderStatus, action: render, calendar: renderCalendar }[view] || render)(data); }
   catch (e) { console.error(e); show(failBox("The page hit a display error", () => load(view), e)); }
 }
 window.addEventListener("hashchange", route);

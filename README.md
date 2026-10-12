@@ -184,16 +184,18 @@ Contacted funds show their relationship state and next step instead of a pitch s
 **Fill in `competitors:`** with companies that compete with yours: a fund whose recent signals mention one gets a
 "possible conflict" concern. It is empty because the pipeline can't know them.
 
-## Map and Calendar
+## Screens
 
-- **Map** (home): the 12 highest-priority investors as blocks. Block size is fit first (points for thesis, stage, region,
-  track record) with a bonus for a fresh signal. Green = reach out now (logistics signal within 14 days), yellow = warm
-  (15-30 days), grey = no recent signal (pitch on the thesis). The right side lists today's reach-outs and follow-ups
-  with the usual one-click actions. The rest of the investors are in a collapsed list below.
-- **Calendar**: two weeks or a month. Automatic items: the day each reach-out window closes (signal date + 14 days),
-  follow-ups due (contacted + 7 days, overdue ones sit on today), revisit dates for declined investors, and the
-  Monday/Thursday search runs. Your own calls, meetings, reminders and deadlines are added with "+ Add event" (or the +
-  on a day), can be tied to an investor, marked done or deleted, and are saved in the `vc_events` table.
+- **By action** (home): a queue on the left and the selected investor on the right. A Queue / Map toggle switches to the map:
+  the 12 highest-priority investors as blocks, sized by fit with a bonus for a fresh signal (green = reach out, yellow = warm,
+  grey = no recent signal). One set of names is used everywhere: Reach out, Pitch on thesis, Warm, Contacted, In talks,
+  Approved, Closed, Declined, Parked, Dormant, Not a fit.
+- **My pipeline**: one table of every investor with stage pills (including Closed), a Fit filter, sorting and one action per row.
+- **Investor profile**: the signals, who to contact, fit, activity and your private notes. The search history is not shown.
+- **Calendar**: two weeks or a month. It shows when each reach-out window closes (signal date + 14 days), follow-ups due
+  (contacted + 7 days), revisit dates, and the calls, meetings and reminders you add yourself (saved in `vc_events`).
+- **Mark reached out** is one modal everywhere (contact, channel, date, note). The header search is a typeahead over funds and
+  partners; pressing Enter on text that matches nothing filters My pipeline.
 
 ## What the dashboard shows
 
