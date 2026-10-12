@@ -467,6 +467,39 @@
   .qfit .ok { color: #0b5d33; } .qfit .bad { color: #8a5a00; }
   .qmore { padding: 10px 0; border-top: 1px solid #eceef2; font-size: 14px; }
   .qmore:first-of-type { border-top: 0; padding-top: 0; }
+
+  /* My pipeline: clean table */
+  .fpills { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .fpill { border-radius: 999px; padding: 7px 16px; font-size: 14px; border: 1.5px solid #cdd2dc; background: #fff; color: var(--text); }
+  .fpill small { font: 500 12px var(--mono); opacity: .7; }
+  .fpill:hover { background: #f4f5f8; color: var(--text); border-color: #0e1116; }
+  .fpill.on { background: #0e1116; color: #fff; border-color: #0e1116; }
+  .fpill.on:hover { background: #262c38; color: #fff; }
+  .tb2 { margin-bottom: 14px; }
+  .tsearch { flex: 1; min-width: 240px; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border: 1.5px solid #cdd2dc; border-radius: 12px; background: #fff; }
+  .tsearch input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--text); padding: 0; outline-offset: 8px; }
+  .tb2 select { height: 44px; border-radius: 12px; border: 1.5px solid #cdd2dc; background: #fff; padding: 0 12px; }
+  .ttable { background: #fff; border: 1px solid var(--line); border-radius: 18px; overflow-x: auto; }
+  .tgrid { display: grid; grid-template-columns: minmax(170px, 1.5fr) minmax(130px, 1.1fr) .7fr minmax(150px, 1.4fr) minmax(170px, 1.6fr) 150px; gap: 14px; align-items: center; padding: 14px 22px; min-width: 1000px; }
+  .thead { font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-top: 16px; padding-bottom: 12px; }
+  .trw { border-top: 1px solid #eceef2; }
+  .trw:first-child { border-top: 0; }
+  .tinv a { font-weight: 700; font-size: 15px; }
+  .tsub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .tdim { color: var(--muted); font-size: 13.5px; }
+  .spill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 11px 2px 9px; font-size: 12.5px; font-weight: 600; background: #fff; }
+  .spill i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .d-green { background: #0f8a4b; } .d-teal { background: #0f8a8a; } .d-amber { background: #d9951a; } .d-blue { background: #3d5afe; } .d-gray { background: #9aa1ad; }
+  .tfit { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .tfit i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .tact-cell { display: flex; justify-content: flex-end; }
+  .tact { border-radius: 999px; padding: 7px 18px; font-size: 13.5px; border: 1.5px solid #cdd2dc; background: #fff; color: var(--text); white-space: nowrap; }
+  .tact:hover { background: #0e1116; color: #fff; border-color: #0e1116; }
+  .tlink { font-size: 13.5px; font-weight: 600; color: var(--text); text-underline-offset: 3px; }
+  .trow-x { padding: 0 22px 16px; max-width: 560px; margin-left: auto; }
+  .tmore { display: flex; justify-content: center; padding: 14px; border-top: 1px solid #eceef2; }
+  .tmore:empty { display: none; }
+  .showmore { border-radius: 999px; padding: 8px 22px; font-size: 14px; border: 1.5px solid #cdd2dc; }
 </style>
 </head>
 <body>
@@ -1014,19 +1047,115 @@ function render(data) {
     unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
 }
 
+// ================================================================ My pipeline: one clean table of every investor
+const TBL_ORDER = { nudge: 0, reach: 1, pitch: 2, warm: 3, waiting: 4, talks: 5, approved: 6, declined: 7, park: 8, dormant: 9, skip: 10 };
+const TBL_STATUS = { reach: ["Reach out", "green"], pitch: ["Pitch on thesis", "teal"], warm: ["Warm", "amber"], nudge: ["Contacted", "blue"], waiting: ["Contacted", "blue"],
+  talks: ["In talks", "blue"], approved: ["Approved", "green"], declined: ["Declined", "gray"], park: ["Park", "gray"], dormant: ["Dormant", "gray"], skip: ["Not a fit", "gray"] };
+const FIT_DOT = { high: ["High", "#0f8a4b"], medium: ["Medium", "#b4690e"], low: ["Low", "#9aa1ad"], excluded: ["None", "#9aa1ad"] };
+const tblState = { filter: "all", q: "", fit: "", sort: "next", all: false };
+
 function renderStatus(data) {
   const now = new Date(), g = groupVcs(data, now), hot = hotSet(data.evidence, now);
-  const board = [
-    ["Follow up due", `Contacted ${NUDGE_DAYS}+ days ago, no reply`, g.nudge.map((v) => card(v, data.evidence, now, "nudge")), { always: true, empty: "Nothing due. Nobody is overdue a reply." }, g.nudge.length],
-    ["Contacted", "Waiting for a reply; follow-up date shown", g.waiting.map((v) => card(v, data.evidence, now, "waiting")), {}, g.waiting.length],
-    ["In talks", "Replied, call or meeting", g.talks.map((v) => card(v, data.evidence, now, "talks")), {}, g.talks.length],
-    ["Approved", "Committed to invest", g.approved.map((v) => card(v, data.evidence, now, "approved")), {}, g.approved.length],
-    ["Declined", "Said no. Revisit or undo from here", g.declined.map((v) => card(v, data.evidence, now, "declined")), {}, g.declined.length],
-  ];
-  const shown = board.filter((c) => c[4] || c[3].always);
-  show(...header(data, "status"),
-    el("div", { class: "board auto" }, shown.map(([t, h, items, o, total]) => column(t, h, items, { ...o, total }))),
-    directory(data, now, hot));
+  const reload = () => load(undefined, true);
+  const rows = data.vcs.map((v) => {
+    const bucket = bucketOf(v, now, hot), people = peopleOfVc(v), { best } = signalsOf(v, data.evidence);
+    const lead = [...people].sort((a, b) => (b.manual - a.manual) || (roleRank(a.role) - roleRank(b.role)))[0];
+    return { v, bucket, key: bucket === "nudge" ? "waiting" : bucket, lead, best, text: [v.firm, v.thesis, v.geo, v.stage_focus, ...people.map((p) => p.name)].join(" ").toLowerCase() };
+  });
+  const count = (k) => rows.filter((r) => k === "all" || r.key === k).length;
+  const FILTERS = [["all", "All"], ["reach", "Reach out"], ["pitch", "Pitch on thesis"], ["warm", "Warm"], ["waiting", "Contacted"], ["talks", "In talks"], ["approved", "Approved"],
+    ["declined", "Declined"], ["park", "Park"], ["dormant", "Dormant"], ["skip", "Not a fit"]].filter(([k]) => k === "all" || count(k));
+
+  const contacted = g.waiting.length + g.nudge.length + g.talks.length + g.approved.length;
+  const search = el("input", { placeholder: "Filter by fund, partner, thesis or region", "aria-label": "Filter investors" });
+  search.value = window.__q || tblState.q; window.__q = "";
+  const fitSel = el("select", { "aria-label": "Fit" }, [["", "Fit: any"], ["high", "High fit"], ["medium", "Medium fit"], ["low", "Low fit"]].map(([k, t]) => el("option", { value: k }, t)));
+  const sortSel = el("select", { "aria-label": "Sort" }, [["next", "Sort: next move"], ["name", "Sort: name"], ["fit", "Sort: fit"], ["signal", "Sort: latest signal"], ["searched", "Sort: least recently searched"]].map(([k, t]) => el("option", { value: k }, t)));
+  fitSel.value = tblState.fit; sortSel.value = tblState.sort;
+  const pillBar = el("div", { class: "fpills", role: "group", "aria-label": "Filter by stage" });
+  const body = el("div", {}), more = el("div", { class: "tmore" });
+
+  const SORTS = {
+    next: (a, b) => TBL_ORDER[a.bucket] - TBL_ORDER[b.bucket] || fitRank(a.v) - fitRank(b.v) || (b.v.fit_points ?? 0) - (a.v.fit_points ?? 0) || (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0) || a.v.firm.localeCompare(b.v.firm),
+    name: (a, b) => a.v.firm.localeCompare(b.v.firm),
+    fit: (a, b) => fitRank(a.v) - fitRank(b.v) || (b.v.fit_points ?? 0) - (a.v.fit_points ?? 0) || a.v.firm.localeCompare(b.v.firm),
+    signal: (a, b) => ((b.best && b.best.published_date) || "") < ((a.best && a.best.published_date) || "") ? -1 : 1,
+    searched: (a, b) => (a.v.last_searched_at || "") < (b.v.last_searched_at || "") ? -1 : 1,
+  };
+
+  // the one action that makes sense for this row
+  const act = (r) => {
+    const { v, bucket } = r;
+    const log = (label, kind, primary) => {
+      const b = el("button", { class: "tact" + (primary ? " p" : "") }, label);
+      b.onclick = async () => {
+        b.disabled = true; b.textContent = "Saving…";
+        const res = await editCall({ action: "log", vc_id: v.id, kind, occurred_on: localIso(0) });
+        if (res) { savedToast(v, res, `${v.firm}: ${label.toLowerCase()}`, reload); reload(); } else { b.disabled = false; b.textContent = label; }
+      };
+      return b;
+    };
+    if (["reach", "warm", "pitch"].includes(bucket)) {
+      const b = el("button", { class: "tact" }, "Reach out");
+      b.onclick = () => { const x = r.formRow; x.style.display = x.style.display === "none" ? "block" : "none"; const inner = x.querySelector("button.primary"); if (x.style.display === "block" && inner) inner.click(); };
+      return b;
+    }
+    if (bucket === "nudge") return log("Followed up", "follow_up");
+    if (bucket === "waiting") return log("They replied", "replied");
+    if (bucket === "talks") return log("They approved", "approved");
+    if (bucket === "approved") return log("Mark closed", "closed");
+    if (bucket === "declined") {
+      const b = el("button", { class: "tact" }, "Undo");
+      b.onclick = async () => { if (await editCall({ action: "undo_decline", vc_id: v.id })) { toast(`${v.firm}: decline undone`); reload(); } };
+      return b;
+    }
+    return el("a", { class: "tlink", href: `#/vc/${v.id}` }, bucket === "skip" ? "Open profile" : "Log");
+  };
+
+  const statusCell = (r) => {
+    const { v, bucket } = r, [t, c] = TBL_STATUS[bucket], d = waitDays(v, now);
+    const due = v.last_contacted_at ? fmtDate(new Date(new Date(v.last_contacted_at).getTime() + NUDGE_DAYS * 864e5).toISOString()) : null;
+    const sub = bucket === "waiting" ? `${d === 0 ? "Today" : d === 1 ? "Yesterday" : d + "d ago"} · follow up ${due}`
+      : bucket === "nudge" ? `${d == null ? "No date" : d + "d ago"} · follow-up due`
+      : bucket === "talks" ? (d == null ? "" : `Last contact ${d}d ago`) : bucket === "declined" ? (v.revisit_on ? `Revisit ${fmtDate(v.revisit_on)}` : "") : "";
+    return el("div", {}, el("span", { class: "spill" }, el("i", { class: `d-${c}` }), t), sub ? el("div", { class: "tsub" }, sub) : null);
+  };
+
+  const rowEl = (r) => {
+    const { v, lead, best } = r, fit = FIT_DOT[v.fit_level] || ["—", "#9aa1ad"];
+    const searched = el("div", { class: "tsub" }, v.last_searched_at ? `Searched ${fmtDate(v.last_searched_at)}` : "Never searched",
+      v.recommended_action === "skip" || v.status === "declined" ? null : [" · next ", nextSearch(v, now)]);
+    r.formRow = el("div", { class: "trow-x", style: "display:none" }, quickActions(v, r.bucket));
+    return el("div", { class: "trw" },
+      el("div", { class: "tgrid" },
+        el("div", { class: "tinv" }, el("a", { class: "qlink", href: `#/vc/${v.id}` }, v.firm), el("div", { class: "tsub" }, lead ? lead.name : "No partner found yet")),
+        statusCell(r),
+        el("div", { class: "tfit" }, el("i", { style: `background:${fit[1]}` }), fit[0]),
+        el("div", { class: "tdim" }, [v.geo, v.stage_focus].filter(Boolean).join(" · ")),
+        el("div", {}, best ? `${fmtDate(best.published_date)} · ${LBL.type[best.type] || best.type}` : el("span", { class: "tdim" }, "No signal"), searched),
+        el("div", { class: "tact-cell" }, act(r))),
+      r.formRow);
+  };
+
+  const draw = () => {
+    const q = search.value.trim().toLowerCase();
+    tblState.q = search.value; tblState.fit = fitSel.value; tblState.sort = sortSel.value;
+    const list = rows.filter((r) => (tblState.filter === "all" || r.key === tblState.filter) && (!q || r.text.includes(q)) && (!tblState.fit || r.v.fit_level === tblState.fit)).sort(SORTS[tblState.sort]);
+    const LIMIT = 13, shown = tblState.all || q || list.length <= LIMIT + 3 ? list : list.slice(0, LIMIT);
+    body.replaceChildren(...(shown.length ? shown.map(rowEl) : [el("div", { class: "empty", style: "margin:14px" }, "No investors match.")]));
+    more.replaceChildren(...(shown.length < list.length ? [(() => { const b = el("button", { class: "showmore" }, `Show ${list.length - shown.length} more`); b.onclick = () => { tblState.all = true; draw(); }; return b; })()] : []));
+    pillBar.replaceChildren(...FILTERS.map(([k, t]) => { const b = el("button", { class: "fpill" + (tblState.filter === k ? " on" : ""), "aria-pressed": String(tblState.filter === k) }, t, " ", el("small", {}, String(count(k)))); b.onclick = () => { tblState.filter = k; tblState.all = false; draw(); }; return b; }));
+  };
+  [search, fitSel, sortSel].forEach((x) => { x.oninput = () => { tblState.all = false; draw(); }; x.onchange = x.oninput; });
+  draw();
+
+  const head = ["Investor", "Status", "Fit", "Region and stage", "Latest signal", ""];
+  show(topbar("status", data.vcs.length), ...alerts(data, now),
+    el("div", { class: "top" }, el("div", {}, el("h1", {}, "My pipeline"),
+      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), ` · ${contacted} contacted · ${g.nudge.length} follow-up${g.nudge.length === 1 ? "" : "s"} due`))),
+    pillBar,
+    el("div", { class: "toolbar tb2" }, el("label", { class: "tsearch" }, el("span", { "aria-hidden": "true", style: "color:var(--muted)" }, "⌕"), search), fitSel, sortSel),
+    el("div", { class: "ttable" }, el("div", { class: "tgrid thead" }, head.map((h) => el("div", {}, h))), body, more));
 }
 
 // When this investor will next be searched. Mirrors the schedule in weights.yaml (pipeline 2d, reach-out 2d, dormant 7d)
@@ -1043,49 +1172,6 @@ function nextSearch(v, now) {
     if ([1, 4].includes(run.getUTCDay()) && run >= from) return run.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
   }
   return "\u2014";
-}
-
-// All investors in one searchable, filterable, sortable table: find any fund (even a dormant one) to check or log something.
-function directory(data, now, hot) {
-  const rows = data.vcs.map((v) => {
-    const bucket = bucketOf(v, now, hot), people = peopleOfVc(v), { best } = signalsOf(v, data.evidence);
-    return { v, bucket, people, best, text: [v.firm, v.thesis, v.geo, v.stage_focus, ...people.map((p) => p.name)].join(" ").toLowerCase() };
-  });
-  const STAGES = [["", "All stages"], ["reach", "Reach out"], ["pitch", "Pitch with thesis hook"], ["warm", "Warm"], ["park", "Park"], ["nudge", "Follow up due"], ["waiting", "Contacted"], ["talks", "In talks"], ["approved", "Approved"], ["declined", "Declined"], ["dormant", "Dormant"], ["skip", "Not a fit"]];
-  const SORTS = { name: (a, b) => a.v.firm.localeCompare(b.v.firm), score: (a, b) => (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0), fit: (a, b) => fitRank(a.v) - fitRank(b.v) || (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0),
-    contact: (a, b) => (b.v.last_contacted_at || "") < (a.v.last_contacted_at || "") ? -1 : 1, searched: (a, b) => (a.v.last_searched_at || "") < (b.v.last_searched_at || "") ? -1 : 1 };
-  const search = el("input", { placeholder: "Search by fund, partner, thesis or region" });
-  search.value = window.__q || ""; window.__q = "";
-  const stage = el("select", {}, STAGES.map(([k, t]) => el("option", { value: k }, t)));
-  const sort = el("select", {}, [["name", "Sort: name"], ["fit", "Sort: fit, then timing"], ["score", "Sort: timing score"], ["contact", "Sort: last contact"], ["searched", "Sort: least recently searched"]].map(([k, t]) => el("option", { value: k }, t)));
-  const count = el("span", { class: "count" });
-  const cols = "1.4fr .9fr .7fr 1fr .7fr 1.3fr .55fr .75fr .85fr 190px";
-  const head = el("div", { class: "trow head", style: `--cols:${cols}` }, ["Investor", "Stage", "Fit", "Region / focus", "Last contact", "Latest signal", "Timing", "Last searched", "Next search", "Action"].map((h) => el("div", {}, h)));
-  const body = el("div", {});
-  const draw = () => {
-    const q = search.value.trim().toLowerCase(), st = stage.value;
-    const list = rows.filter((r) => (!q || r.text.includes(q)) && (!st || r.bucket === st)).sort(SORTS[sort.value]);
-    count.textContent = `Showing ${list.length} of ${rows.length}`;
-    body.replaceChildren(...list.map((r) => {
-      const { v, bucket, people, best } = r, d = waitDays(v, now);
-      const lead = [...people].sort((a, b) => (b.manual - a.manual) || (roleRank(a.role) - roleRank(b.role)))[0];
-      return el("div", { class: "trow", style: `--cols:${cols}` },
-        el("div", { class: "vc" }, el("b", {}, el("a", { href: `#/vc/${v.id}` }, v.firm)), el("small", {}, lead ? lead.name : "No partner found yet")),
-        el("div", {}, btag(bucket)),
-        el("div", {}, fitChip(v) || el("span", { class: "dim" }, "\u2014")),
-        el("div", { class: "dim" }, [v.geo, v.stage_focus].filter(Boolean).join(" \u00b7 ")),
-        el("div", {}, d == null ? el("span", { class: "dim" }, "\u2014") : `${d}d ago`),
-        el("div", { class: "dim" }, best ? `${fmtDate(best.published_date)}: ${(LBL.type[best.type] || best.type)}${best.relevance === "logistics" ? " (logistics)" : ""}` : "\u2014"),
-        el("div", {}, v.follow_up_score ? el("b", { style: `color:${scoreColor(v.follow_up_score)}` }, String(v.follow_up_score)) : el("span", { class: "dim", title: "No signal in the last 30 days" }, "no signal")),
-        el("div", { class: "dim", title: v.last_searched_at ? new Date(v.last_searched_at).toLocaleString("en-GB") : "" }, v.last_searched_at ? fmtDate(v.last_searched_at) : "never"),
-        el("div", { title: "Searches run Monday and Thursday at 7:00 IST. Contacted / in-talks / reach-out investors every 2 days, everyone else weekly." }, nextSearch(v, now)),
-        el("div", {}, quickActions(v, bucket) || el("a", { class: "chip", href: `#/vc/${v.id}` }, "Open profile")));
-    }));
-  };
-  [search, stage, sort].forEach((x) => { x.oninput = draw; x.onchange = draw; });
-  draw();
-  return el("section", { style: "margin-top:30px" }, el("h2", { style: "margin:0 0 12px" }, "All investors", el("small", {}, "Search, filter and log any fund, including dormant ones")),
-    el("div", { class: "toolbar" }, search, stage, sort, count), el("div", { class: "tbl" }, el("div", { class: "inner" }, head, body)));
 }
 
 // Logo: the firm's favicon, from its website when we know it. If there is none (or it fails to load) fall back to initials.
