@@ -467,19 +467,6 @@ function pickFocus(g) {
   return null;
 }
 
-// The honest answer to "did every investor actually get checked?": based on each investor's last REAL search
-// (a re-score from saved signals does not count). Funds that are declined or not a fit need no search.
-function coverageLine(vcs, now) {
-  const eligible = vcs.filter((v) => v.recommended_action !== "skip" && v.status !== "declined");
-  const searched = eligible.filter((v) => v.last_searched_at), fresh = searched.filter((v) => daysAgo(v.last_searched_at, now) <= 8);
-  const oldest = searched.length ? searched.reduce((a, v) => (v.last_searched_at < a ? v.last_searched_at : a), searched[0].last_searched_at) : null;
-  const never = eligible.length - searched.length, stale = searched.length - fresh.length;
-  const ok = never === 0 && stale === 0;
-  const text = ok ? `Coverage: all ${eligible.length} investors that need a search were searched in the last 8 days (oldest search ${fmtDate(oldest)}).`
-    : `Coverage: ${fresh.length} of ${eligible.length} searched in the last 8 days` + (never ? `, ${never} never searched` : "") + (stale ? `, ${stale} overdue` : "") + (oldest ? ` (oldest ${fmtDate(oldest)})` : "") + ".";
-  return el("div", { class: "coverage" + (ok ? "" : " warn"), title: `${vcs.length - eligible.length} declined / not-a-fit investors need no search.` }, text);
-}
-
 function hero(data, now, g, focus) {
   const { run, vcs, evidence } = data;
   // Only prospects care: a failed check just means an older score, which doesn't matter once you've contacted them.
@@ -522,7 +509,7 @@ function hero(data, now, g, focus) {
       tile("Reach out", g.reach.length, "prospects", "reach"), tile("Follow up due", g.nudge.length, "no reply", "nudge"),
       tile("In talks", g.talks.length, "live", "talks"), tile("Approved", g.approved.length, "committed", "approved")),
     el("div", { class: "runline" }, run ? `Last search run ${when}: ${plural(run.signals_kept, "new signal")} found` + (run.vcs_total < vcs.length ? `, ${run.vcs_total} of ${vcs.length} investors due (the rest are on their schedule)` : "") + "." : "No run yet."),
-    coverageLine(vcs, now));
+    null);
   return [failedNote, ...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
 }
 
@@ -565,19 +552,13 @@ function tabs(active) {
     el("a", { href: "#/status", class: active === "status" ? "on" : "" }, "My pipeline"));
 }
 
-// 59 = the 50 on your original list + 9 added from the LinkedIn post. Say so, so the number is never a surprise.
-function countNote(data) {
-  const added = data.vcs.filter((v) => (v.background || "").startsWith("Listed in LinkedIn post")).length;
-  return added ? ` (${data.vcs.length - added} from your list + ${added} added from a LinkedIn post)` : "";
-}
-
 function header(data, active) {
   return [el("div", { class: "brand" }, el("span", { class: "logo" }), "Investor Pipeline"),
     el("div", { class: "top" }, el("div", {},
       el("h1", {}, active === "action" ? "What to do today" : "My pipeline"),
-      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), countNote(data), active === "action"
-        ? " tracked \u00b7 follow-ups and new prospects \u00b7 every claim links to its source"
-        : " by stage: who to approach, who's contacted, who's talking, who said yes or no"))),
+      el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), active === "action"
+        ? " \u00b7 your to-do list for today: who to reach out to and who to follow up"
+        : " \u00b7 every investor and where they stand: search, filter and log any fund"))),
     tabs(active)];
 }
 

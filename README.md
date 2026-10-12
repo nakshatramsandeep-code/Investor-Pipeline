@@ -169,12 +169,15 @@ the investor's profile ("How fit changes the score"), so a big or off-topic fund
 alone. **Fill in `competitors:`** with the names of companies that compete with yours: a fund whose recent signals
 mention one is flagged "possible conflict" and scored down (x0.5). It is empty because the pipeline can't know them.
 
-## What the dashboard tells you about coverage
+## What the dashboard shows
 
-The top panel shows **Coverage**: how many investors that need a search were actually searched (a real search, not a
-re-score) in the last 8 days, and the oldest search date. Declined and not-a-fit investors need no search. Signal
-counts on cards are logistics signals only ("1 logistics signal, +4 other"); a signal that is about to leave the
-14-day reach-out window shows "Cools in N days". A partner's activity is shown only if it is about logistics.
+The top panel shows when the last search run happened and how many investors it covered. Signal counts on cards are
+logistics signals only ("1 logistics signal, +4 other"); a signal that is about to leave the 14-day reach-out
+window shows "Cools in N days". A partner's activity is shown only if it is about logistics.
+
+**By action** is the to-do list for today: Do this first, Reach out, Follow up due, Contacted, Declined, plus the
+Dormant and Not-a-fit lists. **My pipeline** is every investor and where they stand: stage columns, and a table of
+all of them to search, filter and log.
 
 My pipeline has a searchable table of every investor (name, partner, thesis, region; filter by stage; sort by
 score, last contact, or least recently searched), so any fund, including dormant ones, can be opened or logged.
