@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Investor Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Geist:wght@400..700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0a0a0f; --panel: #14141b; --panel2: #1b1b24; --line: #262633; --text: #f3f3f7; --muted: #a9a9be;
@@ -264,6 +267,131 @@
   .evform input, .evform select { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 14px; min-height: 38px; }
   .evform .wide { grid-column: 1 / -1; }
   .todaylist { display: grid; gap: 6px; margin: 4px 0 14px; }
+
+  /* ================================================================ LIGHT THEME (overrides everything above)
+     Palette and shapes follow the design references: soft grey page, white cards with thin borders, ink buttons,
+     Bricolage Grotesque for headings, Geist for text, Geist Mono for numbers. */
+  :root {
+    --bg: #f2f3f5; --panel: #ffffff; --panel2: #eceef2; --line: #dfe2e8; --text: #0e1116; --muted: #5b6270;
+    --purple: #0e1116; --purple2: #2447d6; --green: #0f8a4b; --pink: #c2255c; --blue: #2447d6; --amber: #b4690e; --red: #c53030;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --display: "Bricolage Grotesque", "Geist", system-ui, sans-serif;
+  }
+  body { font: 15px/1.5 "Geist", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { padding-top: 0; }
+  a { color: #2447d6; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid #3d5afe; outline-offset: 2px; }
+  h1 { font: 800 42px/1.05 var(--display); letter-spacing: -.03em; margin: 0 0 8px; }
+  h2, .col h4, .panel h3, .insight h3, .kpi h3, details.sec > summary, aside h2 { font-family: var(--display); font-weight: 700; letter-spacing: -.01em; }
+  h2 { font-size: 20px; }
+  h2 small, details.sec > summary small, .legend, .sub { font-family: "Geist", system-ui, sans-serif; }
+  .sub { font-size: 15px; }
+  .sub b { color: var(--text); }
+
+  /* top bar: white, full width, with the tabs and a search box */
+  .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 28px; background: #fff; border-bottom: 1px solid var(--line);
+    margin: 0 0 28px; padding: 0; box-shadow: 0 0 0 100vmax #fff; clip-path: inset(0 -100vmax); min-height: 62px; }
+  .brand2 { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+  .brand2 b { font-family: var(--display); font-weight: 800; letter-spacing: -.02em; font-size: 18px; }
+  .logo { background: #0e1116; position: relative; }
+  .logo::after { content: ""; position: absolute; inset: 7px 7px 7px 7px; border-radius: 4px; background: #6fe39f; clip-path: polygon(0 0, 55% 0, 55% 100%, 0 100%); }
+  .topbar .tabs { margin: 0; gap: 26px; align-self: stretch; }
+  .tabs a, .tabs a.cal-tab { padding: 0; border: 0; border-bottom: 3px solid transparent; border-radius: 0; display: inline-flex; align-items: center; min-height: 62px;
+    font-weight: 600; font-size: 15px; color: var(--muted); background: transparent; }
+  .tabs a:hover { color: var(--text); }
+  .tabs a.on { background: transparent; color: var(--text); border-bottom-color: #3d5afe; }
+  .gsearch { margin-left: auto; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 12px; border: 1.5px solid #cdd2dc; border-radius: 12px; background: #fff; min-width: 260px; }
+  .gsearch input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--text); outline-offset: 6px; }
+  .top { margin-bottom: 20px; }
+
+  /* cards and panels */
+  .card, .insight, .panel, .mini, .tbl, .empty, .calwrap { background: #fff; border-color: var(--line); }
+  .card, .insight, .panel { border-radius: 16px; }
+  .card { box-shadow: 0 1px 0 rgba(14,17,22,.03); }
+  .card:hover { border-color: #c9ceda; }
+  .insight p, .why, .next, .suggested { color: #3a4152; }
+  .insight.bad { border-color: #f2b8b8; background: #fff6f6; }
+  .empty { background: transparent; }
+  .kpi { background: #0e1116; color: #fff; }
+  .kpi .tile { background: rgba(255,255,255,.1); }
+  .tile.click:hover { background: rgba(255,255,255,.2); }
+  .runline { color: rgba(255,255,255,.8); }
+  .insight.best { border: 1.5px solid #0e1116; }
+  .dot { background: #0e1116; color: #fff; }
+  .dot.ok { background: #6fe39f; color: #052612; }
+  .insight.best .score { color: var(--text); }
+  .bestname a:hover, a.vclink:hover, .trow .vc a:hover { color: #2447d6; }
+  a.more, button.linkbtn { color: #2447d6; }
+
+  /* buttons: ink outline, fill on hover; primary is solid ink */
+  button { font-weight: 600; font-size: 13px; border: 1.5px solid #0e1116; background: #fff; color: #0e1116; border-radius: 10px; padding: 4px 12px; }
+  button:hover { background: #0e1116; color: #fff; border-color: #0e1116; }
+  button.on, button.primary { background: #0e1116; color: #fff; border-color: #0e1116; }
+  button.primary:hover, button.on:hover { background: #262c38; }
+  button:disabled { opacity: .55; cursor: default; }
+  .qa button.primary { padding: 5px 14px; }
+  button.showall, button.seemore, button.delbtn, button.linkbtn, .morebtn, .toastbtn { border: 0; background: transparent; }
+  button.showall { border: 1px dashed var(--line); color: var(--muted); width: 100%; }
+  button.showall:hover, button.seemore:hover { background: var(--panel2); color: var(--text); }
+  button.delbtn:hover, button.linkbtn:hover, .morebtn:hover { background: transparent; }
+  .navb, .seg2 button { font-weight: 600; }
+  .navb { background: #fff; border: 1.5px solid #0e1116; color: #0e1116; }
+  .navb:hover { background: #0e1116; color: #fff; }
+  .seg2 { border: 1.5px solid #0e1116; }
+  .seg2 button { border: 0; border-radius: 0; background: #fff; color: #0e1116; padding: 6px 14px; }
+  .seg2 button.on { background: #0e1116; color: #fff; }
+  .seg2 button:hover { background: #eceef2; color: #0e1116; }
+  .seg2 button.on:hover { background: #262c38; color: #fff; }
+  .cell .addb { border: 1px solid var(--line); color: var(--muted); background: #fff; padding: 0; }
+  .cell .addb:hover { background: #0e1116; color: #fff; }
+  .pill .px button { border: 0; padding: 0; color: inherit; background: rgba(0,0,0,.1); }
+  .pill .px button:hover { background: rgba(0,0,0,.25); color: inherit; }
+  .toast { background: #0e1116; color: #fff; box-shadow: 0 8px 28px rgba(14,17,22,.25); }
+  .toastbtn { color: #6fe39f; background: rgba(255,255,255,.12); }
+  .toastbtn:hover { background: rgba(255,255,255,.24); color: #6fe39f; }
+
+  /* inputs */
+  .toolbar input, .toolbar select, .form input, .form select, .form textarea, .reachform select, .reachform input,
+  .sec input.filter, .evform input, .evform select { background: #fff; border: 1.5px solid #cdd2dc; color: var(--text); border-radius: 10px; }
+  .toolbar input:focus, .form input:focus, .form textarea:focus { border-color: #3d5afe; }
+  .evform { border: 1.5px solid #0e1116; }
+
+  /* chips: soft tinted backgrounds, dark text */
+  .chip { background: #eceef2; border: 0; color: #262c38; border-radius: 8px; padding: 2px 10px; font-weight: 600; font-size: 12.5px; }
+  .chip.c-green, .chip.good { background: #d6f5e3; color: #0b5d33; }
+  .chip.c-amber, .chip.warn { background: #fdeccd; color: #7a4b00; }
+  .chip.c-blue { background: #dfe7ff; color: #1b2f8f; }
+  .chip.c-purple { background: #e8e6ff; color: #3a2fb0; }
+  .chip.c-teal { background: #d3f2f0; color: #0b5f5c; }
+  .chip.c-red, .chip.bad { background: #ffdada; color: #8f1b1b; }
+  .chip.c-gray { background: #eceef2; color: #3a4152; }
+  .tier-legacy_unverified { background: #ffdada; color: #8f1b1b; border: 0; }
+  .notice { border: 1px solid #f2b8b8; background: #fff2f2; color: #8f1b1b; }
+  details.notice p { color: #8f1b1b; }
+  .warnbox { border: 1px solid #f0c36d; background: #fff6e5; color: #7a4b00; }
+  .card.compact .meta.warn { color: #7a4b00; }
+  .fitnote, .legend, .note { color: var(--muted); }
+
+  /* tables and lists */
+  .trow.head { background: #f6f7f9; }
+  .mini { border-radius: 10px; }
+  .tl { border-left-color: #c9ceda; }
+  img.vlogo { border: 1px solid var(--line); }
+  .vlogo.initials { background: #0e1116; }
+  .sk { background: linear-gradient(90deg, #eceef2 25%, #f6f7f9 50%, #eceef2 75%); background-size: 200% 100%; }
+
+  /* map and calendar */
+  .tm-tile:focus-visible { outline: 3px solid #0e1116; }
+  .tm-tile.dorm { background: #dfe3ea; }
+  .cell.today { background: #eef2ff; }
+  .cell.today .dn { background: #0e1116; color: #fff; }
+  .calwrap, .cal { background: #fff; }
+  .cell { border-color: #e6e9f2; }
+  .cal .dow { border-bottom-color: var(--line); }
+  .legend2 { color: var(--muted); }
+  .pill.p-run { border-color: #cdd2dc; }
+
+  @media (max-width: 760px) { .gsearch { margin-left: 0; width: 100%; } .topbar { padding-bottom: 8px; } h1 { font-size: 34px; } }
 </style>
 </head>
 <body>
@@ -649,11 +777,17 @@ const VIEW_TITLES = {
   calendar: ["Calendar", "reach-out windows, follow-ups, revisits and the calls and meetings you schedule"],
 };
 
+function topbar(active, count) {
+  const q = el("input", { placeholder: count ? `Search ${count} investors` : "Search investors", "aria-label": "Search investors" });
+  q.onkeydown = (e) => { if (e.key === "Enter" && q.value.trim()) { window.__q = q.value.trim(); if (location.hash === "#/status") route(); else location.hash = "#/status"; } };
+  return el("div", { class: "topbar" }, el("div", { class: "brand2" }, el("span", { class: "logo" }), el("b", {}, "Investor Pipeline")), tabs(active),
+    el("label", { class: "gsearch" }, el("span", { "aria-hidden": "true", style: "color:var(--muted)" }, "⌕"), q));
+}
+
 function header(data, active) {
   const [title, sub] = VIEW_TITLES[active];
-  return [el("div", { class: "brand" }, el("span", { class: "logo" }), "Investor Pipeline"),
-    el("div", { class: "top" }, el("div", {}, el("h1", {}, title), el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), " · " + sub))),
-    tabs(active)];
+  return [topbar(active, data.vcs.length),
+    el("div", { class: "top" }, el("div", {}, el("h1", {}, title), el("p", { class: "sub" }, el("b", {}, `${data.vcs.length} investors`), " · " + sub)))];
 }
 
 const skeleton = () => [el("div", { class: "sk", style: "height:26px;width:240px;margin-bottom:18px" }),
@@ -731,6 +865,7 @@ function directory(data, now, hot) {
   const SORTS = { name: (a, b) => a.v.firm.localeCompare(b.v.firm), score: (a, b) => (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0), fit: (a, b) => fitRank(a.v) - fitRank(b.v) || (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0),
     contact: (a, b) => (b.v.last_contacted_at || "") < (a.v.last_contacted_at || "") ? -1 : 1, searched: (a, b) => (a.v.last_searched_at || "") < (b.v.last_searched_at || "") ? -1 : 1 };
   const search = el("input", { placeholder: "Search by fund, partner, thesis or region" });
+  search.value = window.__q || ""; window.__q = "";
   const stage = el("select", {}, STAGES.map(([k, t]) => el("option", { value: k }, t)));
   const sort = el("select", {}, [["name", "Sort: name"], ["fit", "Sort: fit, then timing"], ["score", "Sort: timing score"], ["contact", "Sort: last contact"], ["searched", "Sort: least recently searched"]].map(([k, t]) => el("option", { value: k }, t)));
   const count = el("span", { class: "count" });
@@ -1021,6 +1156,7 @@ function renderProfile(d) {
   const unverified = d.evidence.filter((e) => e.source_tier === "legacy_unverified").length;
   const logi = d.evidence.filter((e) => e.relevance === "logistics"), other = d.evidence.filter((e) => e.relevance !== "logistics");
   show(
+    topbar("", null),
     el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
     el("div", { class: "ph" },
       el("div", {}, el("div", { class: "namerow" }, logoFor(v), el("h1", {}, v.firm)),
