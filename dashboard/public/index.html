@@ -687,7 +687,7 @@ function directory(data, now, hot) {
         el("div", { class: "dim" }, [v.geo, v.stage_focus].filter(Boolean).join(" \u00b7 ")),
         el("div", {}, d == null ? el("span", { class: "dim" }, "\u2014") : `${d}d ago`),
         el("div", { class: "dim" }, best ? `${fmtDate(best.published_date)}: ${(LBL.type[best.type] || best.type)}${best.relevance === "logistics" ? " (logistics)" : ""}` : "\u2014"),
-        el("div", {}, v.follow_up_score ? el("b", { style: `color:${scoreColor(v.follow_up_score)}` }, String(v.follow_up_score)) : el("span", { class: "dim" }, "\u2014")),
+        el("div", {}, v.follow_up_score ? el("b", { style: `color:${scoreColor(v.follow_up_score)}` }, String(v.follow_up_score)) : el("span", { class: "dim", title: "No signal in the last 30 days" }, "no signal")),
         el("div", { class: "dim", title: v.last_searched_at ? new Date(v.last_searched_at).toLocaleString("en-GB") : "" }, v.last_searched_at ? fmtDate(v.last_searched_at) : "never"),
         el("div", { title: "Searches run Monday and Thursday at 7:00 IST. Contacted / in-talks / reach-out investors every 2 days, everyone else weekly." }, nextSearch(v, now)),
         el("div", {}, quickActions(v, bucket) || el("a", { class: "chip", href: `#/vc/${v.id}` }, "Open profile")));
@@ -733,8 +733,8 @@ function statusBlock(v, now, bucket, score) {
   if (bucket === "skip") return el("div", { class: "statusblock" }, el("div", { class: "big" }, "Not a fit"), el("div", { class: "sub2" }, (v.signal_summary || "").replace("Skipped: ", "")));
   return el("div", { class: "statusblock", style: "min-width:200px" },
     el("div", { class: "chips", style: "margin-bottom:8px" }, fitChip(v) || el("span", { class: "chip" }, "Fit not rated yet")),
-    el("div", { class: "big", style: `font-size:44px;color:${scoreColor(score)}` }, String(score)),
-    el("div", { class: "pl" }, el("span", {}, "Timing score"), el("span", {}, `${score} / 100`)),
+    !score ? el("div", { class: "big", style: "font-size:24px" }, "No signal yet") : el("div", { class: "big", style: `font-size:44px;color:${scoreColor(score)}` }, String(score)),
+    el("div", { class: "pl" }, el("span", {}, "Timing score"), el("span", {}, score ? `${score} / 100` : "none in the last 30 days")),
     el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })),
     el("div", { class: "sub2" }, "How fresh and deal-like the signals are. Fit is rated separately."));
 }
@@ -1001,15 +1001,18 @@ async function fetchJson(url, tries = 3) {
   for (let i = 0; i < tries; i++) {
     try {
       const r = await fetch(url);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
       return await r.json();
     } catch (e) { last = e; if (i < tries - 1) await new Promise((res) => setTimeout(res, 1000 * (i + 1))); }
   }
   throw last;
 }
 
+// Say what really failed: only a network or server error can be the database waking up. A page error is a bug.
 const failBox = (title, retry, e) => el("div", { class: "insight bad" }, el("h3", {}, title),
-  el("p", {}, "The database may be waking up after being idle. This usually clears in a few seconds."),
+  el("p", {}, e && e.status && e.status < 500 ? "The server rejected the request." : e && (e.status >= 500 || /failed to fetch|networkerror|load failed/i.test(e.message || ""))
+    ? "The server or database did not answer. If it was idle it may still be waking up; this usually clears in a few seconds."
+    : "This is an error in the page itself, not the database. Retrying will not help until it is fixed."),
   el("p", { class: "note" }, `Details: ${(e && e.message) || "network error"}`),
   el("button", { class: "primary", onclick: retry }, "Retry"));
 

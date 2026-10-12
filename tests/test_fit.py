@@ -125,3 +125,24 @@ def test_fit_points_are_validated(tmp_path):
     p.write_text(yaml.dump(src))
     with pytest.raises(ConfigError):
         load_fit_rules(p)
+
+
+def test_unrelated_news_cannot_outrank_logistics_activity(rf):
+    """DCVC-style: several deals, none about logistics, must score below a single logistics blog post."""
+    vc = make_vc(thesis="Deep tech", stage_focus="Seed")
+    deals = [replace(make_signal(days_ago=2, url=f"https://t.com/d{i}", type="portfolio_investment"), relevance="general", source_tier="news") for i in range(4)]
+    post = [replace(make_signal(days_ago=7, type="blog_post"), relevance="logistics", source_tier="own_site")]
+    assert decide(vc, deals, rf.fit, rf.weights, TODAY).score <= round(100 * rf.weights.no_logistics_cap)
+    assert decide(vc, post, rf.fit, rf.weights, TODAY).score > decide(vc, deals, rf.fit, rf.weights, TODAY).score
+
+
+def test_the_formula_is_frozen(rf):
+    """Golden scores. If this fails you changed the formula: that is allowed, but bump score_version in weights.yaml
+    and update the numbers here on purpose, so a score never changes silently."""
+    assert rf.weights.score_version == 3
+    vc = make_vc(thesis="Supply chain", stage_focus="Seed", geo="US")
+    deal = [replace(make_signal(days_ago=3, type="portfolio_investment"), relevance="logistics", source_tier="news")]
+    post = [replace(make_signal(days_ago=7, type="blog_post"), relevance="logistics", source_tier="own_site")]
+    gen = [replace(make_signal(days_ago=2, type="portfolio_investment"), relevance="general", source_tier="news")]
+    got = [decide(vc, s, rf.fit, rf.weights, TODAY).score for s in (deal, post, gen)]
+    assert got == [82, 32, 30], got

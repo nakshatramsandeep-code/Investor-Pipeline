@@ -1,7 +1,7 @@
 # Scoring weights. Read by code (schema-checked in pipeline/config.py).
 # Tune these after you have a few weeks of useful / not-useful feedback.
 version: 1
-score_version: 2   # bump when the formula changes: the check history records which version produced each score
+score_version: 3   # bump when the formula changes: the check history records which version produced each score
 
 # This file scores TIMING only: how fresh and how deal-like is this fund's activity. Whether the fund FITS
 # Vikram is rated separately in fit_rules.yaml. The score depends only on the saved signals and today's date,
@@ -18,6 +18,10 @@ signal_types:            # how strong is each kind of signal (0..1)
 # A fund whose only signals are content (posts, interviews, talks) is talking, not investing. Its strength is capped
 # here, so it cannot outrank a fund that just wrote a cheque. Deals: portfolio_investment, fund_announcement.
 content_only_cap: 0.5
+
+# A fund with NO logistics signal at all (only unrelated news, e.g. a jewellery-brand deal) is capped here. Being busy in
+# other sectors is not a reason to pitch a logistics company, so it can never outrank a fund with logistics activity.
+no_logistics_cap: 0.3
 
 recency:
   window_days: 30        # a signal older than this is not a signal

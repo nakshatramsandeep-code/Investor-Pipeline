@@ -51,6 +51,7 @@ class Weights:
     reach_out_max_age: int
     general_content_factor: float
     content_only_cap: float
+    no_logistics_cap: float
     sched_pipeline_days: int
     sched_reach_days: int
     sched_dormant_days: int
@@ -191,6 +192,7 @@ def load_weights(path: Path) -> Weights:
         sched_dormant_days=_pos_int(_get(_get(d, "schedule", dict, w), "dormant_days", int, f"{w}: schedule"), "dormant_days"),
         general_content_factor=_unit(_get(d, "general_content_factor", float, w), "general_content_factor"),
         content_only_cap=_unit(_get(d, "content_only_cap", float, w), "content_only_cap"),
+        no_logistics_cap=_unit(_get(d, "no_logistics_cap", float, w), "no_logistics_cap"),
         relevance={k: _unit(v, f"{w}: relevance[{k}]") for k, v in _get(d, "relevance", dict, w).items()},
         score_version=_get(d, "score_version", int, w),
         source_tiers={k: _unit(v, f"{w}: source_tiers[{k}]") for k, v in _get(d, "source_tiers", dict, w).items()},

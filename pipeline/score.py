@@ -85,6 +85,8 @@ def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> f
     strength = best + w.extra_signal * sum(t for _, t in scored[1:4])
     if not any(s.type in DEAL_TYPES for s in signals):
         strength = min(strength, w.content_only_cap)       # all talk, no cheque: cannot outrank a real deal
+    if not any(s.relevance == "logistics" for s in signals):
+        strength = min(strength, w.no_logistics_cap)       # only unrelated news: not a reason to pitch
     return min(strength, 1.0)
 
 
