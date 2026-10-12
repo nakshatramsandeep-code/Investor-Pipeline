@@ -401,6 +401,52 @@
   .else a { font-weight: 700; }
   .board.auto > div > details.sec { margin-top: 10px; }
   .board.auto > div > details.sec .quiet.cols { grid-template-columns: 1fr; }
+
+  /* By action: queue + detail */
+  .qd { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .qd { grid-template-columns: 1fr; } }
+  .qd-left, .qd-right { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+  .qd-right { padding: 24px 28px 28px; min-height: 420px; }
+  .qd-left h2 { font: 800 26px var(--display); letter-spacing: -.02em; margin: 0 0 2px; display: block; }
+  .qsum { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+  .qgroup { margin-bottom: 8px; }
+  .qlabel { display: flex; justify-content: space-between; font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 10px 6px 6px; border-top: 1px solid #eceef2; }
+  .qgroup:first-of-type .qlabel { border-top: 0; }
+  .qrow { display: block; width: 100%; text-align: left; font-weight: 400; background: transparent; border: 1.5px solid transparent; border-radius: 12px; padding: 9px 10px; color: var(--text); }
+  .qrow:hover { background: #f4f5f8; color: var(--text); border-color: transparent; }
+  .qrow.sel { border-color: #0e1116; background: #fff; }
+  .qr1 { display: flex; align-items: center; gap: 8px; }
+  .qr1 b { font-size: 14.5px; font-weight: 700; }
+  .qr1 .chip { font-size: 11px; padding: 0 8px; }
+  .qage { margin-left: auto; font: 600 12px var(--mono); color: var(--muted); white-space: nowrap; }
+  .qage.hot { color: #c53030; }
+  .qsub { color: var(--muted); font-size: 12.5px; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .qfolds { border-top: 1px solid #eceef2; margin-top: 8px; padding-top: 6px; }
+  .qfold { display: flex; width: 100%; justify-content: space-between; align-items: center; background: transparent; border: 0; border-radius: 10px; padding: 10px 8px; font: 600 14px "Geist", system-ui, sans-serif; color: var(--text); text-decoration: none; cursor: pointer; }
+  .qfold:hover { background: #f4f5f8; color: var(--text); }
+  .qfold small { color: var(--muted); font: 500 12px var(--mono); }
+  .qtop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .qeye { font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .qnavs { display: flex; gap: 8px; }
+  .qnav { width: 38px; height: 38px; border-radius: 50%; padding: 0; font-size: 20px; line-height: 1; border: 1.5px solid #cdd2dc; background: #fff; color: var(--text); }
+  .qnav:hover { background: #0e1116; color: #fff; border-color: #0e1116; }
+  .qhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-bottom: 20px; border-bottom: 1px solid #eceef2; }
+  .qname { font: 800 38px/1.05 var(--display); letter-spacing: -.03em; margin: 0; display: block; }
+  .qsec { padding: 20px 0; border-bottom: 1px solid #eceef2; }
+  .qsec:last-child { border-bottom: 0; padding-bottom: 0; }
+  .qsec .qeye { margin-bottom: 10px; }
+  .qwhy { font: 500 21px/1.35 "Geist", system-ui, sans-serif; margin: 0; letter-spacing: -.01em; max-width: 60ch; }
+  .qmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .qmeta a { color: var(--text); font-weight: 600; }
+  .qwho { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: #e6e9ff; color: #2a3bb5; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex: none; }
+  .qpills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .qpill { border-radius: 999px; padding: 8px 16px; font-size: 14px; border: 1.5px solid #cdd2dc; }
+  .qpill:hover { background: #f4f5f8; color: var(--text); border-color: #0e1116; }
+  .qpill.on { background: #0e1116; color: #fff; border-color: #0e1116; }
+  .qpill.on:hover { background: #262c38; color: #fff; }
+  .qact { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  button.big { padding: 12px 24px; font-size: 15px; border-radius: 999px; font-family: "Geist", system-ui, sans-serif; }
 </style>
 </head>
 <body>
@@ -816,38 +862,122 @@ const skeleton = () => [el("div", { class: "sk", style: "height:26px;width:240px
   el("div", { class: "hero" }, el("div", { class: "sk", style: "height:170px" }), el("div", { class: "sk", style: "height:170px" })),
   el("div", { class: "board auto" }, [0, 1, 2].map(() => el("div", {}, [0, 1, 2].map(() => el("div", { class: "sk", style: "height:104px;margin-bottom:8px" })))))];
 
-function render(data) {
-  const now = new Date(), g = groupVcs(data, now), focus = pickFocus(g);
-  const lists = Object.fromEntries(Object.entries(g).map(([k, vs]) => [k, focus && focus.bucket === k ? vs.filter((v) => v.id !== focus.v.id) : vs]));
-  const above = (k) => (focus && focus.bucket === k ? " \u00b7 top one is above" : "");
-  const defs = [
-    ["reach", "Reach out", `Good fit and a logistics signal in the last ${MAX_SIGNAL_AGE} days. Best fit first${above("reach")}`, { limit: 10, id: "reach" }],
-    ["pitch", "Pitch with thesis hook", "Strong fit, no recent news, and a named contact: write about their thesis. Top five", { id: "pitch" }],
-    ["warm", "Warm", `Logistics signal ${MAX_SIGNAL_AGE + 1}-30 days old: worth a look, not urgent`, { limit: 10, id: "warm" }],
-    ["nudge", "Follow up due", `Contacted ${NUDGE_DAYS}+ days ago, no reply${above("nudge")}`, { id: "nudge", always: true, empty: g.nudge.length ? "Just the one above." : "Nothing due. Nobody is overdue a reply." }],
-    ["waiting", "Contacted", "Waiting for a reply; follow-up date shown", { id: "waiting" }],
-    ["talks", "In talks", "Replied, call or meeting", { id: "talks" }],
-    ["approved", "Approved", "Committed to invest", { id: "approved" }],
-    ["declined", "Declined", "Said no. Revisit or undo from here", { id: "declined" }],
-  ];
-  // Pitch: only funds with a named contact, top five. The rest are under "Find contact".
-  const withContact = lists.pitch.filter((v) => bestContact(v, data.evidence));
-  const pitchShown = withContact.slice(0, 5), pitchRest = lists.pitch.filter((v) => !pitchShown.includes(v));
-  lists.pitch = pitchShown;
-  const noNews = g.pitch.length + g.park.length + g.dormant.length, elseN = g.park.length + g.dormant.length + g.skip.length;
-  const shown = defs.filter(([k, , , o]) => lists[k].length || o.always || (k === "pitch" && pitchRest.length));
-  const none = defs.filter(([k, , , o]) => !g[k].length && !o.always).map(([, t]) => t);
-  const unscored = data.vcs.filter((v) => !v.recommended_action).length;
+// ================================================================ By action: a queue on the left, the selected investor on the right
+const qdState = { id: null, open: {}, chan: "email" };
+const QD_LABEL = { nudge: "Follow up due", reach: "Reach out now", pitch: "Pitch on thesis", warm: "Warm", waiting: "Waiting on replies", talks: "In talks", approved: "Approved", find: "Find a contact" };
 
-  show(...header(data, "action"),
-    hero(data, now, g, focus),
-    el("p", { class: "legend" }, el("b", {}, "Fit "), "= is this fund a good target for a Seed logistics-SaaS round (thesis, stage, region, track record). ", el("b", {}, "Timing "), "= is there a fresh, trusted signal (score out of 100). Funds are ranked by fit first, then timing. " + `${noNews} prospects have no recent logistics signal: ${g.pitch.length} worth a thesis pitch, ${g.park.length + g.dormant.length} lower priority.`),
-    el("div", { class: "board auto" }, shown.map(([k, title, hint, o]) =>
-      el("div", {}, column(title, hint, lists[k].map((v) => card(v, data.evidence, now, k)), { ...o, total: g[k].length }),
-        k === "pitch" && pitchRest.length ? listSection("Find contact", "no named contact yet, or beyond the top five", pitchRest,
-          (v) => bestContact(v, data.evidence) ? "contact on file" : "no contact found yet") : null))),
-    none.length ? el("p", { class: "emptyline" }, `Nothing in: ${none.join(", ")}.`) : null,
-    el("p", { class: "else" }, el("a", { href: "#/status" }, `Everything else (${elseN})`), " \u00b7 parked, dormant and not-a-fit investors are in the My pipeline table"),
+function render(data) {
+  const now = new Date(), g = groupVcs(data, now), ev = data.evidence;
+  const reload = () => load(undefined, true);
+  const withContact = g.pitch.filter((v) => bestContact(v, ev));
+  const pitchTop = withContact.slice(0, 5), findContact = g.pitch.filter((v) => !pitchTop.includes(v));
+  const lead = [{ key: "nudge", items: g.nudge }, { key: "reach", items: g.reach }, { key: "pitch", items: pitchTop }].filter((s) => s.items.length);
+  const folds = [{ key: "warm", items: g.warm }, { key: "waiting", items: g.waiting }, { key: "talks", items: g.talks },
+    { key: "approved", items: g.approved }, { key: "find", items: findContact }].filter((s) => s.items.length);
+  const elseN = g.park.length + g.dormant.length + g.skip.length;
+  const flat = [...lead, ...folds].flatMap((sec) => sec.items.map((v) => ({ v, sec })));
+  const sel = flat.find((x) => x.v.id === qdState.id) || flat[0] || null;
+  if (sel) qdState.id = sel.v.id;
+
+  const paint = () => render(data);
+  const pick = (x) => { qdState.id = x.v.id; paint(); };
+  const initials = (n) => (n.match(/[A-Za-z]+/g) || ["?"]).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+
+  // ---- left: the queue
+  const row = (x) => {
+    const v = x.v, { best } = signalsOf(v, ev), key = x.sec.key, contact = bestContact(v, ev);
+    const isSig = key === "reach" || key === "warm";
+    const days = isSig && best ? daysAgo(best.published_date, now) : null, cool = key === "reach" ? coolsIn(v, ev, now) : null;
+    const right = isSig ? (days == null ? "" : `${days}d`) : key === "pitch" ? (contact ? contact.name : "") : key === "nudge" ? `${waitDays(v, now) ?? "?"}d` : "";
+    const sub = isSig && best ? best.summary : key === "pitch" || key === "find" ? v.thesis : key === "nudge" ? "No reply yet" : "";
+    const b = el("button", { class: "qrow" + (sel && sel.v.id === v.id ? " sel" : ""), "aria-current": sel && sel.v.id === v.id ? "true" : "false" },
+      el("div", { class: "qr1" }, el("b", {}, v.firm), key === "pitch" || key === "find" ? null : fitChip(v), el("span", { class: "qage" + (cool != null && cool <= 3 ? " hot" : "") }, right)),
+      sub ? el("div", { class: "qsub" }, sub) : null);
+    b.onclick = () => pick(x);
+    return b;
+  };
+  const group = (sec) => el("div", { class: "qgroup" },
+    el("div", { class: "qlabel" }, el("span", {}, QD_LABEL[sec.key]), el("span", {}, String(sec.items.length))),
+    sec.items.map((v) => row({ v, sec })));
+  const fold = (sec) => {
+    const open = qdState.open[sec.key] || (sel && sel.sec.key === sec.key);
+    const head = el("button", { class: "qfold", "aria-expanded": String(!!open) }, el("span", {}, QD_LABEL[sec.key], " ", el("small", {}, String(sec.items.length))), el("span", {}, open ? "⌄" : "›"));
+    head.onclick = () => { qdState.open[sec.key] = !open; paint(); };
+    return el("div", {}, head, open ? el("div", { style: "padding:2px 0 8px" }, sec.items.map((v) => row({ v, sec }))) : null);
+  };
+  const today = now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const left = el("div", { class: "qd-left" },
+    el("h2", {}, "Today"),
+    el("p", { class: "qsum" }, `${today} · ${g.reach.length} to reach out · ${g.nudge.length} follow-up${g.nudge.length === 1 ? "" : "s"} due`),
+    lead.length ? lead.map(group) : el("div", { class: "empty" }, "Nothing to act on. Don't force it."),
+    el("div", { class: "qfolds" }, folds.map(fold),
+      el("a", { class: "qfold", href: "#/status" }, el("span", {}, "Everything else ", el("small", {}, String(elseN))), el("span", {}, "›"))));
+
+  // ---- right: the selected investor
+  let right;
+  if (!sel) {
+    right = el("div", { class: "qd-right" }, el("div", { class: "qeye" }, "All clear"), el("h2", { class: "qname" }, "Nothing to do today"),
+      el("p", { class: "qwhy" }, "No one is due a follow-up and no prospect has a recent logistics signal."));
+  } else {
+    const v = sel.v, key = sel.sec.key, { best } = signalsOf(v, ev), contact = bestContact(v, ev), people = peopleOfVc(v), d = waitDays(v, now);
+    const items = sel.sec.items, i = items.findIndex((x) => x.id === v.id), n = items.length;
+    const step = (k) => { const nx = items[(i + k + n) % n]; qdState.id = nx.id; paint(); };
+    const mkNav = (t, k, label) => { const b = el("button", { class: "qnav", "aria-label": label }, t); b.onclick = () => step(k); return b; };
+    const cool = key === "reach" ? coolsIn(v, ev, now) : null;
+    const isProspect = ["reach", "warm", "pitch", "find"].includes(key), isSig = key === "reach" || key === "warm";
+    const due = v.last_contacted_at ? fmtDate(new Date(new Date(v.last_contacted_at).getTime() + NUDGE_DAYS * 864e5).toISOString()) : "?";
+    const whyText = isSig && best ? best.summary
+      : isProspect ? `No news in the last 30 days. Lead with their thesis: ${v.thesis}.`
+      : key === "nudge" ? `Contacted ${d == null ? "a while ago" : d + " days ago"} with no reply.`
+      : key === "waiting" ? `Contacted ${d}d ago. Follow up on ${due}.`
+      : key === "talks" ? `In talks${d == null ? "" : `. Last contact ${d} days ago`}.` : "Committed to invest.";
+
+    const evid = [];
+    if (isSig && best) {
+      const up = el("button", {}, "Useful"), down = el("button", {}, "Not useful"), bs = [[up, true], [down, false]];
+      up.onclick = () => sendFeedback(best, true, bs); down.onclick = () => sendFeedback(best, false, bs);
+      const href = safeUrl(best.url);
+      if (best.useful === true) up.classList.add("on"); if (best.useful === false) down.classList.add("on");
+      evid.push(el("div", { class: "qmeta" }, `${daysAgo(best.published_date, now)} days ago`, href ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, best.source_domain || "source") : null, up, down));
+    }
+
+    const who = contact
+      ? el("div", { class: "qwho" }, el("span", { class: "avatar" }, initials(contact.name)), el("div", {}, el("b", {}, contact.name), el("div", { class: "qsub" }, contact.role || ""),
+          people.length > 1 ? el("div", { class: "qsub" }, el("a", { href: `#/vc/${v.id}` }, `+${people.length - 1} more at this firm`)) : null))
+      : el("p", { class: "qsub", style: "margin:0" }, "No contact found yet. ", el("a", { href: `#/vc/${v.id}` }, "Open the profile to add one"), ".");
+
+    let actions;
+    if (isProspect) {
+      const pills = el("div", { class: "qpills", role: "group", "aria-label": "How did you reach out" }, CHANNELS.map(([k, t]) => {
+        const b = el("button", { class: "qpill" + (qdState.chan === k ? " on" : ""), "aria-pressed": String(qdState.chan === k) }, t === "In person / event" ? "In person" : t);
+        b.onclick = () => { qdState.chan = k; paint(); };
+        return b;
+      }));
+      const mark = el("button", { class: "primary big" }, "Mark reached out");
+      mark.onclick = async () => {
+        mark.disabled = true; mark.textContent = "Saving…";
+        const res = await editCall({ action: "log", vc_id: v.id, kind: "reached_out", occurred_on: localIso(0), person: contact ? contact.name : "", channel: qdState.chan });
+        if (res) { savedToast(v, res, `${v.firm}: marked reached out`, reload); reload(); } else { mark.disabled = false; mark.textContent = "Mark reached out"; }
+      };
+      actions = [el("div", { class: "qeye" }, "How did you reach out"), pills, el("div", { class: "qact" }, mark, el("a", { href: `#/vc/${v.id}` }, "Open full profile"))];
+    } else {
+      actions = [el("div", { class: "qeye" }, "Next"), quickActions(v, key), el("p", { style: "margin:14px 0 0" }, el("a", { href: `#/vc/${v.id}` }, "Open full profile"))];
+    }
+
+    right = el("div", { class: "qd-right" },
+      el("div", { class: "qtop" }, el("div", { class: "qeye" }, `${QD_LABEL[key]} · ${i + 1} of ${n}`), n > 1 ? el("div", { class: "qnavs" }, mkNav("‹", -1, "Previous"), mkNav("›", 1, "Next")) : null),
+      el("div", { class: "qhead" }, el("h2", { class: "qname" }, v.firm), fitChip(v),
+        cool != null && cool <= 3 ? el("span", { class: "chip c-amber" }, cool <= 0 ? "Closes today" : `Cools in ${plural(cool, "day")}`) : null,
+        el("span", { class: "qsub" }, [v.geo, v.stage_focus].filter(Boolean).join(" · "))),
+      el("div", { class: "qsec" }, el("div", { class: "qeye" }, isSig || isProspect ? "Why now" : "Where it stands"), el("p", { class: "qwhy" }, whyText),
+        fitReason(v) ? el("p", { class: "qsub", style: "margin:6px 0 0" }, `Fit: ${fitReason(v)}`) : null,
+        v.next_step ? el("p", { class: "qsub", style: "margin:6px 0 0" }, `Next step: ${v.next_step}`) : null, evid),
+      el("div", { class: "qsec" }, el("div", { class: "qeye" }, "Who to contact"), who),
+      el("div", { class: "qsec" }, actions));
+  }
+
+  const unscored = data.vcs.filter((v) => !v.recommended_action).length;
+  show(topbar("action", data.vcs.length), ...alerts(data, now), el("div", { class: "qd" }, left, right),
     unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
 }
 
