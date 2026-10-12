@@ -392,6 +392,15 @@
   .pill.p-run { border-color: #cdd2dc; }
 
   @media (max-width: 760px) { .gsearch { margin-left: 0; width: 100%; } .topbar { padding-bottom: 8px; } h1 { font-size: 34px; } }
+
+  .hero.one { grid-template-columns: 1fr; }
+  .sumline { font: 700 20px var(--display); margin: 0 0 14px; letter-spacing: -.01em; }
+  .sumline small { font: 400 14px "Geist", system-ui, sans-serif; color: var(--muted); }
+  .fitwhy { margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .else { margin: 26px 0 0; font-size: 15px; color: var(--muted); }
+  .else a { font-weight: 700; }
+  .board.auto > div > details.sec { margin-top: 10px; }
+  .board.auto > div > details.sec .quiet.cols { grid-template-columns: 1fr; }
 </style>
 </head>
 <body>
@@ -622,6 +631,8 @@ function quickActions(v, bucket) {
   const sets = {
     reach: ["REACH"],
     warm: ["REACH"],
+    pitch: ["REACH"],
+    park: ["REACH"],
     dormant: ["REACH"],
     nudge: [["Followed up", log("follow_up"), true], ["They replied", log("replied")]],
     waiting: [["They replied", log("replied")]],
@@ -637,7 +648,30 @@ function quickActions(v, bucket) {
   return box;
 }
 
+// One line on why this fund is (or is not) a good target: the main worry for medium/low fit, the main strengths for high.
+function fitReason(v) {
+  const good = (v.fit_good || []).slice(0, 2).join(" \u00b7 "), worry = (v.fit_concerns || [])[0];
+  return v.fit_level === "high" ? good : worry || good;
+}
+
+// The card for someone you have not contacted: name, fit, one "why now" line, who to write to, and the button.
+function prospectCard(v, evidence, now, bucket) {
+  const { best } = signalsOf(v, evidence), contact = bestContact(v, evidence);
+  const cool = bucket === "reach" ? coolsIn(v, evidence, now) : null;
+  let why;
+  if (bucket === "pitch" || !best) why = `No news in 30 days. Pitch on their thesis: ${v.thesis}`;
+  else why = `${daysAgo(best.published_date, now)}d ago: ${best.summary}` + (cool != null && cool <= 3 ? ` (window closes ${cool <= 0 ? "today" : "in " + plural(cool, "day")})` : "")
+    + (v.check_ok === false && bucket === "reach" ? " (older data: last check failed)" : "");
+  return el("div", { class: "card compact" },
+    el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm), fitChip(v)),
+    fitReason(v) ? el("div", { class: "meta fitwhy" }, fitReason(v)) : null,
+    el("p", { class: "why one" }, why),
+    el("div", { class: "meta" }, contact ? ["Contact: ", el("b", {}, contact.name), contact.role ? ` \u00b7 ${contact.role}` : ""] : "No contact found yet"),
+    quickActions(v, bucket));
+}
+
 function card(v, evidence, now, bucket) {
+  if (["reach", "warm", "pitch", "park"].includes(bucket)) return prospectCard(v, evidence, now, bucket);
   const { all, best } = signalsOf(v, evidence), score = v.follow_up_score ?? 0, d = waitDays(v, now);
   const due = v.last_contacted_at ? fmtDate(new Date(new Date(v.last_contacted_at).getTime() + NUDGE_DAYS * 864e5).toISOString()) : null;
   const meta = {
@@ -704,10 +738,9 @@ function hero(data, now, g, focus) {
     const line = focus.bucket === "nudge" ? `Contacted ${d == null ? "a while ago" : d + " days ago"} with no reply. ` : "";
     insight = el("div", { class: "insight best" },
       el("div", { class: "row" }, el("h3", {}, el("span", { class: "dot ok" }, "1"), title),
-        focus.bucket === "reach" ? el("span", { style: "display:flex;gap:6px;align-items:center" }, fitChip(v), v.follow_up_score ? el("span", { class: "score", title: "Timing score out of 100" }, String(v.follow_up_score)) : null) : null),
+        focus.bucket === "reach" ? fitChip(v) : null),
       el("div", { class: "bestname" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
       el("p", {}, line, best ? best.summary : ""),
-      best ? el("div", { class: "chips" }, tag("type", best.type), relChip(best), trustChip(best)) : null,
       quickActions(v, focus.bucket),
       el("a", { class: "more", href: `#/vc/${v.id}` }, "Open profile and all signals \u2192"));
   } else {
@@ -715,20 +748,9 @@ function hero(data, now, g, focus) {
       el("p", {}, "No one is due a follow-up and no prospect has a recent logistics signal. Don't force it."));
   }
 
-  const when = age == null ? (run ? "running" : "never") : age === 0 ? "today" : `${age}d ago`;
-  const tile = (small, n, em, target) => {
-    const t = el("div", { class: "tile click", title: "Jump to this list" }, el("small", {}, small), el("strong", {}, String(n)), " ", el("em", {}, em));
-    t.onclick = () => { const c = document.getElementById("col-" + target); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); };
-    return t;
-  };
-  const kpi = el("div", { class: "kpi" },
-    el("h3", {}, "Your pipeline today"),
-    el("div", { class: "tiles four" },
-      tile("Reach out", g.reach.length, "prospects", "reach"), tile("Follow up due", g.nudge.length, "no reply", "nudge"),
-      tile("In talks", g.talks.length, "live", "talks"), tile("Approved", g.approved.length, "committed", "approved")),
-    el("div", { class: "runline" }, run ? `Last search run ${when}: ${plural(run.signals_kept, "new signal")} found` + (run.vcs_total < vcs.length ? `, ${run.vcs_total} of ${vcs.length} investors due (the rest are on their schedule)` : "") + "." : "No run yet."),
-    null);
-  return [failedNote, ...notices.map((t) => el("div", { class: "notice" }, t)), el("div", { class: "hero" }, insight, kpi)];
+  const sum = el("p", { class: "sumline" }, `${g.reach.length} to reach out \u00b7 ${g.nudge.length} follow-up${g.nudge.length === 1 ? "" : "s"} due`,
+    run && run.finished_at ? el("small", {}, ` \u00b7 last search ${age === 0 ? "today" : age + "d ago"}`) : null);
+  return [failedNote, ...notices.map((t) => el("div", { class: "notice" }, t)), sum, el("div", { class: "hero one" }, insight)];
 }
 
 function column(title, hint, items, o = {}) {
@@ -800,7 +822,7 @@ function render(data) {
   const above = (k) => (focus && focus.bucket === k ? " \u00b7 top one is above" : "");
   const defs = [
     ["reach", "Reach out", `Good fit and a logistics signal in the last ${MAX_SIGNAL_AGE} days. Best fit first${above("reach")}`, { limit: 10, id: "reach" }],
-    ["pitch", "Pitch with thesis hook", "Strong fit but no recent news: write to them about their thesis", { limit: 10, id: "pitch" }],
+    ["pitch", "Pitch with thesis hook", "Strong fit, no recent news, and a named contact: write about their thesis. Top five", { id: "pitch" }],
     ["warm", "Warm", `Logistics signal ${MAX_SIGNAL_AGE + 1}-30 days old: worth a look, not urgent`, { limit: 10, id: "warm" }],
     ["nudge", "Follow up due", `Contacted ${NUDGE_DAYS}+ days ago, no reply${above("nudge")}`, { id: "nudge", always: true, empty: g.nudge.length ? "Just the one above." : "Nothing due. Nobody is overdue a reply." }],
     ["waiting", "Contacted", "Waiting for a reply; follow-up date shown", { id: "waiting" }],
@@ -808,19 +830,24 @@ function render(data) {
     ["approved", "Approved", "Committed to invest", { id: "approved" }],
     ["declined", "Declined", "Said no. Revisit or undo from here", { id: "declined" }],
   ];
-  const shown = defs.filter(([k, , , o]) => lists[k].length || o.always);
+  // Pitch: only funds with a named contact, top five. The rest are under "Find contact".
+  const withContact = lists.pitch.filter((v) => bestContact(v, data.evidence));
+  const pitchShown = withContact.slice(0, 5), pitchRest = lists.pitch.filter((v) => !pitchShown.includes(v));
+  lists.pitch = pitchShown;
+  const noNews = g.pitch.length + g.park.length + g.dormant.length, elseN = g.park.length + g.dormant.length + g.skip.length;
+  const shown = defs.filter(([k, , , o]) => lists[k].length || o.always || (k === "pitch" && pitchRest.length));
   const none = defs.filter(([k, , , o]) => !g[k].length && !o.always).map(([, t]) => t);
   const unscored = data.vcs.filter((v) => !v.recommended_action).length;
 
   show(...header(data, "action"),
     hero(data, now, g, focus),
-    el("p", { class: "legend" }, el("b", {}, "Fit "), "= is this fund a good target for a Seed logistics-SaaS round (thesis, stage, region, track record). ", el("b", {}, "Timing "), "= is there a fresh, trusted signal (score out of 100). Funds are ranked by fit first, then timing."),
+    el("p", { class: "legend" }, el("b", {}, "Fit "), "= is this fund a good target for a Seed logistics-SaaS round (thesis, stage, region, track record). ", el("b", {}, "Timing "), "= is there a fresh, trusted signal (score out of 100). Funds are ranked by fit first, then timing. " + `${noNews} prospects have no recent logistics signal: ${g.pitch.length} worth a thesis pitch, ${g.park.length + g.dormant.length} lower priority.`),
     el("div", { class: "board auto" }, shown.map(([k, title, hint, o]) =>
-      column(title, hint, lists[k].map((v) => card(v, data.evidence, now, k)), { ...o, total: g[k].length }))),
+      el("div", {}, column(title, hint, lists[k].map((v) => card(v, data.evidence, now, k)), { ...o, total: g[k].length }),
+        k === "pitch" && pitchRest.length ? listSection("Find contact", "no named contact yet, or beyond the top five", pitchRest,
+          (v) => bestContact(v, data.evidence) ? "contact on file" : "no contact found yet") : null))),
     none.length ? el("p", { class: "emptyline" }, `Nothing in: ${none.join(", ")}.`) : null,
-    listSection("Park", "weaker fit, even though there is news", g.park, (v) => [FIT[v.fit_level] && FIT[v.fit_level][0], v.follow_up_score ? `timing ${v.follow_up_score}` : null].filter(Boolean).join(" \u00b7 ")),
-    listSection("Dormant", "no logistics signal in the last 30 days and no clear fit. Best fit first", g.dormant, (v) => v.check_ok === false ? "check failed" : [FIT[v.fit_level] && FIT[v.fit_level][0], v.follow_up_score ? `timing ${v.follow_up_score}` : null].filter(Boolean).join(" \u00b7 ")),
-    listSection("Not a fit", "filtered out by the fit rules", g.skip, (v) => (v.signal_summary || "").replace("Skipped: ", "")),
+    el("p", { class: "else" }, el("a", { href: "#/status" }, `Everything else (${elseN})`), " \u00b7 parked, dormant and not-a-fit investors are in the My pipeline table"),
     unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
 }
 
@@ -1056,19 +1083,12 @@ function fitPanel(v, fit) {
     v.background ? el("p", { class: "note" }, `From your original list: ${v.background}. `, seed ? el("a", { href: seed, target: "_blank", rel: "noopener noreferrer" }, "list source") : null, " (not independently verified)") : null);
 }
 
-function relPanel(v, now) {
-  const clear = el("button", { class: "linkbtn", title: "Forget the last-contacted date" }, "Clear");
-  clear.onclick = async () => {
-    if (!confirm("Clear 'Last contacted'? The status and the log are not changed.")) return;
-    if (await editCall({ action: "clear_contacted", vc_id: v.id })) { toast("Last contacted cleared"); loadProfile(v.id); }
-  };
-  const kv = [["Status", tag("status", v.status)], ["Last contacted", v.last_contacted_at ? [`${fmtDate(v.last_contacted_at)} (${daysAgo(v.last_contacted_at, now)}d ago)`, clear] : "Not recorded"],
-    ["Latest signal", v.last_signal_date ? `${fmtDate(v.last_signal_date)} (${daysAgo(v.last_signal_date, now)}d ago)` : "None yet"]];
+// Status and last-contacted live in the log form; this keeps only the one thing the form does not have.
+function nextStepPanel(v) {
   const next = el("input", { placeholder: "e.g. send the deck by Friday", maxlength: "200" }); next.value = v.next_step || "";
   const save = el("button", { onclick: async () => { if (await editCall({ action: "next_step", vc_id: v.id, next_step: next.value })) toast("Next step saved"); } }, "Save");
-  return el("div", { class: "panel" }, el("h3", {}, "Relationship"),
-    el("dl", { class: "kv" }, kv.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
-    el("div", { class: "form", style: "margin-top:12px" }, el("label", {}, "Next step", el("div", { style: "display:flex;gap:6px" }, next, save))));
+  return el("div", { class: "panel" }, el("h3", {}, "Next step"),
+    el("div", { class: "form" }, el("div", { style: "display:flex;gap:6px" }, next, save)));
 }
 
 const REASON = {
@@ -1160,7 +1180,7 @@ function renderProfile(d) {
     el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
     el("div", { class: "ph" },
       el("div", {}, el("div", { class: "namerow" }, logoFor(v), el("h1", {}, v.firm)),
-        el("div", { class: "chips" }, btag(bucket), tag("status", v.status),
+        el("div", { class: "chips" }, btag(bucket),
           el("span", { class: "chip" }, v.geo), el("span", { class: "chip" }, v.stage_focus)),
         (v.signal_summary || "Not scored yet.").split(" | ").length > 1
           ? el("ul", { class: "bullets" }, v.signal_summary.split(" | ").map((t) => el("li", {}, t)))
@@ -1173,8 +1193,9 @@ function renderProfile(d) {
       el("div", { class: "panel wide" }, el("h3", {}, `Logistics signals (${logi.length})`),
         unverified ? el("p", { class: "note", style: "margin:-6px 0 8px" }, `${unverified} signal${unverified > 1 ? "s" : ""} below ${unverified > 1 ? "come" : "comes"} from a source that was not verified, so ${unverified > 1 ? "they are" : "it is"} shown for reference only and not counted in the score.`) : null,
         logi.length ? logi.map(signalRow) : el("div", { class: "empty" }, "No logistics signal from a trusted source in the last 30 days."),
-        other.length ? el("details", { style: "margin-top:12px" }, el("summary", { class: "note" }, `Other fund activity (${other.length}): not about logistics, so it does not drive the score much`), other.map(signalRow)) : null),
-      privatePanel(d), relPanel(v, now), fitPanel(v), el("div", {}), checksPanel(d.checks)));
+        null),
+      privatePanel(d), nextStepPanel(v), fitPanel(v),
+      el("details", { class: "wide", style: "grid-column:1/-1" }, el("summary", { style: "cursor:pointer;font-weight:600;color:var(--muted);padding:6px 0" }, "Details \u00b7 search history and rejected sources"), checksPanel(d.checks))));
   window.scrollTo(0, 0);
 }
 
