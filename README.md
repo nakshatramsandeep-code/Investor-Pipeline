@@ -61,7 +61,7 @@ Routing is a plain table, first match wins (`pipeline/score.py`, one unit test p
 
 The dashboard re-buckets from your status and dates in the browser, so logging an action moves a card at once;
 scores and signals still come from the last run. Settings live in `run_files/weights.yaml` (`waiting_nudge_days`,
-`reach_out_min_score`, `reach_out_max_signal_age_days`, `general_content_factor`). General interviews, posts and talks that are not about logistics
+`reach_out_min_score`, `reach_out_max_signal_age_days`, `general_content_factor`). Deals outrank talk: interviews, posts and talks weigh less than investments, and a fund whose only signals are content is capped at `content_only_cap` of the maximum. General interviews, posts and talks that are not about logistics
 count for a third as much as a deal, so off-topic appearances don't lift a score.
 
 A signal survives only if: its page comes from a trusted source (below), its URL is in the returned search results, its date comes from the

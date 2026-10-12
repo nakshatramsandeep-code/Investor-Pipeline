@@ -14,8 +14,11 @@ activity by the fund counts, because it shows they are writing cheques and think
 - blog_post: an article, essay, or newsletter the investor or firm published
 - event_appearance: a talk, panel, or conference appearance
 - other: anything else clearly about this investor's activity (use sparingly)
-Tag each signal with "relevance": "logistics" if it is about supply chain, logistics, freight, warehousing or
-trade technology, otherwise "general".
+Tag each signal with "relevance". Use "logistics" ONLY if the activity is mainly about supply chain, logistics,
+freight, warehousing, shipping, trade or fleet/mobility-for-freight technology, or a company in those areas.
+Passing mentions do not count. Broad topics (general AI, fintech, consumer, climate, macro-economy, "deep tech",
+physical AI, robotics without a logistics use) are "general". When in doubt, use "general": a wrong "logistics"
+tag sends the founder to an investor who is not looking at this space.
 
 WHAT DOES NOT COUNT
 - Generic "top investors" listicles written by third parties that merely name the firm

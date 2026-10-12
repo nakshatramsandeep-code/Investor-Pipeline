@@ -53,6 +53,9 @@ def fit_report(vc: VC, rules: FitRules, signals: list[Signal]) -> tuple[float, l
     return mult, reasons
 
 
+DEAL_TYPES = ("portfolio_investment", "fund_announcement")
+
+
 def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> float:
     """0..1. Best single signal (type x source x topic x recency) plus small bonuses. Every bonus is
     scaled by topic relevance, so five general signals can't outrank a logistics signal."""
@@ -75,6 +78,8 @@ def signal_strength(signals: list[Signal], vc: VC, w: Weights, today: date) -> f
     geo = vc.geo.lower()
     if any(g in geo for g in w.preferred_geos):
         strength += w.preferred_geo * best_topic
+    if not any(s.type in DEAL_TYPES for s in signals):
+        strength = min(strength, w.content_only_cap)       # all talk, no cheque: cannot outrank a real deal
     return min(strength, 1.0)
 
 

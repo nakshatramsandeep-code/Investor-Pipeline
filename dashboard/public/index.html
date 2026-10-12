@@ -450,7 +450,7 @@ function card(v, evidence, now, bucket) {
   const logi = all.filter((e) => e.relevance === "logistics"), cool = showSignal && bucket === "reach" ? coolsIn(v, evidence, now) : null;
   return el("div", { class: "card compact" },
     el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm),
-      bucket === "reach" || bucket === "warm" ? el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Follow-up score: 70+ strong, 40-69 medium, under 40 weak" }, String(score))
+      bucket === "reach" || bucket === "warm" ? el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Priority score out of 100: 70+ strong, 40-69 medium, under 40 weak" }, String(score))
         : bucket === "nudge" ? el("span", { class: "chip c-amber" }, d == null ? "overdue" : `${d} days`) : null),
     meta ? el("div", { class: "meta" }, meta) : null,
     v.next_step && ["nudge", "waiting", "talks", "approved"].includes(bucket) ? el("div", { class: "next" }, "Next: " + v.next_step) : null,
@@ -484,8 +484,11 @@ function hero(data, now, g, focus) {
   const finished = run && run.finished_at ? new Date(run.finished_at) : null;
   const age = finished ? daysAgo(finished, now) : null;
   const notices = [];
-  const failedNote = failed.length ? el("details", { class: "notice" }, el("summary", {}, `${failed.length} prospect${failed.length > 1 ? "s" : ""} couldn't be checked last run`),
-    el("p", {}, `${failed.map((v) => v.firm).join(", ")}. Their earlier results are shown and marked stale until the next run.`)) : null;
+  const failedNote = failed.length ? el("div", { class: "notice", style: "font-weight:600" },
+    `⚠ ${failed.length} of ${vcs.filter((v) => v.status === "to_contact").length} prospects couldn't be checked last run`,
+    el("div", { style: "font-weight:400;margin-top:4px" }, `${failed.map((v) => v.firm).join(", ")}. ` +
+      (run && run.error && /credit|402/i.test(run.error) ? "Search credits ran out. " : "The search provider returned an error. ") +
+      "Their earlier results are shown and marked stale until the next run.")) : null;
   if (run && run.error) notices.push(/credit/i.test(run.error) ? "Search credits ran out during the last run. Top up Exa, then re-run it from GitHub Actions. Previous results were kept." : "The last run hit an error. Previous results were kept.");
   if (age != null && age > 4) notices.push(`The last run finished ${age} days ago, older than the usual 3-4 day cycle. Re-run it from GitHub Actions.`);
 
@@ -496,7 +499,7 @@ function hero(data, now, g, focus) {
     const line = focus.bucket === "nudge" ? `Contacted ${d == null ? "a while ago" : d + " days ago"} with no reply. ` : "";
     insight = el("div", { class: "insight best" },
       el("div", { class: "row" }, el("h3", {}, el("span", { class: "dot ok" }, "1"), title),
-        focus.bucket === "reach" && v.follow_up_score ? el("span", { class: "score", title: "Follow-up score" }, String(v.follow_up_score)) : null),
+        focus.bucket === "reach" && v.follow_up_score ? el("span", { class: "score", title: "Priority score out of 100" }, String(v.follow_up_score)) : null),
       el("div", { class: "bestname" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
       el("p", {}, line, best ? best.summary : ""),
       best ? el("div", { class: "chips" }, tag("type", best.type), relChip(best), trustChip(best)) : null,
@@ -709,7 +712,7 @@ function statusBlock(v, now, bucket, score) {
   if (text) return el("div", { class: "statusblock" }, el("div", { class: "big" }, text[0]), el("div", { class: "sub2" }, text[1]));
   if (bucket === "skip") return el("div", { class: "statusblock" }, el("div", { class: "big" }, "Not a fit"), el("div", { class: "sub2" }, (v.signal_summary || "").replace("Skipped: ", "")));
   return el("div", { class: "statusblock", style: "min-width:200px" }, el("div", { class: "big", style: `font-size:44px;color:${scoreColor(score)}` }, String(score)),
-    el("div", { class: "pl" }, el("span", {}, "Follow-up score"), el("span", {}, `${score}%`)),
+    el("div", { class: "pl" }, el("span", {}, "Priority score"), el("span", {}, `${score} / 100`)),
     el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })),
     el("div", { class: "sub2" }, "70+ strong \u00b7 40\u201369 medium \u00b7 under 40 weak"));
 }

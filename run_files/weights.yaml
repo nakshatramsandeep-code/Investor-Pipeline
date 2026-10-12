@@ -5,10 +5,14 @@ version: 1
 signal_types:            # how strong is each kind of signal (0..1)
   portfolio_investment: 1.0
   fund_announcement: 0.9
-  interview: 0.8
-  blog_post: 0.7
-  event_appearance: 0.6
+  interview: 0.6         # words, not money: below a deal
+  blog_post: 0.45
+  event_appearance: 0.4
   other: 0.3
+
+# A fund whose only signals are content (posts, interviews, talks) is talking, not investing. Its strength is capped
+# here, so it cannot outrank a fund that just wrote a cheque. Deals: portfolio_investment, fund_announcement.
+content_only_cap: 0.5
 
 recency:
   window_days: 30        # a signal older than this is not a signal

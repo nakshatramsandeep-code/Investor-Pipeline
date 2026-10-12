@@ -70,3 +70,12 @@ def test_fit_factors_are_validated(tmp_path):
     p.write_text(yaml.dump(src))
     with pytest.raises(ConfigError):
         load_fit_rules(p)
+
+
+def test_a_fund_with_only_content_cannot_outrank_one_with_a_deal(rf):
+    vc = make_vc(thesis="Supply chain and mobility", stage_focus="Seed", geo="India")
+    posts = [replace(make_signal(days_ago=1, url=f"https://t.com/p{i}", type="blog_post"), relevance="logistics", source_tier="own_site") for i in range(4)]
+    deal = [replace(make_signal(days_ago=9, type="portfolio_investment"), relevance="logistics", source_tier="own_site")]
+    a = decide(vc, posts, rf.fit, rf.weights, TODAY).score
+    b = decide(vc, deal, rf.fit, rf.weights, TODAY).score
+    assert a <= round(100 * rf.weights.content_only_cap) and b > a
