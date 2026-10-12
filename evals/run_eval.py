@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 from pipeline.config import load_run_files  # noqa: E402
 from pipeline.extract import GeminiExtract  # noqa: E402
 from pipeline.run import process_vc, today_local  # noqa: E402
-from pipeline.search import ExaSearch  # noqa: E402
+from pipeline.search import build_search  # noqa: E402
 from pipeline.store import CsvStore  # noqa: E402
 
 
@@ -26,7 +26,7 @@ def main() -> int:
     rf = load_run_files()
     by_firm = {v.firm.lower(): v for v in CsvStore(ROOT / "data" / "vc_seed_list.csv").load_vcs()}
     rows = list(csv.DictReader((ROOT / "run_files" / "eval_set.csv").open(encoding="utf-8")))
-    search, extractor = ExaSearch(), GeminiExtract()
+    search, extractor = build_search(), GeminiExtract()
     tp = fp = fn = tn = invented = 0
     for row in rows:
         label = (row["expect_signal"] or "").strip().lower()

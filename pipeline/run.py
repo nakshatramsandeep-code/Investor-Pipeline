@@ -14,7 +14,7 @@ import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
@@ -22,17 +22,18 @@ from .config import RunFiles, load_run_files
 from .extract import ExtractError, GeminiExtract
 from .models import VC, Page, Person, Signal, VCResult, effective_status
 from .score import ACTION_ORDER, decide, fit_gate
-from .search import ExaSearch, QuotaExhausted, SearchError
+from .search import QuotaExhausted, SearchError, build_search
 from .store import CsvStore, PgStore
 from .sources import classify, guess_website
+from .names import mentions
+from .validate import _rank as role_rank
 from .validate import norm_url, validate_people, validate_signals
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 PEOPLE_REFRESH_DAYS = 45     # re-discover a firm's partners this often
-PEOPLE_CHECKED = 3           # people checked per run for firms that matter: a logistics signal, or already in your pipeline
-PEOPLE_CHECKED_QUIET = 1     # ...and for everyone else, just the most senior person (keeps a run affordable)
+MANUAL_CHECKED = 2           # contacts YOU added get their own search: they are who you will actually write to
 
 
 def _needs_discovery(known: list[Person], today: date) -> bool:
@@ -124,6 +125,39 @@ def today_local() -> date:
     return datetime.now(ZoneInfo(os.environ.get("PIPELINE_TZ", "Asia/Kolkata"))).date()
 
 
+def check_interval_days(vc: VC, w, today: date) -> int:
+    st = effective_status(vc, today)
+    if st in ("waiting", "in_conversation", "approved", "closed"):
+        return w.sched_pipeline_days
+    if vc.action in ("reach_out", "nudge"):
+        return w.sched_reach_days
+    return w.sched_dormant_days
+
+
+def is_due(vc: VC, now: datetime, w, today: date, force: bool = False) -> bool:
+    """Spend a search only when an investor is due. Declined / not-a-fit investors cost no search, so they are
+    always processed (their recommendation stays current). A failed or missing last check is always due."""
+    if force or vc.last_checked_at is None:
+        return True
+    if effective_status(vc, today) == "declined" or vc.action == "skip":
+        return True
+    last = vc.last_checked_at if vc.last_checked_at.tzinfo else vc.last_checked_at.replace(tzinfo=timezone.utc)
+    # 12 hours of slack so a Monday / Thursday cadence lands cleanly on "every 2 days" and "weekly"
+    return now - last >= timedelta(days=check_interval_days(vc, w, today)) - timedelta(hours=12)
+
+
+def attribute_people(signals: list[Signal], pages: list[Page], people: list[Person]) -> list[Signal]:
+    """Tag a signal with a known partner when that partner is named on the source page. Free: no extra search."""
+    by_url = {norm_url(p.url): p for p in pages}
+    ranked = sorted(people, key=lambda p: (not p.manual, role_rank(p.role)))
+    out = []
+    for s in signals:
+        page = by_url.get(norm_url(s.url))
+        who = None if s.person_name or not page else next((p for p in ranked if mentions(page.text, p.name)), None)
+        out.append(replace(s, person_name=who.name, person_role=who.role or None) if who else s)
+    return out
+
+
 def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
                known_people: list[Person] | None = None, check_people: bool = True) -> VCResult:
     w = rf.weights
@@ -133,6 +167,9 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
         d = decide(vc, [], rf.fit, w, today)
         return VCResult(vc, True, "skipped_fit", d, detail={"reason": d.summary})
     exclude, include = rf.sources.exclude_domains(), rf.sources.include_domains()
+    known = list(known_people or []) if check_people else []
+    manual = sorted([p for p in known if p.manual], key=lambda p: p.name)
+    calls0 = getattr(search, "call_count", 0)
     try:
         found_pages = search.search(vc, rf.fit.topic_keywords, today, w.window_days, exclude, include)
         pages, skipped, undated = _usable(found_pages, vc, rf)
@@ -145,21 +182,14 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
     n_firm = len(signals)
 
     if check_people:
-        known = list(known_people or [])
-        matters = any(s.relevance == "logistics" for s in signals) or vc.status != "to_contact" or any(p.manual for p in known)
-        people_limit = PEOPLE_CHECKED if matters else PEOPLE_CHECKED_QUIET
+        signals = attribute_people(signals, pages, known)
         if _needs_discovery(known, today):
             try:
                 found = _discover_people(vc, search, extractor, rf)
             except (SearchError, ExtractError) as e:
                 dropped.append({"reason": "people_discovery_failed", "url": "", "type": str(e)[:80]})
-        manual = {m.name.lower() for m in known if m.manual}
-        everyone = sorted([p for p in known if p.manual], key=lambda p: p.name) +             [p for p in (found + [k for k in known if not k.manual]) if p.name.lower() not in manual]
-        seen: set[str] = set()
-        for person in everyone:
-            if person.name.lower() in seen or len(seen) >= people_limit:
-                continue
-            seen.add(person.name.lower())
+        # Only contacts YOU added get a dedicated search; discovered partners are covered by the firm search.
+        for person in manual[:MANUAL_CHECKED]:
             pvc = replace(vc, name=person.name)
             try:
                 pfound = search.search(pvc, rf.fit.topic_keywords, today, w.window_days, exclude, include)
@@ -183,7 +213,8 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
     detail = {"pages_found": n_found, "pages_usable": n_usable,
               "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),
               "undated": undated, "people_checked": checked, "signals_firm": n_firm,
-              "signals_people": sum(1 for s in signals if s.person_name)}
+              "signals_people": sum(1 for s in signals if s.person_name),
+              "provider": getattr(search, "last_provider", None), "searches": getattr(search, "call_count", 0) - calls0}
     learned = None if vc.website else guess_website(
         [(s.source_domain, s.source_tier) for s in signals]
         + [(p.source_domain, p.source_tier) for p in found + list(known_people or []) if not p.manual])
@@ -219,7 +250,7 @@ class FixtureClients:
                      today - timedelta(days=p["days_ago"]) if p.get("days_ago") is not None else None,
                      p["text"]) for p in raw_pages]
 
-    def search(self, vc, keywords, today, window_days, exclude_domains=None, include_domains=None):
+    def search(self, vc, keywords, today, window_days, exclude_domains=None, include_domains=None, extra_terms=()):
         return self._pages(self._entry(vc).get("pages", []), today)
 
     def extract(self, context, vc, pages):
@@ -259,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-write", action="store_true", help="print results, write nothing")
     ap.add_argument("--fixtures", type=Path, help="offline demo: canned pages and model output")
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--all", action="store_true", help="ignore the check schedule and check every investor")
     ap.add_argument("--no-people", action="store_true", help="skip partner discovery and per-person checks")
     ap.add_argument("--workers", type=int, default=5)
     ap.add_argument("--today", type=date.fromisoformat, default=today_local())
@@ -277,8 +309,14 @@ def main(argv: list[str] | None = None) -> int:
         vcs = [fx.apply_overrides(v) for v in vcs]
         search = extractor = fx
     else:
-        search, extractor = ExaSearch(), GeminiExtract()
+        search, extractor = build_search(), GeminiExtract()
+        print("Search providers (in order):", ", ".join(getattr(search, "names", ["custom"])))
 
+    now = datetime.now(timezone.utc)
+    total_vcs = len(vcs)
+    vcs = [v for v in vcs if is_due(v, now, rf.weights, args.today, args.all)]
+    print(f"Due this run: {len(vcs)} of {total_vcs} investors; the rest are on their schedule "
+          f"(pipeline {rf.weights.sched_pipeline_days}d, reach-out {rf.weights.sched_reach_days}d, dormant {rf.weights.sched_dormant_days}d).")
     people = store.load_people()
     run_id = store.start_run(len(vcs)) if write else 0
     results: list[VCResult] = []
@@ -318,7 +356,8 @@ def main(argv: list[str] | None = None) -> int:
     if write:
         store.finish_run(run_id, status, len(results) - failed, failed, kept, dropped)
     print_table(results)
-    print(f"\nrun: {status} | {len(results)} VCs | {failed} failed | {kept} signals kept | {dropped} dropped")
+    searches = sum(r.detail.get("searches", 0) for r in results)
+    print(f"\nrun: {status} | {len(results)} VCs | {failed} failed | {kept} signals kept | {dropped} dropped | {searches} searches")
     return 1 if status == "failed" else 0
 
 

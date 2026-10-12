@@ -38,3 +38,8 @@ general_content_factor: 0.3   # general interviews / blogs / events (not deals) 
 relevance:               # multiplier by topic: logistics / supply chain activity counts most
   logistics: 1.0
   general: 0.5           # any other recent activity by the fund: still a sign it is active
+
+schedule:                # how often to spend a search on each kind of investor (days between checks)
+  pipeline_days: 2       # contacted / in talks / approved: you want fresh hooks, and there are few of them
+  reach_days: 2          # reach-out and follow-up candidates
+  dormant_days: 7        # everyone else: most investors, and they rarely change week to week

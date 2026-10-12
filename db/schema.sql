@@ -156,7 +156,7 @@ REVOKE ALL ON ALL TABLES IN SCHEMA public FROM signal_job, dashboard_ro, dashboa
 GRANT USAGE ON SCHEMA public TO signal_job, dashboard_ro, dashboard_fb, dashboard_ed;
 
 -- signal_job: reads only what it needs (never notes / contact_history) ...
-GRANT SELECT (id, name, firm, thesis, status, last_contacted_at, last_signal_date, revisit_on) ON vcs TO signal_job;
+GRANT SELECT (id, name, firm, thesis, status, last_contacted_at, last_signal_date, revisit_on, recommended_action) ON vcs TO signal_job;
 GRANT SELECT ON vc_profile TO signal_job;
 -- ... and updates exactly four columns. Postgres refuses anything else.
 GRANT UPDATE (last_signal_date, signal_summary, follow_up_score, recommended_action) ON vcs TO signal_job;
@@ -194,3 +194,6 @@ GRANT USAGE ON SEQUENCE vc_interactions_id_seq, vc_contacts_id_seq TO dashboard_
 
 -- signal_job marks which evidence rows belong to the latest run's kept set.
 GRANT SELECT (active), UPDATE (active) ON signal_evidence TO signal_job;
+
+-- The job reads when each investor was last checked successfully, to decide who is due (check schedule).
+GRANT SELECT (vc_id, checked_at, ok, outcome) ON vc_check_log TO signal_job;

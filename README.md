@@ -142,10 +142,26 @@ Dates are your local calendar days. The browser sends its own "today" with every
 dated today (the server runs on UTC and would say yesterday). The scheduled run also uses IST for "days since
 contact" (`PIPELINE_TZ` to change it).
 
-## If a run fails with "Exa credits are used up"
+## Search providers and cost
 
-Exa answers HTTP 402 when the account is out of credits. The run stops at once (exit code 2) instead of failing
-every investor one by one, writes the reason to the run log (the dashboard shows it), and keeps every investor's
-previous results. Top up at dashboard.exa.ai, then re-run the workflow from the Actions tab. To keep a run
-affordable, partner activity is checked for up to 3 people at firms with a logistics signal or already in your
-pipeline, and for just the most senior person at everyone else.
+Search is a chain: **Tavily first, Exa as the fallback** (`SEARCH_PROVIDERS`, default `tavily,exa`; a provider
+without its key is skipped, and a provider that runs out of credits is retired for the rest of the run). Both are
+kept in `pipeline/search.py`. Secrets: `TAVILY_API_KEY`, `EXA_API_KEY`.
+
+To keep a run affordable the pipeline spends a search only when an investor is **due** (`schedule` in
+`weights.yaml`): contacted / in talks / approved and reach-out candidates every 2 days, dormant investors every 7,
+declined and not-a-fit investors never. An investor is searched **once** (one basic Tavily search = 1 credit);
+known partners cost no extra search, because a signal is attributed to a partner when the page names them.
+Only contacts you add yourself get a dedicated search. Partners are re-discovered every 45 days. Expect roughly
+300 searches a month. `python -m pipeline.run --all` ignores the schedule.
+
+Tavily returns a publish date only for its news topic, and dates must come from the API, so the activity search
+uses that topic. In testing it surfaced far fewer pages that name a specific fund than Exa did, so expect fewer
+signals; check "Skipped untrusted sources" in an investor's check history and add good outlets to
+`run_files/sources.yaml`.
+
+## If a run stops with "out of credits"
+
+When every provider is out of credits (or a key is rejected) the run stops at once (exit code 2) instead of
+failing every investor one by one, writes the reason to the run log (the dashboard shows it), and keeps every
+investor's previous results. Top up, then re-run the workflow from the Actions tab.

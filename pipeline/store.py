@@ -12,7 +12,10 @@ from .models import VC, Person, VCResult
 # Explicit column list on purpose: never SELECT * (notes / contact_history are off limits).
 LOAD_SQL = """
 SELECT v.id, v.name, v.firm, v.thesis, v.status, v.last_contacted_at, v.last_signal_date,
-       p.geo, p.stage_focus, p.is_investing, p.flag, p.website, v.revisit_on
+       p.geo, p.stage_focus, p.is_investing, p.flag, p.website, v.revisit_on,
+       (SELECT max(c.checked_at) FROM vc_check_log c
+         WHERE c.vc_id = v.id AND c.ok AND c.outcome IN ('signal', 'no_signal', 'skipped_fit')) AS last_checked_at,
+       v.recommended_action
 FROM vcs v JOIN vc_profile p ON p.vc_id = v.id
 ORDER BY v.id
 """

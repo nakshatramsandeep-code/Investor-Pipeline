@@ -19,6 +19,8 @@ class VC:
     flag: str
     website: str = ""
     revisit_on: date | None = None   # a declined investor to look at again from this date
+    last_checked_at: datetime | None = None   # last successful check, for the check schedule
+    action: str | None = None        # the recommendation from the previous run
 
 
 @dataclass(frozen=True)

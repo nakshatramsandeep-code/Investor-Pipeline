@@ -44,6 +44,9 @@ class Weights:
     reach_out_min_score: int
     reach_out_max_age: int
     general_content_factor: float
+    sched_pipeline_days: int
+    sched_reach_days: int
+    sched_dormant_days: int
     source_tiers: dict[str, float]
     relevance: dict[str, float]
 
@@ -92,6 +95,12 @@ def _unit(v, where: str) -> float:
     return float(v)
 
 
+def _pos_int(v, name: str) -> int:
+    if isinstance(v, bool) or not isinstance(v, int) or v < 1:
+        raise ConfigError(f"schedule.{name} must be a whole number of days, 1 or more")
+    return v
+
+
 def load_fit_rules(path: Path) -> FitRules:
     d = _load_yaml(path)
     w = path.name
@@ -131,6 +140,9 @@ def load_weights(path: Path) -> Weights:
         quiet_nudge_score=_get(rou, "quiet_nudge_score", int, f"{w}: routing"),
         reach_out_max_age=_get(rou, "reach_out_max_signal_age_days", int, f"{w}: routing"),
         reach_out_min_score=_get(rou, "reach_out_min_score", int, f"{w}: routing"),
+        sched_pipeline_days=_pos_int(_get(_get(d, "schedule", dict, w), "pipeline_days", int, f"{w}: schedule"), "pipeline_days"),
+        sched_reach_days=_pos_int(_get(_get(d, "schedule", dict, w), "reach_days", int, f"{w}: schedule"), "reach_days"),
+        sched_dormant_days=_pos_int(_get(_get(d, "schedule", dict, w), "dormant_days", int, f"{w}: schedule"), "dormant_days"),
         general_content_factor=_unit(_get(d, "general_content_factor", float, w), "general_content_factor"),
         relevance={k: _unit(v, f"{w}: relevance[{k}]") for k, v in _get(d, "relevance", dict, w).items()},
         source_tiers={k: _unit(v, f"{w}: source_tiers[{k}]") for k, v in _get(d, "source_tiers", dict, w).items()},

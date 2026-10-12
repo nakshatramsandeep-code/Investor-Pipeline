@@ -105,7 +105,7 @@ class PeopleClients:
         self.page = make_page("At the summit, Jane Partner of Acme Ventures said freight visibility is underfunded in software.",
                               url="https://techcrunch.com/summit")
 
-    def search(self, vc, kw, today, window, exclude=None, include=None):
+    def search(self, vc, kw, today, window, exclude=None, include=None, extra_terms=()):
         if vc.name:
             self.person_searches.append(vc.name)
             return [self.page]
@@ -128,8 +128,9 @@ class PeopleClients:
 
 
 def test_partner_activity_becomes_a_signal_tagged_with_the_person(rf):
+    from pipeline.models import Person
     c = PeopleClients()
-    r = process_vc(make_vc(), c, c, rf, TODAY)
+    r = process_vc(make_vc(), c, c, rf, TODAY, [Person("Jane Partner", "General Partner", source_tier="manual", manual=True)])
     assert r.outcome == "signal" and r.signals[0].person_name == "Jane Partner"
     assert [p.name for p in r.people_found] == ["Jane Partner"] and c.person_searches == ["Jane Partner"]
 
@@ -140,7 +141,8 @@ def test_known_recent_people_are_not_rediscovered(rf):
     c = PeopleClients()
     known = [Person("Jane Partner", "General Partner", discovered_at=datetime(2026, 10, 1))]
     r = process_vc(make_vc(), c, c, rf, TODAY, known)
-    assert c.discoveries == 0 and r.people_found == [] and r.signals
+    assert c.discoveries == 0 and r.people_found == []
+    assert c.person_searches == []            # discovered partners are covered by the one firm search
 
 
 def test_manual_contacts_are_always_checked_first(rf):
@@ -162,8 +164,9 @@ def test_person_search_failure_does_not_fail_the_vc(rf):
             if vc.name:
                 raise SearchError("503")
             return []
+    from pipeline.models import Person
     c = Boom()
-    r = process_vc(make_vc(), c, c, rf, TODAY)
+    r = process_vc(make_vc(), c, c, rf, TODAY, [Person("Jane Partner", "Partner", source_tier="manual", manual=True)])
     assert r.ok and any(d["reason"] == "person_check_failed" for d in r.dropped)
 
 
@@ -181,7 +184,7 @@ class ManyPages:
                        make_page("Acme Ventures undated", days_ago=None, url="https://reuters.com/undated")]
         self.sent = []
 
-    def search(self, vc, kw, today, window, exclude=None, include=None):
+    def search(self, vc, kw, today, window, exclude=None, include=None, extra_terms=()):
         return self.pages
 
     def extract(self, ctx, vc, pages):
@@ -208,8 +211,9 @@ def test_signals_capped_and_newest_first(rf):
 
 
 def test_detail_records_people_checked(rf):
+    from pipeline.models import Person
     c = PeopleClients()
-    r = process_vc(make_vc(), c, c, rf, TODAY)
+    r = process_vc(make_vc(), c, c, rf, TODAY, [Person("Jane Partner", "General Partner", source_tier="manual", manual=True)])
     assert r.detail["people_checked"] == ["Jane Partner"] and r.detail["signals_people"] == 1
 
 
@@ -353,7 +357,7 @@ def test_a_run_stops_with_exit_code_2_when_credits_run_out(monkeypatch, capsys):
         def search_people(self, *a, **k):
             raise QuotaExhausted("x")
 
-    monkeypatch.setattr(runmod, "ExaSearch", NoCredits)
+    monkeypatch.setattr(runmod, "build_search", lambda: NoCredits())
     monkeypatch.setattr(runmod, "GeminiExtract", lambda: object())
     code = runmod.main(["--source", "csv", "--no-write", "--limit", "6", "--workers", "2"])
     assert code == 2 and "STOPPED" in capsys.readouterr().out
@@ -361,19 +365,43 @@ def test_a_run_stops_with_exit_code_2_when_credits_run_out(monkeypatch, capsys):
 
 # ---------------------------------------------------------------- partner checks cost control
 
-def test_quiet_investors_get_one_partner_check_and_pipeline_investors_get_three(rf):
+def test_known_partners_cost_no_extra_searches(rf):
+    from datetime import datetime
     from pipeline.models import Person
 
-    class Many(PeopleClients):
-        def search_people(self, vc, exclude=None):
-            return [self.page]
+    class Spy(PeopleClients):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
 
-        def extract_people(self, vc, pages):
+        def search(self, vc, kw, today, window, exclude=None, include=None, extra_terms=()):
+            self.calls += 1
             return []
-    people = [Person(f"Person {i} Name", "Partner", discovered_at=__import__("datetime").datetime(2026, 10, 1)) for i in range(5)]
-    c = Many()
-    process_vc(make_vc(status="to_contact"), c, c, rf, TODAY, people)
-    assert len(c.person_searches) == 1                       # nothing logistics, not in the pipeline: just the top person
-    c2 = Many()
-    process_vc(make_vc(status="waiting", last_contacted_at=TODAY), c2, c2, rf, TODAY, people)
-    assert len(c2.person_searches) == 3                      # already in your pipeline: full check
+
+        def search_people(self, vc, exclude=None):
+            raise AssertionError("fresh discovery must not run again")
+    people = [Person(f"Partner Number{i} Name", "Partner", discovered_at=datetime(2026, 10, 1)) for i in range(5)]
+    c = Spy()
+    r = process_vc(make_vc(), c, c, rf, TODAY, people)
+    assert c.calls == 1 and r.outcome == "no_signal"                                  # ONE search, however many partners
+
+
+def test_a_signal_is_attributed_to_a_partner_named_on_its_page():
+    from pipeline.models import Person
+    from pipeline.run import attribute_people
+    from conftest import make_page, make_signal
+    page = make_page("Priya Rao, Managing Partner at Acme Ventures, said freight visibility is underfunded.", url="https://techcrunch.com/a")
+    sig = make_signal(url="https://techcrunch.com/a")
+    out = attribute_people([sig], [page], [Person("Priya Rao", "Managing Partner"), Person("Other Person", "Partner")])
+    assert (out[0].person_name, out[0].person_role) == ("Priya Rao", "Managing Partner")
+    assert attribute_people([sig], [page], [Person("Nobody Here", "Partner")])[0].person_name is None
+
+
+def test_only_contacts_you_added_get_their_own_search(rf):
+    from datetime import datetime
+    from pipeline.models import Person
+    c = PeopleClients()
+    people = [Person("Zed Contact", "Partner", source_tier="manual", manual=True),
+              Person("Found One", "Partner", discovered_at=datetime(2026, 10, 1))]
+    process_vc(make_vc(), c, c, rf, TODAY, people)
+    assert c.person_searches == ["Zed Contact"]

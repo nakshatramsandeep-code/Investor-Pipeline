@@ -708,7 +708,8 @@ function checkSummary(c) {
   if (!c.ok) lines.push(`${friendlyError(c.error)} this run, so the previous results were kept.`);
   else if (c.outcome === "skipped_fit") lines.push((d.reason || "Not a fit for this round") + ", so no searches were run.");
   else {
-    lines.push(d.pages_found != null ? `Searched ${d.pages_found} pages, ${d.pages_usable} usable.` : `Searched ${c.n_pages} pages.`);
+    const via = d.provider ? ` via ${d.provider}${d.searches != null ? ` (${d.searches} search${d.searches === 1 ? "" : "es"})` : ""}` : "";
+    lines.push(d.pages_found != null ? `Searched ${d.pages_found} pages${via}, ${d.pages_usable} usable.` : `Searched ${c.n_pages} pages.`);
     const sk = Object.entries(d.skipped || {});
     if (sk.length) lines.push("Skipped untrusted sources: " + sk.map(([k, n]) => `${k} \u00d7${n}`).join(", ") + ".");
     if (d.undated) lines.push(`Ignored ${d.undated} page${d.undated > 1 ? "s" : ""} from trusted sources with no publish date (dates must come from the search API).`);

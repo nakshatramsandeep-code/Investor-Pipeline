@@ -25,7 +25,9 @@ jobs:
       - run: python -m pipeline.run
         env:
           SIGNAL_JOB_DATABASE_URL: ${{ secrets.SIGNAL_JOB_DATABASE_URL }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          # SEARCH_PROVIDERS: tavily,exa      # order of providers; Tavily first, Exa only when Tavily is spent
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         # Exit code 2 means Exa credits ran out (top up at dashboard.exa.ai, then re-run). Results already
         # written are kept; the dashboard shows the message.
