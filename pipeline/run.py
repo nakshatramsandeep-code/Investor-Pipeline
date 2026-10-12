@@ -166,7 +166,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
     if not fit_ok or effective_status(vc, today) == "declined":
         # Routing rule 1: no point spending search / LLM budget.
         d = decide(vc, [], rf.fit, w, today)
-        return VCResult(vc, True, "skipped_fit", d, detail={"reason": d.summary})
+        return VCResult(vc, True, "skipped_fit", d, detail={"reason": d.summary, "fit": d.fit, "score_version": w.score_version})
     exclude, include = rf.sources.exclude_domains(), rf.sources.include_domains()
     known = list(known_people or []) if check_people else []
     manual = sorted([p for p in known if p.manual], key=lambda p: p.name)
@@ -218,7 +218,7 @@ def process_vc(vc: VC, search, extractor, rf: RunFiles, today: date,
     decision = decide(vc, signals, rf.fit, w, today)
     detail = {"pages_found": n_found, "pages_usable": n_usable,
               "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:8]),
-              "undated": undated, "people_checked": checked, "signals_firm": n_firm, "signals_new": n_new, "signals_on_file": len(on_file), "fit": decision.fit,
+              "undated": undated, "people_checked": checked, "signals_firm": n_firm, "signals_new": n_new, "signals_on_file": len(on_file), "fit": decision.fit, "score_version": w.score_version, "score": decision.score,
               "signals_people": sum(1 for s in signals if s.person_name),
               "provider": getattr(search, "last_provider", None), "searches": getattr(search, "call_count", 0) - calls0}
     learned = None if vc.website else guess_website(
@@ -240,11 +240,12 @@ def rescore_vc(vc: VC, existing: list[Signal], rf: RunFiles, today: date) -> VCR
     fit_ok, _, _ = fit_gate(vc, rf.fit)
     if not fit_ok or effective_status(vc, today) == "declined":
         d = decide(vc, [], rf.fit, w, today)
-        return VCResult(vc, True, "skipped_fit", d, detail={"reason": d.summary, "rescored": True})
+        return VCResult(vc, True, "skipped_fit", d, detail={"reason": d.summary, "rescored": True, "fit": d.fit, "score_version": w.score_version})
     on_file = [e for e in existing if (today - e.published).days <= w.window_days]
     signals = sorted(dedupe_events(on_file, vc.firm), key=lambda s: s.published, reverse=True)[:MAX_SIGNALS]
     return VCResult(vc, True, "rescored", decide(vc, signals, rf.fit, w, today), signals,
-                    detail={"rescored": True, "signals_on_file": len(on_file), "signals_kept": len(signals), "fit": decide_fit(vc, signals, rf, today),
+                    detail={"rescored": True, "signals_on_file": len(on_file), "signals_kept": len(signals), "fit": decide_fit(vc, signals, rf, today), "score_version": w.score_version,
+                            "score": decide(vc, signals, rf.fit, w, today).score,
                             "score_note": "re-scored from saved signals; no search was made"})
 
 

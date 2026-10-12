@@ -12,8 +12,9 @@ module.exports = async function handler(req, res) {
     const [vcs, evidence, checks, contacts, people] = await retry(() => Promise.all([
       sql`SELECT v.id, v.name, v.firm, v.thesis, v.status, v.last_contacted_at::text AS last_contacted_at, v.last_signal_date::text AS last_signal_date,
                  v.signal_summary, v.follow_up_score, v.recommended_action, v.next_step, v.revisit_on::text AS revisit_on,
-                 p.geo, p.stage_focus, p.is_investing, p.flag, p.background, p.source_url, p.website
-          FROM vcs v JOIN vc_profile p ON p.vc_id = v.id WHERE v.id = ${id}`,
+                 p.geo, p.stage_focus, p.is_investing, p.flag, p.background, p.source_url, p.website,
+                 f.level AS fit_level, f.points AS fit_points, f.good AS fit_good, f.concerns AS fit_concerns, f.badges AS fit_badges
+          FROM vcs v JOIN vc_profile p ON p.vc_id = v.id LEFT JOIN vc_fit f ON f.vc_id = v.id WHERE v.id = ${id}`,
       sql`SELECT e.id, e.vc_id, e.type, e.summary, e.quote, e.url, e.published_date::text AS published_date,
                  e.source_domain, e.source_tier, e.relevance, e.person_name, e.person_role,
                  (SELECT f.useful FROM signal_feedback f WHERE f.evidence_id = e.id

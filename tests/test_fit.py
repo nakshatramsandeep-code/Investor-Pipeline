@@ -1,4 +1,4 @@
-"""Fit is part of the score: a fund that fits badly cannot rank 'strong' on freshness alone."""
+"""Fit is a rating (high / medium / low), separate from timing. Each concern counts once."""
 from dataclasses import replace
 
 import pytest
@@ -6,70 +6,97 @@ import yaml
 from conftest import TODAY, make_signal, make_vc
 
 from pipeline.config import ConfigError, load_fit_rules
-from pipeline.score import decide, fit_report
+from pipeline.score import decide, fit_assess
 
 
-def strong(url="https://t.com/a"):
-    return [replace(make_signal(days_ago=2, url=url), relevance="logistics", source_tier="own_site")]
+def strong(url="https://t.com/a", days_ago=2):
+    return [replace(make_signal(days_ago=days_ago, url=url), relevance="logistics", source_tier="own_site")]
 
 
-def test_a_logistics_first_seed_fund_has_no_penalty(rf):
-    mult, reasons = fit_report(make_vc(thesis="Supply chain and mobility", stage_focus="Pre-seed, Seed"), rf.fit, [])
-    assert mult == 1.0 and reasons == []
+def level(rf, **kw):
+    return fit_assess(make_vc(**kw), rf.fit, [])
 
 
-def test_a_growth_stage_generalist_big_fund_scores_far_below_a_focused_seed_fund(rf):
-    focused = make_vc(thesis="Supply chain and mobility", stage_focus="Pre-seed, Seed")
-    big = make_vc(thesis="Logistics as a core thesis", stage_focus="Seed to growth", flag="Large fund; check seed cheque fit")
-    a = decide(focused, strong(), rf.fit, rf.weights, TODAY)
-    b = decide(big, strong(), rf.fit, rf.weights, TODAY)
-    assert a.score > b.score and b.fit["multiplier"] < 0.65
-    assert any("growth" in r.lower() for r in b.fit["reasons"]) and any("seed cheque" in r.lower() for r in b.fit["reasons"])
+def test_a_logistics_first_seed_fund_is_high_fit(rf):
+    f = level(rf, thesis="Supply chain and mobility", stage_focus="Pre-seed, Seed")
+    assert f["level"] == "high" and f["concerns"] == []
 
 
-def test_a_generalist_thesis_is_scored_down(rf):
-    mult, reasons = fit_report(make_vc(thesis="India seed generalist"), rf.fit, [])
-    assert mult == pytest.approx(rf.fit.fit_factors["generalist_thesis"]) and "Generalist" in reasons[0]
+def test_a_focused_fund_with_no_news_is_still_high_fit(rf):
+    """Fit does not depend on signals: a logistics-native seed fund rates high even in a quiet month."""
+    f = fit_assess(make_vc(thesis="Logistics tech", stage_focus="Seed", geo="India"), rf.fit, [])
+    assert f["level"] == "high"
 
 
-def test_a_fund_with_a_poor_fit_does_not_rank_strong(rf):
-    big = make_vc(thesis="Logistics as a core thesis", stage_focus="Seed to growth", flag="Large fund; check seed cheque fit")
-    assert decide(big, strong(), rf.fit, rf.weights, TODAY).score < 70            # below the 'strong' band
+def test_a_big_fund_is_medium_and_the_cheque_worry_counts_once(rf):
+    f = level(rf, thesis="Logistics as a core thesis", stage_focus="Seed to growth", geo="US",
+              flag="Large fund; check seed cheque fit", background="$998M Fund VI names logistics as core thesis")
+    assert f["level"] == "medium"
+    assert sum("seed cheque may not" in c for c in f["concerns"]) == 1      # growth stage + cheque flag = one concern
 
 
-def test_a_competitor_in_a_signal_flags_a_conflict(rf):
-    from dataclasses import replace as rep
-    rules = rep(rf.fit, competitors=["RivalCo"])
+def test_a_generalist_early_stage_fund_with_track_record_is_medium(rf):
+    f = level(rf, thesis="India early-stage", stage_focus="Seed", geo="India", background="Backed Porter")
+    assert f["level"] == "medium" and "Logistics track record" in f["good"]
+
+
+def test_a_generalist_with_nothing_else_is_low(rf):
+    assert level(rf, thesis="Consumer brands", stage_focus="Seed to Series B", geo="US")["level"] == "low"
+
+
+def test_unverified_data_is_a_badge_not_a_penalty(rf):
+    clean = level(rf, thesis="Dedicated logistics fund", stage_focus="Seed", geo="Global")
+    flagged = level(rf, thesis="Dedicated logistics fund", stage_focus="Seed", geo="Global", flag="Generic name; verify identity")
+    assert flagged["points"] == clean["points"] and flagged["level"] == clean["level"] and flagged["badges"] and not clean["badges"]
+
+
+def test_a_competitor_in_a_signal_is_a_concern(rf):
+    rules = replace(rf.fit, competitors=["RivalCo"])
     sig = [replace(make_signal(days_ago=2), summary="Led a seed round in RivalCo, a freight visibility startup.", relevance="logistics")]
-    mult, reasons = fit_report(make_vc(thesis="logistics"), rules, sig)
-    assert mult == pytest.approx(rules.fit_factors["conflict"]) and "RivalCo" in reasons[0]
-    assert fit_report(make_vc(thesis="logistics"), rules, strong())[0] == 1.0          # no mention, no conflict
+    f = fit_assess(make_vc(thesis="logistics"), rules, sig)
+    assert any("RivalCo" in c for c in f["concerns"])
+    assert not any("conflict" in c.lower() for c in fit_assess(make_vc(thesis="logistics"), rules, strong())["concerns"])
 
 
 def test_conflict_matching_is_whole_word(rf):
-    from dataclasses import replace as rep
-    rules = rep(rf.fit, competitors=["Flex"])
+    rules = replace(rf.fit, competitors=["Flex"])
     sig = [replace(make_signal(), summary="Backed Flexport's new venture arm.")]
-    assert fit_report(make_vc(thesis="logistics"), rules, sig)[0] == 1.0
+    assert not any("conflict" in c.lower() for c in fit_assess(make_vc(thesis="logistics"), rules, sig)["concerns"])
 
 
-def test_decision_carries_the_fit_report_for_the_dashboard(rf):
-    d = decide(make_vc(thesis="India seed generalist"), strong(), rf.fit, rf.weights, TODAY)
-    assert d.fit["multiplier"] < 1 and d.fit["reasons"]
+def test_timing_score_ignores_fit(rf):
+    """Same signals, very different funds: the timing score is identical. Fit is shown beside it, not multiplied in."""
+    focused = make_vc(thesis="Supply chain and mobility", stage_focus="Pre-seed, Seed")
+    big = make_vc(thesis="Consumer", stage_focus="Seed to growth", flag="Large fund; check seed cheque fit")
+    a, b = decide(focused, strong(), rf.fit, rf.weights, TODAY), decide(big, strong(), rf.fit, rf.weights, TODAY)
+    assert a.score == b.score and a.fit["level"] == "high" and b.fit["level"] == "low"
 
 
-def test_fit_factors_are_validated(tmp_path):
-    from pathlib import Path
-    src = yaml.safe_load((Path(__file__).resolve().parent.parent / "run_files" / "fit_rules.yaml").read_text())
-    del src["fit_factors"]["conflict"]
-    p = tmp_path / "fit_rules.yaml"
-    p.write_text(yaml.dump(src))
-    with pytest.raises(ConfigError, match="conflict"):
-        load_fit_rules(p)
-    src["fit_factors"]["conflict"] = 3
-    p.write_text(yaml.dump(src))
-    with pytest.raises(ConfigError):
-        load_fit_rules(p)
+def test_a_low_fit_fund_is_not_a_reach_out_even_with_a_fresh_logistics_signal(rf):
+    big = make_vc(thesis="Consumer", stage_focus="Seed to growth", flag="Large fund; check seed cheque fit")
+    assert decide(big, strong(), rf.fit, rf.weights, TODAY).action == "quiet_list"
+
+
+def test_a_high_fit_fund_with_a_fresh_logistics_signal_is_a_reach_out(rf):
+    d = decide(make_vc(thesis="Supply chain", stage_focus="Seed"), strong(), rf.fit, rf.weights, TODAY)
+    assert d.action == "reach_out" and d.fit["level"] == "high"
+
+
+def test_every_decision_carries_a_fit_even_with_no_signals(rf):
+    """A fund with no news must still have a fit (this was the profile crash: an empty fit object)."""
+    d = decide(make_vc(thesis="Logistics tech", stage_focus="Seed"), [], rf.fit, rf.weights, TODAY)
+    assert d.fit["level"] == "high" and d.fit["good"]
+
+
+def test_a_skipped_fund_is_excluded_with_a_reason(rf):
+    d = decide(make_vc(stage_focus="Growth equity"), [], rf.fit, rf.weights, TODAY)
+    assert d.action == "skip" and d.fit["level"] == "excluded" and d.fit["concerns"]
+
+
+def test_the_score_does_not_depend_on_what_was_shown_before(rf):
+    vc_seen = make_vc(last_signal_date=TODAY)
+    vc_new = make_vc(last_signal_date=None)
+    assert decide(vc_seen, strong(), rf.fit, rf.weights, TODAY).score == decide(vc_new, strong(), rf.fit, rf.weights, TODAY).score
 
 
 def test_a_fund_with_only_content_cannot_outrank_one_with_a_deal(rf):
@@ -79,3 +106,22 @@ def test_a_fund_with_only_content_cannot_outrank_one_with_a_deal(rf):
     a = decide(vc, posts, rf.fit, rf.weights, TODAY).score
     b = decide(vc, deal, rf.fit, rf.weights, TODAY).score
     assert a <= round(100 * rf.weights.content_only_cap) and b > a
+
+
+def test_a_live_relationship_shows_no_pitch_score(rf):
+    d = decide(make_vc(status="in_conversation"), strong(), rf.fit, rf.weights, TODAY)
+    assert d.action == "hold" and d.score == 0
+
+
+def test_fit_points_are_validated(tmp_path):
+    from pathlib import Path
+    src = yaml.safe_load((Path(__file__).resolve().parent.parent / "run_files" / "fit_rules.yaml").read_text(encoding="utf-8"))
+    del src["fit_points"]["conflict"]
+    p = tmp_path / "fit_rules.yaml"
+    p.write_text(yaml.dump(src))
+    with pytest.raises(ConfigError, match="conflict"):
+        load_fit_rules(p)
+    src["fit_points"]["conflict"] = 99
+    p.write_text(yaml.dump(src))
+    with pytest.raises(ConfigError):
+        load_fit_rules(p)

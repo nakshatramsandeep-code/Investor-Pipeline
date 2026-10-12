@@ -172,7 +172,7 @@
   button.delbtn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; float: right; }
   button.delbtn:hover { color: var(--red); }
   .tbl { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
-  .tbl .inner { min-width: 1120px; }
+  .tbl .inner { min-width: 1240px; }
   .trow { display: grid; grid-template-columns: var(--cols); gap: 12px; padding: 10px 14px; align-items: center; border-top: 1px solid var(--line); font-size: 13px; }
   .trow.head { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 12px; border-top: 0; border-radius: 12px 12px 0 0; }
   .trow .vc b { display: block; font-size: 14px; } .trow .vc a { color: var(--text); text-decoration: none; } .trow .vc a:hover { color: #b9a7ff; }
@@ -247,12 +247,19 @@ const COL = {
   type: { portfolio_investment: "green", fund_announcement: "purple", interview: "blue", blog_post: "teal", event_appearance: "amber", other: "gray" },
 };
 const BUCKET = {
-  reach: ["Reach out", "green"], warm: ["Warm", "purple"], nudge: ["Follow up due", "amber"], waiting: ["Contacted", "blue"], talks: ["In talks", "blue"],
+  reach: ["Reach out", "green"], warm: ["Warm", "purple"], pitch: ["Pitch with thesis hook", "teal"], park: ["Park", "gray"], nudge: ["Follow up due", "amber"], waiting: ["Contacted", "blue"], talks: ["In talks", "blue"],
   approved: ["Approved", "green"], declined: ["Declined", "red"], dormant: ["Dormant", "gray"], skip: ["Not a fit", "red"],
 };
 const btag = (b) => el("span", { class: `chip c-${BUCKET[b][1]}` }, BUCKET[b][0]);
 const relChip = (e) => e.relevance === "logistics" ? el("span", { class: "chip c-green" }, "Logistics") : e.relevance ? el("span", { class: "chip c-gray" }, "General activity") : null;
 const tag = (kind, v) => v ? el("span", { class: `chip c-${COL[kind][v] || "gray"}` }, LBL[kind][v] || label(v)) : null;
+// Fit (is this fund a good target?) and timing (is there a fresh reason to write now?) are shown separately, never blended.
+const FIT = { high: ["High fit", "green"], medium: ["Medium fit", "amber"], low: ["Low fit", "gray"], excluded: ["Not a fit", "red"] };
+const FITRANK = { high: 0, medium: 1, low: 2 };
+const fitRank = (v) => FITRANK[v.fit_level] ?? 1;
+const fitChip = (v) => v.fit_level && FIT[v.fit_level] ? el("span", { class: `chip c-${FIT[v.fit_level][1]}`, title: [...(v.fit_good || []), ...(v.fit_concerns || [])].join(" \u00b7 ") || "Fit rating" }, FIT[v.fit_level][0]) : null;
+const timingOf = (v, hot) => hot && hot.has(v.id) ? ["Hot", "green"] : hot && hot.logi && hot.logi.has(v.id) ? ["Warm", "purple"] : ["Cold", "gray"];
+const timingChip = (v, hot) => { const [t, c] = timingOf(v, hot); return el("span", { class: `chip c-${c}`, title: "Timing: is there a fresh logistics signal?" }, `Timing: ${t}`); };
 const scoreColor = (s) => s >= 70 ? "var(--green)" : s >= 40 ? "var(--blue)" : "var(--pink)";
 
 async function sendFeedback(ev, useful, btns) {
@@ -301,21 +308,28 @@ function bucketOf(v, now, hot) {
   if (status === "waiting") { const d = waitDays(v, now); return d == null || d >= NUDGE_DAYS ? "nudge" : "waiting"; }
   if (v.recommended_action === "skip" && !revisitDue) return "skip";
   if (v.recommended_action === "reach_out" && (v.follow_up_score ?? 0) >= MIN_REACH && hot.has(v.id)) return "reach";
-  // Warm: a logistics signal exists but is 15-30 days old. Not urgent, not nothing.
-  return hot.logi && hot.logi.has(v.id) ? "warm" : "dormant";
+  // Not a reach-out now. Fit decides where it goes: a low-fit fund is parked (news or not), a good-fit fund with an
+  // older logistics signal is warm, and a high-fit fund with no news at all is pitched on its thesis.
+  const logi = hot.logi && hot.logi.has(v.id);
+  if (v.fit_level === "low") return logi ? "park" : "dormant";
+  if (logi) return "warm";
+  return v.fit_level === "high" ? "pitch" : "dormant";
 }
 
 function groupVcs(data, now) {
   const hot = hotSet(data.evidence, now);
-  const g = { reach: [], warm: [], nudge: [], waiting: [], talks: [], approved: [], declined: [], dormant: [], skip: [] };
+  const g = { reach: [], warm: [], pitch: [], park: [], nudge: [], waiting: [], talks: [], approved: [], declined: [], dormant: [], skip: [] };
   for (const v of data.vcs) g[bucketOf(v, now, hot)].push(v);
   const byFirm = (a, b) => a.firm.localeCompare(b.firm);
-  g.reach.sort((a, b) => (a.check_ok === false) - (b.check_ok === false) || (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0));
+  const byFit = (a, b) => fitRank(a) - fitRank(b) || (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0) || byFirm(a, b);   // best fit first, then best timing
+  g.reach.sort((a, b) => (a.check_ok === false) - (b.check_ok === false) || byFit(a, b));
   g.nudge.sort((a, b) => (waitDays(b, now) ?? 999) - (waitDays(a, now) ?? 999));          // longest silence first
   g.waiting.sort((a, b) => (waitDays(b, now) ?? 0) - (waitDays(a, now) ?? 0));
   g.talks.sort((a, b) => (b.last_contacted_at || "") < (a.last_contacted_at || "") ? -1 : 1);
   for (const k of ["approved", "declined", "skip"]) g[k].sort(byFirm);
-  for (const k of ["warm", "dormant"]) g[k].sort((a, b) => (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0) || byFirm(a, b));   // best first
+  g.warm.sort(byFit);
+  // With no fresh signal to rank on, rank by how well the fund fits: level, then points, then any timing.
+  for (const k of ["pitch", "park", "dormant"]) g[k].sort((a, b) => fitRank(a) - fitRank(b) || (b.fit_points ?? 0) - (a.fit_points ?? 0) || (b.follow_up_score ?? 0) - (a.follow_up_score ?? 0) || byFirm(a, b));
   return g;
 }
 
@@ -446,16 +460,19 @@ function card(v, evidence, now, bucket) {
     declined: (d == null ? "Declined" : `Declined ${d}d ago`) + (v.revisit_on ? ` \u00b7 revisit ${fmtDate(v.revisit_on)}` : ""),
   }[bucket] || null;
   const showSignal = (bucket === "reach" || bucket === "warm") && best;
+  const thesisLine = bucket === "pitch" ? `Thesis: ${v.thesis}` : bucket === "park" ? (v.fit_concerns && v.fit_concerns[0]) || "Weaker fit for a Seed logistics-SaaS pitch" : null;
   const contact = showSignal ? bestContact(v, evidence) : null;
   const logi = all.filter((e) => e.relevance === "logistics"), cool = showSignal && bucket === "reach" ? coolsIn(v, evidence, now) : null;
   return el("div", { class: "card compact" },
     el("div", { class: "row" }, el("a", { class: "vclink name", href: `#/vc/${v.id}` }, v.firm),
-      bucket === "reach" || bucket === "warm" ? el("span", { class: "pts", style: `color:${scoreColor(score)}`, title: "Priority score out of 100: 70+ strong, 40-69 medium, under 40 weak" }, String(score))
+      ["reach", "warm", "pitch", "park"].includes(bucket) ? fitChip(v)
         : bucket === "nudge" ? el("span", { class: "chip c-amber" }, d == null ? "overdue" : `${d} days`) : null),
     meta ? el("div", { class: "meta" }, meta) : null,
+    thesisLine ? el("div", { class: "meta" }, thesisLine) : null,
+    bucket === "pitch" ? el("div", { class: "meta" }, `No logistics news in 30 days, so lead with their thesis. ${(v.fit_good || []).join(" \u00b7 ")}`) : null,
     v.next_step && ["nudge", "waiting", "talks", "approved"].includes(bucket) ? el("div", { class: "next" }, "Next: " + v.next_step) : null,
     showSignal || (v.check_ok === false && bucket === "reach") ? el("div", { class: "chips", style: "margin-top:6px" },
-      showSignal ? [tag("type", best.type), relChip(best), el("span", { class: "chip" }, `${daysAgo(best.published_date, now)}d ago`),
+      showSignal ? [el("span", { class: "chip", title: "Timing score out of 100: how fresh and deal-like the signals are. Fit is not included.", style: `color:${scoreColor(score)}` }, `Timing ${score}`), tag("type", best.type), relChip(best), el("span", { class: "chip" }, `${daysAgo(best.published_date, now)}d ago`),
         el("span", { class: "chip c-green", title: "Signals about logistics, in the last 30 days" }, plural(logi.length, "logistics signal")),
         all.length > logi.length ? el("span", { class: "chip", title: "Other fund activity, not about logistics" }, `+${all.length - logi.length} other`) : null,
         cool != null && cool <= 3 ? el("span", { class: "chip c-amber", title: "After this the signal is too old to justify a cold approach" }, cool <= 0 ? "Last day in window" : `Cools in ${plural(cool, "day")}`) : null] : null,
@@ -499,7 +516,7 @@ function hero(data, now, g, focus) {
     const line = focus.bucket === "nudge" ? `Contacted ${d == null ? "a while ago" : d + " days ago"} with no reply. ` : "";
     insight = el("div", { class: "insight best" },
       el("div", { class: "row" }, el("h3", {}, el("span", { class: "dot ok" }, "1"), title),
-        focus.bucket === "reach" && v.follow_up_score ? el("span", { class: "score", title: "Priority score out of 100" }, String(v.follow_up_score)) : null),
+        focus.bucket === "reach" ? el("span", { style: "display:flex;gap:6px;align-items:center" }, fitChip(v), v.follow_up_score ? el("span", { class: "score", title: "Timing score out of 100" }, String(v.follow_up_score)) : null) : null),
       el("div", { class: "bestname" }, el("a", { class: "vclink", href: `#/vc/${v.id}` }, v.firm)),
       el("p", {}, line, best ? best.summary : ""),
       best ? el("div", { class: "chips" }, tag("type", best.type), relChip(best), trustChip(best)) : null,
@@ -584,8 +601,9 @@ function render(data) {
   const lists = Object.fromEntries(Object.entries(g).map(([k, vs]) => [k, focus && focus.bucket === k ? vs.filter((v) => v.id !== focus.v.id) : vs]));
   const above = (k) => (focus && focus.bucket === k ? " \u00b7 top one is above" : "");
   const defs = [
-    ["reach", "Reach out", `Logistics signal in the last ${MAX_SIGNAL_AGE} days${above("reach")}`, { limit: 10, id: "reach" }],
-    ["warm", "Warm", `Logistics signal ${MAX_SIGNAL_AGE + 1}-30 days old: worth a look, not urgent. Best first`, { limit: 10, id: "warm" }],
+    ["reach", "Reach out", `Good fit and a logistics signal in the last ${MAX_SIGNAL_AGE} days. Best fit first${above("reach")}`, { limit: 10, id: "reach" }],
+    ["pitch", "Pitch with thesis hook", "Strong fit but no recent news: write to them about their thesis", { limit: 10, id: "pitch" }],
+    ["warm", "Warm", `Logistics signal ${MAX_SIGNAL_AGE + 1}-30 days old: worth a look, not urgent`, { limit: 10, id: "warm" }],
     ["nudge", "Follow up due", `Contacted ${NUDGE_DAYS}+ days ago, no reply${above("nudge")}`, { id: "nudge", always: true, empty: g.nudge.length ? "Just the one above." : "Nothing due. Nobody is overdue a reply." }],
     ["waiting", "Contacted", "Waiting for a reply; follow-up date shown", { id: "waiting" }],
     ["talks", "In talks", "Replied, call or meeting", { id: "talks" }],
@@ -598,11 +616,12 @@ function render(data) {
 
   show(...header(data, "action"),
     hero(data, now, g, focus),
-    el("p", { class: "legend" }, el("b", {}, "Score: "), "70+ strong \u00b7 40\u201369 medium \u00b7 under 40 weak. Based on recent logistics signals, how fresh and how reliable the source is."),
+    el("p", { class: "legend" }, el("b", {}, "Fit "), "= is this fund a good target for a Seed logistics-SaaS round (thesis, stage, region, track record). ", el("b", {}, "Timing "), "= is there a fresh, trusted signal (score out of 100). Funds are ranked by fit first, then timing."),
     el("div", { class: "board auto" }, shown.map(([k, title, hint, o]) =>
       column(title, hint, lists[k].map((v) => card(v, data.evidence, now, k)), { ...o, total: g[k].length }))),
     none.length ? el("p", { class: "emptyline" }, `Nothing in: ${none.join(", ")}.`) : null,
-    listSection("Dormant", "no logistics signal in the last 30 days. Best score first", g.dormant, (v) => v.check_ok === false ? "check failed" : [v.follow_up_score ? `score ${v.follow_up_score}` : null, v.stage_focus].filter(Boolean).join(" \u00b7 ")),
+    listSection("Park", "weaker fit, even though there is news", g.park, (v) => [FIT[v.fit_level] && FIT[v.fit_level][0], v.follow_up_score ? `timing ${v.follow_up_score}` : null].filter(Boolean).join(" \u00b7 ")),
+    listSection("Dormant", "no logistics signal in the last 30 days and no clear fit. Best fit first", g.dormant, (v) => v.check_ok === false ? "check failed" : [FIT[v.fit_level] && FIT[v.fit_level][0], v.follow_up_score ? `timing ${v.follow_up_score}` : null].filter(Boolean).join(" \u00b7 ")),
     listSection("Not a fit", "filtered out by the fit rules", g.skip, (v) => (v.signal_summary || "").replace("Skipped: ", "")),
     unscored ? el("p", { class: "sub", style: "margin-top:20px" }, `${unscored} investors have not been scored yet.`) : null);
 }
@@ -644,15 +663,15 @@ function directory(data, now, hot) {
     const bucket = bucketOf(v, now, hot), people = peopleOfVc(v), { best } = signalsOf(v, data.evidence);
     return { v, bucket, people, best, text: [v.firm, v.thesis, v.geo, v.stage_focus, ...people.map((p) => p.name)].join(" ").toLowerCase() };
   });
-  const STAGES = [["", "All stages"], ["reach", "Reach out"], ["warm", "Warm"], ["nudge", "Follow up due"], ["waiting", "Contacted"], ["talks", "In talks"], ["approved", "Approved"], ["declined", "Declined"], ["dormant", "Dormant"], ["skip", "Not a fit"]];
-  const SORTS = { name: (a, b) => a.v.firm.localeCompare(b.v.firm), score: (a, b) => (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0),
+  const STAGES = [["", "All stages"], ["reach", "Reach out"], ["pitch", "Pitch with thesis hook"], ["warm", "Warm"], ["park", "Park"], ["nudge", "Follow up due"], ["waiting", "Contacted"], ["talks", "In talks"], ["approved", "Approved"], ["declined", "Declined"], ["dormant", "Dormant"], ["skip", "Not a fit"]];
+  const SORTS = { name: (a, b) => a.v.firm.localeCompare(b.v.firm), score: (a, b) => (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0), fit: (a, b) => fitRank(a.v) - fitRank(b.v) || (b.v.follow_up_score ?? 0) - (a.v.follow_up_score ?? 0),
     contact: (a, b) => (b.v.last_contacted_at || "") < (a.v.last_contacted_at || "") ? -1 : 1, searched: (a, b) => (a.v.last_searched_at || "") < (b.v.last_searched_at || "") ? -1 : 1 };
   const search = el("input", { placeholder: "Search by fund, partner, thesis or region" });
   const stage = el("select", {}, STAGES.map(([k, t]) => el("option", { value: k }, t)));
-  const sort = el("select", {}, [["name", "Sort: name"], ["score", "Sort: score"], ["contact", "Sort: last contact"], ["searched", "Sort: least recently searched"]].map(([k, t]) => el("option", { value: k }, t)));
+  const sort = el("select", {}, [["name", "Sort: name"], ["fit", "Sort: fit, then timing"], ["score", "Sort: timing score"], ["contact", "Sort: last contact"], ["searched", "Sort: least recently searched"]].map(([k, t]) => el("option", { value: k }, t)));
   const count = el("span", { class: "count" });
-  const cols = "1.4fr .9fr 1fr .8fr 1.3fr .5fr .75fr .85fr 190px";
-  const head = el("div", { class: "trow head", style: `--cols:${cols}` }, ["Investor", "Stage", "Region / focus", "Last contact", "Latest signal", "Score", "Last searched", "Next search", "Action"].map((h) => el("div", {}, h)));
+  const cols = "1.4fr .9fr .7fr 1fr .7fr 1.3fr .55fr .75fr .85fr 190px";
+  const head = el("div", { class: "trow head", style: `--cols:${cols}` }, ["Investor", "Stage", "Fit", "Region / focus", "Last contact", "Latest signal", "Timing", "Last searched", "Next search", "Action"].map((h) => el("div", {}, h)));
   const body = el("div", {});
   const draw = () => {
     const q = search.value.trim().toLowerCase(), st = stage.value;
@@ -664,6 +683,7 @@ function directory(data, now, hot) {
       return el("div", { class: "trow", style: `--cols:${cols}` },
         el("div", { class: "vc" }, el("b", {}, el("a", { href: `#/vc/${v.id}` }, v.firm)), el("small", {}, lead ? lead.name : "No partner found yet")),
         el("div", {}, btag(bucket)),
+        el("div", {}, fitChip(v) || el("span", { class: "dim" }, "\u2014")),
         el("div", { class: "dim" }, [v.geo, v.stage_focus].filter(Boolean).join(" \u00b7 ")),
         el("div", {}, d == null ? el("span", { class: "dim" }, "\u2014") : `${d}d ago`),
         el("div", { class: "dim" }, best ? `${fmtDate(best.published_date)}: ${(LBL.type[best.type] || best.type)}${best.relevance === "logistics" ? " (logistics)" : ""}` : "\u2014"),
@@ -695,7 +715,7 @@ function logoFor(v) {
 // Before you approach: a warning. Once you're talking: a quiet note. Once they've said no: nothing.
 function fitNote(v, bucket) {
   if (!v.flag || bucket === "declined") return null;
-  if (["reach", "dormant", "skip"].includes(bucket)) return el("div", { class: "warnbox" }, el("b", {}, "Check the fit before you reach out. "), `${v.flag}. Their focus: ${v.thesis}.`);
+  if (["reach", "pitch", "park", "dormant", "skip"].includes(bucket)) return el("div", { class: "warnbox" }, el("b", {}, "Check before you reach out. "), `${v.flag}. Their focus: ${v.thesis}.`);
   return el("div", { class: "fitnote" }, `Fit note: ${v.flag}. Their focus: ${v.thesis}.`);
 }
 
@@ -711,10 +731,12 @@ function statusBlock(v, now, bucket, score) {
   }[bucket];
   if (text) return el("div", { class: "statusblock" }, el("div", { class: "big" }, text[0]), el("div", { class: "sub2" }, text[1]));
   if (bucket === "skip") return el("div", { class: "statusblock" }, el("div", { class: "big" }, "Not a fit"), el("div", { class: "sub2" }, (v.signal_summary || "").replace("Skipped: ", "")));
-  return el("div", { class: "statusblock", style: "min-width:200px" }, el("div", { class: "big", style: `font-size:44px;color:${scoreColor(score)}` }, String(score)),
-    el("div", { class: "pl" }, el("span", {}, "Priority score"), el("span", {}, `${score} / 100`)),
+  return el("div", { class: "statusblock", style: "min-width:200px" },
+    el("div", { class: "chips", style: "margin-bottom:8px" }, fitChip(v) || el("span", { class: "chip" }, "Fit not rated yet")),
+    el("div", { class: "big", style: `font-size:44px;color:${scoreColor(score)}` }, String(score)),
+    el("div", { class: "pl" }, el("span", {}, "Timing score"), el("span", {}, `${score} / 100`)),
     el("div", { class: "pbar" }, el("i", { style: `width:${score}%;background:${scoreColor(score)}` })),
-    el("div", { class: "sub2" }, "70+ strong \u00b7 40\u201369 medium \u00b7 under 40 weak"));
+    el("div", { class: "sub2" }, "How fresh and deal-like the signals are. Fit is rated separately."));
 }
 
 function declinedPanel(d) {
@@ -827,9 +849,11 @@ function fitPanel(v, fit) {
   ];
   return el("div", { class: "panel" }, el("h3", {}, "Fit and background"),
     el("dl", { class: "kv" }, kv.flatMap(([k, val]) => [el("dt", {}, k), el("dd", {}, val)])),
-    fit ? el("div", { style: "margin-top:12px" }, el("b", {}, `How fit changes the score: \u00d7${fit.multiplier}`),
-      fit.reasons.length ? el("ul", { class: "bullets", style: "margin-top:6px" }, fit.reasons.map((r) => el("li", {}, r))) : el("p", { class: "note", style: "margin:4px 0 0" }, "No fit penalty: a focused seed fund.")) : null,
-    v.flag ? el("div", { class: "chips", style: "margin-top:10px" }, el("span", { class: "chip warn" }, v.flag)) : null,
+    el("div", { style: "margin-top:12px" }, el("div", { class: "chips" }, fitChip(v) || el("span", { class: "chip" }, "Not rated yet"), el("b", {}, " Fit is separate from the timing score")),
+      (v.fit_good || []).length || (v.fit_concerns || []).length
+        ? el("ul", { class: "bullets", style: "margin-top:6px" }, [...(v.fit_good || []).map((r) => el("li", {}, "\u2713 " + r)), ...(v.fit_concerns || []).map((r) => el("li", {}, "\u26a0 " + r))])
+        : el("p", { class: "note", style: "margin:4px 0 0" }, "Fit has not been rated yet. It appears after the next run.")),
+    (v.fit_badges || []).length ? el("div", { class: "chips", style: "margin-top:10px" }, (v.fit_badges || []).map((b) => el("span", { class: "chip warn", title: "Data quality: does not change the fit rating" }, b))) : null,
     v.background ? el("p", { class: "note" }, `From your original list: ${v.background}. `, seed ? el("a", { href: seed, target: "_blank", rel: "noopener noreferrer" }, "list source") : null, " (not independently verified)") : null);
 }
 
@@ -858,6 +882,13 @@ const REASON = {
 
 function checkSummary(c) {
   const d = c.detail || {}, lines = [];
+  const scoreLine = () => {
+    if (d.score == null) return;
+    const p = c._prev && c._prev.detail, base = `Timing score ${d.score}`;
+    if (p && p.score != null && p.score !== d.score) {
+      lines.push(`${base} (was ${p.score}): ` + (p.score_version !== d.score_version ? `scoring formula changed (v${p.score_version ?? 1} \u2192 v${d.score_version})` : "its signals aged or changed"));
+    } else lines.push(base);
+  };
   const outcome = !c.ok ? ["red", "Check failed"] : c.outcome === "signal" ? ["green", "Found activity"] : c.outcome === "skipped_fit" ? ["gray", "Skipped: not a fit"] : c.outcome === "rescored" ? ["gray", "Re-scored from saved signals"] : ["blue", "Search found nothing new"];
   if (!c.ok) lines.push(`${friendlyError(c.error)} this run, so the previous results were kept.`);
   else if (c.outcome === "skipped_fit") lines.push((d.reason || "Not a fit for this round") + ", so no searches were run.");
@@ -876,10 +907,13 @@ function checkSummary(c) {
     const rl = Object.entries(rj);
     if (rl.length) lines.push("Rejected by validation: " + rl.map(([r, n]) => `${REASON[r] || label(r)} \u00d7${n}`).join(", ") + ".");
   }
+  scoreLine();
   return { outcome, lines };
 }
 
 function checksPanel(allChecks) {
+  // Each entry can say how the score moved: compare with the next older entry that recorded a score.
+  allChecks.forEach((c, i) => { c._prev = allChecks.slice(i + 1).find((o) => o.detail && o.detail.score != null) || null; });
   // Free re-scores are housekeeping, not checks: fold them into one collapsed line so real searches stand out.
   const rescored = allChecks.filter((c) => c.outcome === "rescored"), checks = allChecks.filter((c) => c.outcome !== "rescored");
   // Identical back-to-back results are one entry with a count, not a wall of repeats.
@@ -897,7 +931,7 @@ function checksPanel(allChecks) {
   const more = rows.length > 2 ? el("button", { class: "seemore" }, `See ${rows.length - 2} more`) : null;
   if (more) more.onclick = () => { const open = rest.style.display === "none"; rest.style.display = open ? "block" : "none"; more.textContent = open ? "Show less" : `See ${rows.length - 2} more`; };
   const housekeeping = rescored.length ? el("details", { style: "margin-top:10px" }, el("summary", { class: "note" }, `${plural(rescored.length, "re-score")} from saved signals (free, no search)`),
-    rescored.slice(0, 10).map((c) => el("div", { class: "tl" }, el("b", {}, new Date(c.checked_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), " ", el("small", {}, "re-scored from saved signals")))) : null;
+    rescored.slice(0, 10).map((c) => el("div", { class: "tl" }, el("b", {}, new Date(c.checked_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), " ", el("small", {}, c.detail && c.detail.score != null ? `re-scored: timing ${c.detail.score}` : "re-scored from saved signals")))) : null;
   return el("div", { class: "panel wide" }, el("h3", {}, "Check history"),
     rows.length ? [rows.slice(0, 2), rest, more] : el("div", { class: "empty" }, "No search yet."),
     housekeeping,
@@ -922,7 +956,6 @@ function renderProfile(d) {
   const bucket = bucketOf(v, now, hotSet(d.evidence, now));
   const unverified = d.evidence.filter((e) => e.source_tier === "legacy_unverified").length;
   const logi = d.evidence.filter((e) => e.relevance === "logistics"), other = d.evidence.filter((e) => e.relevance !== "logistics");
-  const fit = (d.checks.find((c) => c.detail && c.detail.fit) || {}).detail;
   show(
     el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
     el("div", { class: "ph" },
@@ -941,7 +974,7 @@ function renderProfile(d) {
         unverified ? el("p", { class: "note", style: "margin:-6px 0 8px" }, `${unverified} signal${unverified > 1 ? "s" : ""} below ${unverified > 1 ? "come" : "comes"} from a source that was not verified, so ${unverified > 1 ? "they are" : "it is"} shown for reference only and not counted in the score.`) : null,
         logi.length ? logi.map(signalRow) : el("div", { class: "empty" }, "No logistics signal from a trusted source in the last 30 days."),
         other.length ? el("details", { style: "margin-top:12px" }, el("summary", { class: "note" }, `Other fund activity (${other.length}): not about logistics, so it does not drive the score much`), other.map(signalRow)) : null),
-      privatePanel(d), relPanel(v, now), fitPanel(v, fit && fit.fit), el("div", {}), checksPanel(d.checks)));
+      privatePanel(d), relPanel(v, now), fitPanel(v), el("div", {}), checksPanel(d.checks)));
   window.scrollTo(0, 0);
 }
 

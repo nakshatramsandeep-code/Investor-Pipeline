@@ -27,9 +27,15 @@ class FitRules:
     require_investing: bool
     stage_must_match_any: list[str]
     hard_exclude_flags: list[str]
-    soft_penalties: dict[str, float]
-    fit_factors: dict[str, float]
+    thesis_keywords: list[str]
+    logistics_portfolio: list[str]
+    fit_points: dict[str, int]
+    levels: dict[str, int]
+    preferred_geos: list[str]
     growth_stage_words: list[str]
+    concern_flags: list[str]
+    scale_flags: list[str]
+    confidence_flags: list[str]
     competitors: list[str]
 
 
@@ -39,9 +45,6 @@ class Weights:
     window_days: int
     half_life_days: float
     extra_signal: float
-    new_since_last_run: float
-    preferred_geo: float
-    preferred_geos: list[str]
     waiting_nudge_days: int
     quiet_nudge_score: int
     reach_out_min_score: int
@@ -53,6 +56,7 @@ class Weights:
     sched_dormant_days: int
     source_tiers: dict[str, float]
     relevance: dict[str, float]
+    score_version: int = 2
 
 
 @dataclass(frozen=True)
@@ -105,12 +109,30 @@ def _pos_int(v, name: str) -> int:
     return v
 
 
-def _fit_factors(d: dict, w: str) -> dict[str, float]:
-    f = _get(d, "fit_factors", dict, w)
-    missing = {"growth_stage", "generalist_thesis", "conflict"} - set(f)
+POINT_KEYS = {"logistics_thesis", "seed_stage", "early_stage", "preferred_geo", "logistics_track_record",
+              "concern", "scale_concern", "conflict"}
+
+
+def _fit_points(d: dict, w: str) -> dict[str, int]:
+    f = _get(d, "fit_points", dict, w)
+    missing = POINT_KEYS - set(f)
     if missing:
-        raise ConfigError(f"{w}: fit_factors is missing {sorted(missing)}")
-    return {k: _unit(v, f"{w}: fit_factors[{k}]") for k, v in f.items()}
+        raise ConfigError(f"{w}: fit_points is missing {sorted(missing)}")
+    out = {}
+    for k, v in f.items():
+        if isinstance(v, bool) or not isinstance(v, int) or not -10 <= v <= 10:
+            raise ConfigError(f"{w}: fit_points[{k}] must be a whole number between -10 and 10, got {v!r}")
+        out[k] = v
+    return out
+
+
+def _levels(d: dict, w: str) -> dict[str, int]:
+    lv = _get(d, "levels", dict, w)
+    if set(lv) != {"high", "medium"} or not all(isinstance(v, int) and not isinstance(v, bool) for v in lv.values()):
+        raise ConfigError(f"{w}: levels must be exactly high and medium, as whole numbers")
+    if lv["high"] <= lv["medium"]:
+        raise ConfigError(f"{w}: levels.high must be above levels.medium")
+    return dict(lv)
 
 
 def _str_list_or_empty(d: dict, key: str, where: str) -> list[str]:
@@ -123,15 +145,20 @@ def _str_list_or_empty(d: dict, key: str, where: str) -> list[str]:
 def load_fit_rules(path: Path) -> FitRules:
     d = _load_yaml(path)
     w = path.name
-    penalties = _get(d, "soft_penalties", dict, w)
     return FitRules(
         topic_keywords=_str_list(d, "topic_keywords", w, lower=False),
         require_investing=_get(d, "require_investing", bool, w),
         stage_must_match_any=_str_list(d, "stage_must_match_any", w),
         hard_exclude_flags=_str_list(d, "hard_exclude_flags", w),
-        soft_penalties={str(k).lower(): _unit(v, f"{w}: soft_penalties[{k}]") for k, v in penalties.items()},
-        fit_factors=_fit_factors(d, w),
+        thesis_keywords=_str_list(d, "thesis_keywords", w),
+        logistics_portfolio=_str_list(d, "logistics_portfolio", w, lower=False),
+        fit_points=_fit_points(d, w),
+        levels=_levels(d, w),
+        preferred_geos=_str_list(d, "preferred_geos", w),
         growth_stage_words=_str_list(d, "growth_stage_words", w),
+        concern_flags=_str_list(d, "concern_flags", w),
+        scale_flags=_str_list(d, "scale_flags", w),
+        confidence_flags=_str_list(d, "confidence_flags", w),
         competitors=_str_list_or_empty(d, "competitors", w),
     )
 
@@ -155,9 +182,6 @@ def load_weights(path: Path) -> Weights:
         window_days=window,
         half_life_days=half,
         extra_signal=_unit(_get(bon, "extra_signal", float, f"{w}: bonuses"), "extra_signal"),
-        new_since_last_run=_unit(_get(bon, "new_since_last_run", float, f"{w}: bonuses"), "new_since_last_run"),
-        preferred_geo=_unit(_get(bon, "preferred_geo", float, f"{w}: bonuses"), "preferred_geo"),
-        preferred_geos=_str_list(d, "preferred_geos", w),
         waiting_nudge_days=_get(rou, "waiting_nudge_days", int, f"{w}: routing"),
         quiet_nudge_score=_get(rou, "quiet_nudge_score", int, f"{w}: routing"),
         reach_out_max_age=_get(rou, "reach_out_max_signal_age_days", int, f"{w}: routing"),
@@ -168,6 +192,7 @@ def load_weights(path: Path) -> Weights:
         general_content_factor=_unit(_get(d, "general_content_factor", float, w), "general_content_factor"),
         content_only_cap=_unit(_get(d, "content_only_cap", float, w), "content_only_cap"),
         relevance={k: _unit(v, f"{w}: relevance[{k}]") for k, v in _get(d, "relevance", dict, w).items()},
+        score_version=_get(d, "score_version", int, w),
         source_tiers={k: _unit(v, f"{w}: source_tiers[{k}]") for k, v in _get(d, "source_tiers", dict, w).items()},
     )
 

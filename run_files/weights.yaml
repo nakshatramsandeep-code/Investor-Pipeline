@@ -1,6 +1,11 @@
 # Scoring weights. Read by code (schema-checked in pipeline/config.py).
 # Tune these after you have a few weeks of useful / not-useful feedback.
 version: 1
+score_version: 2   # bump when the formula changes: the check history records which version produced each score
+
+# This file scores TIMING only: how fresh and how deal-like is this fund's activity. Whether the fund FITS
+# Vikram is rated separately in fit_rules.yaml. The score depends only on the saved signals and today's date,
+# so it can only move when a signal arrives or ages (never because of what was shown last time).
 
 signal_types:            # how strong is each kind of signal (0..1)
   portfolio_investment: 1.0
@@ -20,10 +25,7 @@ recency:
 
 bonuses:
   extra_signal: 0.10     # per additional distinct signal, up to 3 extra
-  new_since_last_run: 0.10   # newest signal is newer than what Vikram was already shown
-  preferred_geo: 0.05    # vc_profile.geo contains one of preferred_geos
 
-preferred_geos: [india, global]
 
 routing:
   waiting_nudge_days: 7        # pitched this long ago with no reply -> follow up (silence is a reason)

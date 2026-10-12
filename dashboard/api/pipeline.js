@@ -10,9 +10,11 @@ module.exports = async function handler(req, res) {
                  v.last_signal_date::text AS last_signal_date, v.signal_summary, v.follow_up_score, v.recommended_action,
                  v.thesis, p.geo, p.stage_focus, p.flag, p.background,
                  c.checked_at, c.ok AS check_ok, c.outcome, c.error AS check_error,
-                 sr.searched_at AS last_searched_at
+                 sr.searched_at AS last_searched_at,
+                 f.level AS fit_level, f.points AS fit_points, f.good AS fit_good, f.concerns AS fit_concerns, f.badges AS fit_badges
           FROM vcs v
           JOIN vc_profile p ON p.vc_id = v.id
+          LEFT JOIN vc_fit f ON f.vc_id = v.id
           LEFT JOIN LATERAL (
             SELECT checked_at, ok, outcome, error FROM vc_check_log
             WHERE vc_id = v.id ORDER BY checked_at DESC LIMIT 1) c ON true

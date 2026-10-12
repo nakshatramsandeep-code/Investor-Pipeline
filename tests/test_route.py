@@ -82,12 +82,10 @@ def test_fit_stages_that_pass(rf, stage):
     assert fit_gate(make_vc(stage_focus=stage), rf.fit)[0]
 
 
-def test_fit_soft_penalty_lowers_multiplier_but_passes(rf):
-    ok, mult, _ = fit_gate(make_vc(flag="Verify geography"), rf.fit)
-    assert ok and mult < 1
+def test_a_data_quality_flag_does_not_fail_the_gate(rf):
+    ok, _, _ = fit_gate(make_vc(flag="Verify geography"), rf.fit)
+    assert ok
 
-
-# ---------------------------------------------------------------- score + decision
 
 def test_fresh_beats_stale_signal(rf):
     fresh = decide(make_vc(), [make_signal(days_ago=2)], rf.fit, rf.weights, TODAY)
@@ -106,11 +104,12 @@ def test_score_is_capped_at_100(rf):
     assert decide(make_vc(geo="India"), sigs, rf.fit, rf.weights, TODAY).score <= 100
 
 
-def test_already_shown_signal_scores_lower_than_new_one(rf):
+def test_already_shown_signal_scores_the_same_as_a_new_one(rf):
+    """Stability: the score never changes just because Vikram has seen the signal."""
     sig = [make_signal(days_ago=4)]
     new = decide(make_vc(last_signal_date=None), sig, rf.fit, rf.weights, TODAY)
     seen = decide(make_vc(last_signal_date=ago(4)), sig, rf.fit, rf.weights, TODAY)
-    assert new.score > seen.score
+    assert new.score == seen.score
 
 
 def test_skip_never_overwrites_last_signal_date(rf):

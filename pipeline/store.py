@@ -15,7 +15,7 @@ SELECT v.id, v.name, v.firm, v.thesis, v.status, v.last_contacted_at, v.last_sig
        p.geo, p.stage_focus, p.is_investing, p.flag, p.website, v.revisit_on,
        (SELECT max(c.checked_at) FROM vc_check_log c
          WHERE c.vc_id = v.id AND c.ok AND c.outcome IN ('signal', 'no_signal', 'skipped_fit')) AS last_checked_at,
-       v.recommended_action
+       v.recommended_action, p.background
 FROM vcs v JOIN vc_profile p ON p.vc_id = v.id
 ORDER BY v.id
 """
@@ -45,6 +45,14 @@ INSERT INTO vc_check_log (vc_id, run_id, ok, outcome, n_pages, n_signals, n_drop
 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 
+
+# Fit is derived data (like evidence), so it lives in its own table, not in the vcs columns Vikram owns.
+FIT_SQL = """
+INSERT INTO vc_fit (vc_id, level, points, good, concerns, badges, score_version, updated_at)
+VALUES (%s, %s, %s, %s, %s, %s, %s, now())
+ON CONFLICT (vc_id) DO UPDATE SET level = EXCLUDED.level, points = EXCLUDED.points, good = EXCLUDED.good,
+    concerns = EXCLUDED.concerns, badges = EXCLUDED.badges, score_version = EXCLUDED.score_version, updated_at = now()
+"""
 
 PEOPLE_SQL = """
 SELECT vc_id, name, role, source_url, source_domain, source_tier, quote, discovered_at, false
@@ -118,6 +126,11 @@ class PgStore:
                 if r.ok and r.decision:
                     d = r.decision
                     cur.execute(UPDATE_SQL, (d.last_signal_date, d.summary, d.score, d.action, r.vc.id))
+                    if d.fit:
+                        f = d.fit
+                        cur.execute(FIT_SQL, (r.vc.id, f["level"], f.get("points", 0), json.dumps(f.get("good", [])),
+                                              json.dumps(f.get("concerns", [])), json.dumps(f.get("badges", [])),
+                                              r.detail.get("score_version")))
                     for s in r.signals:
                         cur.execute(EVIDENCE_SQL, (r.vc.id, run_id, s.type, s.summary, s.quote, s.url, s.published,
                                               s.source_domain, s.source_tier, s.person_name, s.person_role, s.relevance))

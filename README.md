@@ -160,14 +160,29 @@ uses that topic. In testing it surfaced far fewer pages that name a specific fun
 signals; check "Skipped untrusted sources" in an investor's check history and add good outlets to
 `run_files/sources.yaml`.
 
-## Fit is part of the score
+## Fit and Timing are two separate things
 
-Beyond the flag penalties, `run_files/fit_rules.yaml` scores how well a fund matches a Seed logistics pitch:
-a stage focus that stretches to growth/late (x0.85), a thesis that never mentions your topic (x0.8, "generalist"),
-and a "check seed cheque fit" flag (x0.7). The multiplier and each reason are stored with every check and shown on
-the investor's profile ("How fit changes the score"), so a big or off-topic fund can't rank "strong" on freshness
-alone. **Fill in `competitors:`** with the names of companies that compete with yours: a fund whose recent signals
-mention one is flagged "possible conflict" and scored down (x0.5). It is empty because the pipeline can't know them.
+The old single score blended "is there news about this fund?" with "should I pitch this fund?". It is now two answers,
+shown side by side and never multiplied together:
+
+- **Fit** (high / medium / low), from `run_files/fit_rules.yaml`: points for a logistics-first thesis, a seed stage,
+  a preferred region and a logistics track record (background mentions logistics, or a company in `logistics_portfolio`);
+  minus points for concerns. **Each concern counts once**: "large fund", "growth stage" and "check seed cheque fit" are
+  one concern, not three. Data-quality flags ("verify", "evidence from 2018") are a badge on the profile and never change
+  the rating. Fit is stored in the `vc_fit` table (derived data, kept out of Vikram's `vcs` columns) and is stable: it
+  changes only when the fund's data or the rules change.
+- **Timing** (0-100, the `follow_up_score` column), from `run_files/weights.yaml`: how fresh and deal-like the signals are.
+  It depends only on the saved signals and today's date, so it cannot move without a reason. The check history now says
+  why a score moved ("was 79: its signals aged or changed", or "scoring formula changed (v1 to v2)"). Bump
+  `score_version` when you change the formula.
+
+Where a prospect lands: **Reach out** = not a low-fit fund, with a logistics signal in the last 14 days (best fit first,
+then timing). **Pitch with thesis hook** = high fit but no recent news: write about their thesis. **Warm** = an older
+(15-30 day) logistics signal. **Park** = low fit, even with news. **Dormant** = no logistics news and no clear fit.
+Contacted funds show their relationship state and next step instead of a pitch score.
+
+**Fill in `competitors:`** with companies that compete with yours: a fund whose recent signals mention one gets a
+"possible conflict" concern. It is empty because the pipeline can't know them.
 
 ## What the dashboard shows
 

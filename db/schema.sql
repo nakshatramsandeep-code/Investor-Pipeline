@@ -138,6 +138,19 @@ CREATE TABLE IF NOT EXISTS vc_people (
     UNIQUE (vc_id, name)
 );
 
+-- Fit rating per investor (high / medium / low / excluded). Derived data written by the job, kept out of vcs so
+-- the four signal columns stay exactly four. Separate from timing (follow_up_score).
+CREATE TABLE IF NOT EXISTS vc_fit (
+    vc_id         integer PRIMARY KEY REFERENCES vcs(id) ON DELETE CASCADE,
+    level         text NOT NULL CHECK (level IN ('high', 'medium', 'low', 'excluded')),
+    points        integer NOT NULL DEFAULT 0,
+    good          jsonb NOT NULL DEFAULT '[]',
+    concerns      jsonb NOT NULL DEFAULT '[]',
+    badges        jsonb NOT NULL DEFAULT '[]',
+    score_version integer,
+    updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
 -- ---------------------------------------------------------------- roles
 -- Three least-privilege roles. Passwords are set by scripts/setup_db.py.
 -- Vikram keeps the owner role (the one that ran this file) for his notes.
@@ -202,3 +215,6 @@ GRANT SELECT (active), UPDATE (active) ON signal_evidence TO signal_job;
 
 -- The job reads when each investor was last checked successfully, to decide who is due (check schedule).
 GRANT SELECT (vc_id, checked_at, ok, outcome) ON vc_check_log TO signal_job;
+
+GRANT SELECT, INSERT, UPDATE ON vc_fit TO signal_job;
+GRANT SELECT ON vc_fit TO dashboard_ro;

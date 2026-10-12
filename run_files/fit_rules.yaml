@@ -1,39 +1,48 @@
-# Fit gate: is this investor a plausible target for Vikram's Seed round at all?
-# Read by code (schema-checked in pipeline/config.py). A VC that fails is routed to "skip"
-# and no search / LLM budget is spent on it.
+# Fit: is this investor a good target for Vikram's Seed round? Read by code (schema-checked in pipeline/config.py).
+# Fit is a rating (high / medium / low) built from points, and it is separate from Timing (is there a fresh signal?).
+# The two are never multiplied together: fit decides WHO is worth pitching, timing decides WHEN.
 version: 1
 
 # Words used to build the search query for each VC.
 topic_keywords: [supply chain, logistics, freight, warehouse]
 
-# Hard gates (any failure -> skip)
+# Words that make a fund's thesis "logistics-native" (matched against the thesis text).
+thesis_keywords: [supply chain, logistics, freight, warehouse, transport, mobility, shipping, trade, fleet, maritime, customs]
+
+# Logistics companies a fund has backed before. A mention in its background counts as track record. Add your own.
+logistics_portfolio: [Porter, Daakit, Delhivery, Shadowfax, Rivigo, BlackBuck, Flexport, Convoy, Project44, Locus, Zepto]
+
+# Hard gates (any failure -> skip, and no search budget is spent on it)
 require_investing: true            # vc_profile.is_investing must be true
 stage_must_match_any:              # case-insensitive substring of vc_profile.stage_focus
   - pre-seed
   - seed
   - early
-  - corporate                      # corporate funds sometimes write seed cheques; softened below
+  - corporate                      # corporate funds sometimes write seed cheques; rated down below
 hard_exclude_flags:                # case-insensitive substring of vc_profile.flag
   - not currently investing
 
-# Soft penalties: multiply the follow-up score. First column = substring of flag or stage.
-soft_penalties:
-  "verify": 0.9                    # unverified facts about this firm
-  "leans hardware": 0.8
-  "leans deep tech": 0.85
-  "check seed cheque fit": 0.7     # big fund: a seed cheque may not be their thing
-  "check saas fit": 0.85
-  "low-quality source": 0.85
-  "corporate": 0.85
+# Points. Each distinct reason counts ONCE, so the same worry is never penalised twice.
+fit_points:
+  logistics_thesis: 3              # thesis is about logistics / supply chain
+  seed_stage: 2                    # stage focus includes pre-seed / seed
+  early_stage: 1                   # "early" only
+  preferred_geo: 1                 # geography matches preferred_geos
+  logistics_track_record: 1        # background mentions logistics or a logistics portfolio company
+  concern: -1                      # each of concern_flags
+  scale_concern: -2                # big fund / growth stage: counted once, however many ways it shows up
+  conflict: -2                     # a recent signal mentions one of the competitors below
+levels:                            # points needed
+  high: 5
+  medium: 3                        # below this: low
 
-# Fit beyond the flags: how well does this fund match a Seed logistics-SaaS pitch? Each factor multiplies the score
-# (and is shown on the investor's profile), so a fund that fits badly cannot rank 'strong' on freshness alone.
-fit_factors:
-  growth_stage: 0.85               # stage focus stretches to growth / late: seed is not the core
-  generalist_thesis: 0.8           # thesis never mentions your topic (see topic_keywords)
-  conflict: 0.5                    # a recent signal mentions one of the competitors below
+preferred_geos: [india, global]
 growth_stage_words: [growth, late]
+concern_flags: ["leans hardware", "leans deep tech", "check saas fit", "corporate"]
+scale_flags: ["check seed cheque fit"]
+# Data-quality flags are shown as a confidence badge. They never change the fit rating.
+confidence_flags: ["verify", "low-quality source", "evidence from"]
 
-# Names of companies that compete with yours. If a fund's recent signals mention one, the fund is flagged
-# "possible conflict" and scored down. Fill this in: it is empty because I don't know your competitors.
+# Names of companies that compete with yours. If a fund's recent signals mention one, it is flagged
+# "possible conflict". Fill this in: it is empty because I don't know your competitors.
 competitors: []

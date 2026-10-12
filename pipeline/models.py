@@ -21,6 +21,7 @@ class VC:
     revisit_on: date | None = None   # a declined investor to look at again from this date
     last_checked_at: datetime | None = None   # last successful check, for the check schedule
     action: str | None = None        # the recommendation from the previous run
+    background: str = ""              # vc_profile.background: used for fit (track record)
 
 
 @dataclass(frozen=True)
@@ -64,7 +65,7 @@ class Decision:
     score: int                       # 0..100
     summary: str
     last_signal_date: date | None    # None = leave the stored value alone
-    fit: dict = field(default_factory=dict)   # {'multiplier': 0.6, 'reasons': [...]} for the dashboard
+    fit: dict = field(default_factory=dict)   # {'level': 'high|medium|low|excluded', 'points', 'good', 'concerns', 'badges'}
 
 
 @dataclass
