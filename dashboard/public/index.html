@@ -783,14 +783,11 @@ function renderProfile(d) {
 
 async function loadProfile(id) {
   show(el("div", { class: "sk", style: "height:34px;width:260px;margin-bottom:18px" }), el("div", { class: "sk", style: "height:220px;margin-bottom:12px" }), el("div", { class: "sk", style: "height:220px" }));
-  try {
-    const r = await fetch(`/api/vc?id=${id}`);
-    if (!r.ok) throw new Error(r.status);
-    renderProfile(await r.json());
-  } catch {
-    show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"),
-      el("div", { class: "insight bad" }, el("h3", {}, "Could not load this investor"), el("p", {}, "Try again in a minute.")));
-  }
+  let data;
+  try { data = await fetchJson(`/api/vc?id=${id}`); }
+  catch (e) { show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"), failBox("Could not load this investor", () => loadProfile(id), e)); return; }
+  try { renderProfile(data); }
+  catch (e) { console.error(e); show(el("a", { class: "back", href: "#/" }, "\u2190 Back to pipeline"), failBox("The page hit a display error", () => loadProfile(id), e)); }
 }
 
 function route() {
@@ -799,17 +796,33 @@ function route() {
   return load(location.hash === "#/status" ? "status" : "action");
 }
 
+// The database sleeps when idle and takes a few seconds to wake, so the first request after a quiet spell can
+// fail once. Retry quietly a couple of times before showing an error, and offer a Retry button when it does.
+async function fetchJson(url, tries = 3) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch (e) { last = e; if (i < tries - 1) await new Promise((res) => setTimeout(res, 1000 * (i + 1))); }
+  }
+  throw last;
+}
+
+const failBox = (title, retry, e) => el("div", { class: "insight bad" }, el("h3", {}, title),
+  el("p", {}, "The database may be waking up after being idle. This usually clears in a few seconds."),
+  el("p", { class: "note" }, `Details: ${(e && e.message) || "network error"}`),
+  el("button", { class: "primary", onclick: retry }, "Retry"));
+
 async function load(view, quiet) {
   view = view || (location.hash === "#/status" ? "status" : "action");
   if (!quiet) show(...skeleton());
-  try {
-    const r = await fetch("/api/pipeline");
-    if (!r.ok) throw new Error(r.status);
-    const data = await r.json();
-    view === "status" ? renderStatus(data) : render(data);
-  } catch {
-    show(el("div", { class: "insight bad" }, el("h3", {}, "Could not load the pipeline"), el("p", {}, "Try again in a minute.")));
-  }
+  let data;
+  try { data = await fetchJson("/api/pipeline"); }
+  catch (e) { show(failBox("Could not load the pipeline", () => load(view), e)); return; }
+  try { view === "status" ? renderStatus(data) : render(data); }
+  catch (e) { console.error(e); show(failBox("The page hit a display error", () => load(view), e)); }
 }
 window.addEventListener("hashchange", route);
 route();
